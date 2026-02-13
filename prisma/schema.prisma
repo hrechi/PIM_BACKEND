@@ -22,5 +22,41 @@ model User {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
+  animals        Animal[]
+
   @@map("users")
 }
+
+model Animal {
+  id             String   @id @default(uuid())
+  nodeId         String   @unique
+  farmerId       String
+  farmer         User     @relation(fields: [farmerId], references: [id])
+  name           String
+  animalType     String   // COW, SHEEP, HORSE, GOAT, BIRD, OTHER
+  breed          String?
+  age            Int      // months
+  ageYears       Int      @default(0)
+  sex            String   // MALE, FEMALE
+  weight         Float?
+  color          String?
+  healthStatus   String   @default("OPTIMAL") // OPTIMAL, WARNING, CRITICAL
+  vitalityScore  Int      @default(100)
+  bodyTemp       Float?
+  activityLevel  String   @default("MODERATE") // LOW, MODERATE, HIGH
+  lastVetCheck   DateTime?
+  vaccination    Boolean  @default(false)
+  milkYield      Float?
+  fatContent     Float?
+  protein        Float?
+  feedIntakeRecorded DateTime?
+  dewormingScheduled DateTime?
+  profileImage   String?
+  tagNumber      String?
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("animals")
+}
+
