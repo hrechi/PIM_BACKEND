@@ -19,8 +19,52 @@ model User {
   refreshToken   String?
   otp            String?
   otpExpiresAt   DateTime?
+  fields         Field[]
+  missions       Mission[]
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
   @@map("users")
+}
+
+model Field {
+  id               String   @id @default(uuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name             String
+  cropType         String?
+  areaCoordinates  Json     // [[lat, lng], [lat, lng], ...]
+  areaSize         Float?   // in square meters
+  missions         Mission[]
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("fields")
+  @@index([userId])
+}
+
+model Mission {
+  id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fieldId         String
+  field           Field    @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+  title           String
+  description     String?
+  missionType     String   // PLANTING, HARVESTING, IRRIGATION, FERTILIZING, PEST_CONTROL, MAINTENANCE, MONITORING, OTHER
+  status          String   @default("PENDING") // PENDING, IN_PROGRESS, COMPLETED, CANCELLED
+  priority        String   @default("MEDIUM") // LOW, MEDIUM, HIGH, URGENT
+  dueDate         DateTime?
+  assignedDate    DateTime @default(now())
+  completedAt     DateTime?
+  estimatedDuration Int?   // in hours
+  actualDuration  Int?     // in hours
+  progress        Int      @default(0) // 0-100
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("missions")
+  @@index([userId])
+  @@index([fieldId])
 }
