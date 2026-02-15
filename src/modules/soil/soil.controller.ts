@@ -18,14 +18,19 @@ import {
   ApiQuery,
 } from '@nestjs/swagger';
 import { SoilService } from './soil.service';
+import { SoilAiService } from './soil-ai.service';
 import { CreateSoilDto } from './dto/create-soil.dto';
 import { UpdateSoilDto } from './dto/update-soil.dto';
 import { QuerySoilDto } from './dto/query-soil.dto';
+import { BatchPredictionDto } from './dto/batch-prediction.dto';
 
 @ApiTags('Soil Measurements')
 @Controller('soil')
 export class SoilController {
-  constructor(private readonly soilService: SoilService) {}
+  constructor(
+    private readonly soilService: SoilService,
+    private readonly soilAiService: SoilAiService,
+  ) {}
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
@@ -215,5 +220,111 @@ export class SoilController {
   })
   remove(@Param('id') id: string) {
     return this.soilService.remove(id);
+  }
+
+  // ==================== AI PREDICTION ENDPOINTS ====================
+
+  @Get(':id/predict')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: '🤖 Predict wilting risk using AI',
+    description:
+      'Fetches soil measurement data and sends it to the AI microservice for wilting risk prediction. ' +
+      'Returns a score (0-100) and risk level (Low/Medium/High).',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Soil measurement UUID',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Prediction generated successfully',
+    schema: {
+      example: {
+        measurementId: '550e8400-e29b-41d4-a716-446655440000',
+        wilting_score: 35.8,
+        risk_level: 'Low',
+        measurement_data: {
+          ph: 6.5,
+          soil_moisture: 0.35,
+          temperature: 25.0,
+          sunlight: 450.0,
+          location: {
+            latitude: 40.7128,
+            longitude: -74.006,
+          },
+          measured_at: '2026-02-14T12:00:00.000Z',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Soil measurement not found',
+  })
+  @ApiResponse({
+    status: 503,
+    description: 'AI service unavailable',
+  })
+  predictWiltingRisk(@Param('id') id: string) {
+    return this.soilAiService.predictWiltingRisk(id);
+  }
+
+  @Post('predict/batch')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: '🤖 Batch predict wilting risk for multiple measurements',
+    description:
+      'Sends multiple soil measurements to AI service for batch prediction. ' +
+      'Useful for analyzing multiple fields or historical data.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Batch predictions generated',
+    schema: {
+      example: [
+        {
+          measurementId: '550e8400-e29b-41d4-a716-446655440000',
+          wilting_score: 35.8,
+          risk_level: 'Low',
+          measurement_data: {
+            ph: 6.5,
+            soil_moisture: 0.35,
+            temperature: 25.0,
+            sunlight: 450.0,
+            location: { latitude: 40.7128, longitude: -74.006 },
+            measured_at: '2026-02-14T12:00:00.000Z',
+          },
+        },
+      ],
+    },
+  })
+  @ApiResponse({
+    status: 503,
+    description: 'AI service unavailable',
+  })
+  batchPredictWiltingRisk(@Body() batchDto: BatchPredictionDto) {
+    return this.soilAiService.batchPredictWiltingRisk(batchDto.measurementIds);
+  }
+
+  @Get('ai/health')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: '🏥 Check AI service health',
+    description: 'Checks if the AI microservice is available and ready to process predictions.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'AI service status',
+    schema: {
+      example: {
+        status: 'healthy',
+        service_url: 'http://localhost:8000',
+      },
+    },
+  })
+  checkAiHealth() {
+    return this.soilAiService.checkAiServiceHealth();
   }
 }
