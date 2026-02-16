@@ -10,6 +10,8 @@ import { UserModule } from './user/user.module';
 import { EmailModule } from './email/email.module';
 import { FieldModule } from './field/field.module';
 import { MissionModule } from './mission/mission.module';
+import { ChatModule } from './chat/chat.module';
+import { ConversationModule } from './conversation/conversation.module';
 
 @Module({
   imports: [
@@ -24,6 +26,8 @@ import { MissionModule } from './mission/mission.module';
     UserModule,
     FieldModule,
     MissionModule,
+    ChatModule,
+    ConversationModule,
   ],
   controllers: [AppController],
   providers: [AppService],
