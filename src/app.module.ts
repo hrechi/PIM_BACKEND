@@ -12,6 +12,7 @@ import { FieldModule } from './field/field.module';
 import { MissionModule } from './mission/mission.module';
 import { ChatModule } from './chat/chat.module';
 import { ConversationModule } from './conversation/conversation.module';
+import { SoilModule } from './modules/soil/soil.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { ConversationModule } from './conversation/conversation.module';
     MissionModule,
     ChatModule,
     ConversationModule,
+    SoilModule,
   ],
   controllers: [AppController],
   providers: [AppService],
