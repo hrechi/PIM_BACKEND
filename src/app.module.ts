@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ServeStaticModule } from '@nestjs/serve-static';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { join } from 'path';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -13,6 +14,7 @@ import { MissionModule } from './mission/mission.module';
 import { ChatModule } from './chat/chat.module';
 import { ConversationModule } from './conversation/conversation.module';
 import { SoilModule } from './modules/soil/soil.module';
+import { SoilMeasurement } from './modules/soil/soil.entity';
 
 @Module({
   imports: [
@@ -20,6 +22,16 @@ import { SoilModule } from './modules/soil/soil.module';
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'uploads'),
       serveRoot: '/uploads',
+    }),
+TypeOrmModule.forRoot({
+  type: 'postgres',
+  host: process.env.DB_HOST || 'localhost',
+  port: parseInt(process.env.DB_PORT || '5432', 10),
+  username: process.env.DB_USERNAME || 'postgres',
+  password: process.env.DB_PASSWORD || 'postgres',
+  database: process.env.DB_NAME || '',
+  entities: [SoilMeasurement],
+  synchronize: true,
     }),
     PrismaModule,
     EmailModule,
