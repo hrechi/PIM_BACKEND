@@ -21,6 +21,85 @@ model User {
   otpExpiresAt   DateTime?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+  parcels        Parcel[]
 
   @@map("users")
+}
+
+model Parcel {
+  id                     String          @id @default(uuid())
+  location               String
+  areaSize               Float
+  boundariesDescription  String
+  soilType               String
+  soilPh                 Float?
+  nitrogenLevel          Float?
+  phosphorusLevel        Float?
+  potassiumLevel         Float?
+  waterSource            String
+  irrigationMethod       String
+  irrigationFrequency    String
+  farmerId               String
+  farmer                 User            @relation(fields: [farmerId], references: [id])
+  crops                  Crop[]
+  fertilizations         Fertilization[]
+  pests                  PestDisease[]
+  harvests               Harvest[]
+  createdAt              DateTime        @default(now())
+  updatedAt              DateTime        @updatedAt
+
+  @@map("parcels")
+}
+
+model Crop {
+  id                  String   @id @default(uuid())
+  cropName            String
+  variety             String
+  plantingDate        DateTime
+  expectedHarvestDate DateTime
+  parcelId            String
+  parcel              Parcel   @relation(fields: [parcelId], references: [id])
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@map("crops")
+}
+
+model Fertilization {
+  id              String   @id @default(uuid())
+  fertilizerType  String
+  quantityUsed    Float
+  applicationDate DateTime
+  parcelId        String
+  parcel          Parcel   @relation(fields: [parcelId], references: [id])
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("fertilizations")
+}
+
+model PestDisease {
+  id             String   @id @default(uuid())
+  issueType      String?  
+  treatmentUsed  String?
+  treatmentDate  DateTime?
+  parcelId       String
+  parcel         Parcel   @relation(fields: [parcelId], references: [id])
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("pest_diseases")
+}
+
+model Harvest {
+  id               String   @id @default(uuid())
+  harvestDate      DateTime?
+  totalYield       Float?
+  yieldPerHectare  Float?
+  parcelId         String
+  parcel           Parcel   @relation(fields: [parcelId], references: [id])
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("harvests")
 }
