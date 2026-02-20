@@ -33,7 +33,7 @@ model Animal {
   farmerId       String
   farmer         User     @relation(fields: [farmerId], references: [id])
   name           String
-  animalType     String   // COW, SHEEP, HORSE, GOAT, BIRD, OTHER
+  animalType     String   // COW, SHEEP, HORSE, DOG
   breed          String?
   age            Int      // months
   ageYears       Int      @default(0)
@@ -47,6 +47,11 @@ model Animal {
   lastVetCheck   DateTime?
   vaccination    Boolean  @default(false)
   milkYield      Float?
+  woolYield      Float?
+  isPregnant     Boolean?
+  lastInseminationDate DateTime?
+  lastBirthDate  DateTime?
+  role           String?   // GUARD, SHEPHERD (for DOG)
   fatContent     Float?
   protein        Float?
   feedIntakeRecorded DateTime?
@@ -54,6 +59,9 @@ model Animal {
   profileImage   String?
   tagNumber      String?
   notes          String?
+  productionHabit String? // ACTIVE, NORMAL, LESS
+  vaccines       Json? // List of { name: string, date: string }
+  birthHistory   Json? // List of { date: string, weight: float, health: string }
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
