@@ -15,7 +15,9 @@ import { ChatModule } from './chat/chat.module';
 import { ConversationModule } from './conversation/conversation.module';
 import { SoilModule } from './modules/soil/soil.module';
 import { SoilMeasurement } from './modules/soil/soil.entity';
-
+import { StaffModule } from './staff/staff.module';
+import { SecurityModule } from './security/security.module';
+import { IncidentModule } from './incident/incident.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -42,6 +44,9 @@ TypeOrmModule.forRoot({
     ChatModule,
     ConversationModule,
     SoilModule,
+    StaffModule,
+    SecurityModule,
+    IncidentModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -25,6 +25,11 @@ model User {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
+  // Staff whitelist managed by this user
+  whitelistStaff WhitelistStaff[]
+  
+  // Security incidents logged by this user
+  securityIncidents SecurityIncident[]
   @@map("users")
 }
 
@@ -92,4 +97,26 @@ model ChatMessage {
 
   @@map("chat_messages")
   @@index([conversationId])
+}
+model WhitelistStaff {
+  id        String   @id @default(uuid())
+  name      String
+  imagePath String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("whitelist_staff")
+}
+
+model SecurityIncident {
+  id        String   @id @default(uuid())
+  type      String   // 'intruder' or 'animal'
+  imagePath String
+  timestamp DateTime @default(now())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("security_incidents")
 }
