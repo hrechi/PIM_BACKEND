@@ -19,6 +19,8 @@ import { StaffModule } from './staff/staff.module';
 import { SecurityModule } from './security/security.module';
 import { IncidentModule } from './incident/incident.module';
 import { AnimalsModule } from './animals/animals.module';
+import { ParcelsModule } from './parcels/parcels.module';
+
 
 @Module({
   imports: [
@@ -50,6 +52,7 @@ import { AnimalsModule } from './animals/animals.module';
     SecurityModule,
     IncidentModule,
     AnimalsModule,
+    ParcelsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
