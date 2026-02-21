@@ -1,7 +1,10 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ServeStaticModule } from '@nestjs/serve-static';
+<<<<<<< HEAD
 import { TypeOrmModule } from '@nestjs/typeorm';
+=======
+>>>>>>> origin/Animals
 import { join } from 'path';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -18,6 +21,8 @@ import { SoilMeasurement } from './modules/soil/soil.entity';
 import { StaffModule } from './staff/staff.module';
 import { SecurityModule } from './security/security.module';
 import { IncidentModule } from './incident/incident.module';
+import { AnimalsModule } from './animals/animals.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -47,6 +52,7 @@ TypeOrmModule.forRoot({
     StaffModule,
     SecurityModule,
     IncidentModule,
+    AnimalsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

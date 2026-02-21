@@ -1,4 +1,5 @@
-// Prisma schema for Fieldly PIM
+// Prisma schema for Farm Management System
+// Combines Field Management (V2) + Livestock Management (V1)
 
 generator client {
   provider = "prisma-client-js"
@@ -7,6 +8,106 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+// ─────────────────────────────────────────────
+// ENUMS (from V1 + new ones)
+// ─────────────────────────────────────────────
+
+enum AnimalType {
+  cow
+  horse
+  sheep
+  dog
+  goat
+  chicken
+  pig
+}
+
+enum Sex {
+  male
+  female
+}
+
+enum AnimalStatus {
+  active
+  sold
+  deceased
+}
+
+enum RaceCategory {
+  course
+  loisir
+  sport
+}
+
+enum TrainingLevel {
+  debutant
+  intermediaire
+  avance
+  confirme
+  elite
+}
+
+enum MeatGrade {
+  A
+  B
+  C
+}
+
+enum DogRole {
+  garde
+  berger
+  compagnie
+}
+
+enum MedicalEventType {
+  visit
+  disease
+  surgery
+  treatment
+  checkup
+  vaccination
+  other
+}
+
+enum AlertLevel {
+  low
+  medium
+  high
+  critical
+}
+
+enum MissionType {
+  PLANTING
+  HARVESTING
+  IRRIGATION
+  FERTILIZING
+  PEST_CONTROL
+  MAINTENANCE
+  MONITORING
+  ANIMAL_CARE
+  FEEDING
+  CLEANING
+  OTHER
+}
+
+enum MissionStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+// ─────────────────────────────────────────────
+// USER (merged from V1 and V2)
+// ─────────────────────────────────────────────
 
 model User {
   id             String   @id @default(uuid())
@@ -19,19 +120,26 @@ model User {
   refreshToken   String?
   otp            String?
   otpExpiresAt   DateTime?
-  fields         Field[]
-  missions       Mission[]
-  conversations  Conversation[]
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  // Staff whitelist managed by this user
+  // Relations from V2
+  fields         Field[]
+  missions       Mission[]
+  conversations  Conversation[]
   whitelistStaff WhitelistStaff[]
-  
-  // Security incidents logged by this user
   securityIncidents SecurityIncident[]
+
+  // Relations from V1
+  animals        Animal[]
+  expenses       Expense[]
+
   @@map("users")
 }
+
+// ─────────────────────────────────────────────
+// FIELD MANAGEMENT (from V2)
+// ─────────────────────────────────────────────
 
 model Field {
   id               String   @id @default(uuid())
@@ -41,7 +149,10 @@ model Field {
   cropType         String?
   areaCoordinates  Json     // [[lat, lng], [lat, lng], ...]
   areaSize         Float?   // in square meters
+  soilMeasurements SoilMeasurement[]
   missions         Mission[]
+  animals          Animal[] // Animals currently in this field
+  expenses         Expense[] // Add this line for the reverse relation
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -49,31 +160,48 @@ model Field {
   @@index([userId])
 }
 
+// ─────────────────────────────────────────────
+// MISSION MANAGEMENT (enhanced from V2)
+// ─────────────────────────────────────────────
+
 model Mission {
   id              String   @id @default(uuid())
   userId          String
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  fieldId         String
-  field           Field    @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+  fieldId         String?
+  field           Field?   @relation(fields: [fieldId], references: [id], onDelete: SetNull)
+  animalId        String?  // Optional: mission related to specific animal
+  animal          Animal?  @relation(fields: [animalId], references: [id], onDelete: SetNull)
+  
   title           String
   description     String?
-  missionType     String   // PLANTING, HARVESTING, IRRIGATION, FERTILIZING, PEST_CONTROL, MAINTENANCE, MONITORING, OTHER
-  status          String   @default("PENDING") // PENDING, IN_PROGRESS, COMPLETED, CANCELLED
-  priority        String   @default("MEDIUM") // LOW, MEDIUM, HIGH, URGENT
+  missionType     MissionType
+  status          MissionStatus   @default(PENDING)
+  priority        Priority        @default(MEDIUM)
+  
   dueDate         DateTime?
   assignedDate    DateTime @default(now())
   completedAt     DateTime?
   estimatedDuration Int?   // in hours
   actualDuration  Int?     // in hours
   progress        Int      @default(0) // 0-100
+  
   notes           String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
+  expenses        Expense[] // Expenses related to this mission
+
   @@map("missions")
   @@index([userId])
   @@index([fieldId])
+  @@index([animalId])
 }
+
+// ─────────────────────────────────────────────
+// AI CHAT SYSTEM (from V2)
+// ─────────────────────────────────────────────
+
 model Conversation {
   id        String   @id @default(uuid())
   userId    String
@@ -98,6 +226,11 @@ model ChatMessage {
   @@map("chat_messages")
   @@index([conversationId])
 }
+
+// ─────────────────────────────────────────────
+// SECURITY & STAFF (from V2)
+// ─────────────────────────────────────────────
+
 model WhitelistStaff {
   id        String   @id @default(uuid())
   name      String
@@ -112,20 +245,29 @@ model WhitelistStaff {
 
 model SecurityIncident {
   id        String   @id @default(uuid())
-  type      String   // 'intruder' or 'animal'
+  type      String   // 'intruder' or 'animal' or 'other'
   imagePath String
+  latitude  Float?   // Location of incident
+  longitude Float?
   timestamp DateTime @default(now())
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("security_incidents")
 }
+
+// ─────────────────────────────────────────────
+// SOIL MONITORING (from V2)
+// ─────────────────────────────────────────────
+
 model SoilMeasurement {
   id           String   @id @default(uuid())
+  fieldId      String
+  field        Field    @relation(fields: [fieldId], references: [id], onDelete: Cascade)
   ph           Float
   soilMoisture Float    @map("soil_moisture")
   sunlight     Float
-  nutrients    Json
+  nutrients    Json     // { nitrogen: float, phosphorus: float, potassium: float }
   temperature  Float
   latitude     Float
   longitude    Float
@@ -133,6 +275,240 @@ model SoilMeasurement {
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   @@map("soil_measurements")
+  @@index([fieldId])
   @@index([createdAt])
-  @@index([latitude, longitude])
+}
+
+// ─────────────────────────────────────────────
+// ANIMAL MANAGEMENT (from V1)
+// ─────────────────────────────────────────────
+
+model Animal {
+  id           String       @id @default(uuid())
+  nodeId       String       @unique
+  fieldId      String?      // Current field location
+  field        Field?       @relation(fields: [fieldId], references: [id])
+  userId       String
+  user         User         @relation(fields: [userId], references: [id])
+
+  // Identity
+  name         String
+  animalType   AnimalType
+  breed        String?
+  sex          Sex
+  tagNumber    String?
+  profileImage String?
+  notes        String?
+
+  // Age & reproduction
+  age                  Int       // months
+  ageYears             Int       @default(0)
+  isPregnant           Boolean?
+  lastInseminationDate DateTime?
+  lastBirthDate        DateTime?
+  expectedBirthDate    DateTime?
+  birthCount           Int       @default(0)
+
+  // Health & status
+  status              AnimalStatus @default(active)
+  healthStatus        String       @default("OPTIMAL")
+  vitalityScore       Int          @default(100)
+  bodyTemp            Float?
+  activityLevel       String       @default("MODERATE")
+  lastVetCheck        DateTime?
+  vaccination         Boolean      @default(false)
+  healthRiskScore     Float?
+  diseaseHistoryCount Int          @default(0)
+  dewormingScheduled  DateTime?
+
+  // General production
+  weight              Float?
+  milkYield           Float?
+  woolYield           Float?
+  fatContent          Float?
+  protein             Float?
+  productionHabit     String?
+  feedIntakeRecorded  DateTime?
+  birthHistory        Json?        // [{ date, weight, health }]
+
+  // Species-specific fields
+  // Cow
+  dailyMilkAvgL       Decimal? @db.Decimal(5, 2)
+  milkPeakDate        DateTime?
+  lactationNumber     Int?
+  // Horse
+  raceCategory        RaceCategory?
+  bestRaceTime        Decimal? @db.Decimal(8, 3)
+  trainingLevel       TrainingLevel?
+  // Sheep
+  woolLastShearDate   DateTime?
+  meatGrade           MeatGrade?
+  // Dog
+  dogRole             DogRole?
+
+  // Financial
+  purchasePrice       Decimal? @db.Decimal(10, 2)
+  purchaseDate        DateTime?
+  estimatedValue      Decimal? @db.Decimal(10, 2)
+  salePrice           Decimal? @db.Decimal(10, 2)
+  saleDate            DateTime?
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  missions         Mission[]       // Missions related to this animal
+  vaccineRecords   VaccineRecord[]
+  medicalEvents    MedicalEvent[]
+  sensorReadings   SensorReading[]
+  healthAlerts     HealthAlert[]
+  milkProductions  MilkProduction[]
+  racePerformances RacePerformance[]
+  weightRecords    WeightRecord[]
+  expenses         Expense[]
+
+  @@map("animals")
+}
+
+// ─────────────────────────────────────────────
+// ANIMAL HEALTH RECORDS (from V1)
+// ─────────────────────────────────────────────
+
+model VaccineRecord {
+  id           String    @id @default(uuid())
+  animalId     String
+  animal       Animal    @relation(fields: [animalId], references: [id], onDelete: Cascade)
+  vaccineName  String
+  vaccineDate  DateTime
+  nextDueDate  DateTime?
+  vetName      String?
+  lotNumber    String?
+  createdAt    DateTime  @default(now())
+
+  @@map("vaccine_records")
+}
+
+model MedicalEvent {
+  id        String           @id @default(uuid())
+  animalId  String
+  animal    Animal           @relation(fields: [animalId], references: [id], onDelete: Cascade)
+  eventDate DateTime
+  eventType MedicalEventType
+  diagnosis String?
+  treatment String?
+  vetName   String?
+  cost      Decimal?         @db.Decimal(10, 2)
+  notes     String?
+  createdAt DateTime         @default(now())
+
+  @@map("medical_events")
+}
+
+model HealthAlert {
+  id               String     @id @default(uuid())
+  animalId         String
+  animal           Animal     @relation(fields: [animalId], references: [id], onDelete: Cascade)
+  alertTime        DateTime
+  alertLevel       AlertLevel
+  predictedDisease String?
+  confidence       Float?
+  anomalyScore     Float?
+  vetConfirmed     Boolean?
+  notes            String?
+  createdAt        DateTime   @default(now())
+
+  @@map("health_alerts")
+}
+
+// ─────────────────────────────────────────────
+// SENSOR DATA (from V1)
+// ─────────────────────────────────────────────
+
+model SensorReading {
+  id            String   @id @default(uuid())
+  animalId      String
+  animal        Animal   @relation(fields: [animalId], references: [id], onDelete: Cascade)
+  collarId      String?
+  timestamp     DateTime
+  temperature   Float?
+  heartRate     Float?
+  accX          Float?
+  accY          Float?
+  accZ          Float?
+  activityScore Float?
+  createdAt     DateTime @default(now())
+
+  @@index([animalId, timestamp])
+  @@map("sensor_readings")
+}
+
+// ─────────────────────────────────────────────
+// PRODUCTION RECORDS (from V1)
+// ─────────────────────────────────────────────
+
+model MilkProduction {
+  id       String   @id @default(uuid())
+  animalId String
+  animal   Animal   @relation(fields: [animalId], references: [id], onDelete: Cascade)
+  date     DateTime
+  morningL Decimal? @db.Decimal(6, 2)
+  eveningL Decimal? @db.Decimal(6, 2)
+  totalL   Decimal? @db.Decimal(6, 2)
+  notes    String?
+  createdAt DateTime @default(now())
+
+  @@map("milk_productions")
+}
+
+model RacePerformance {
+  id             String   @id @default(uuid())
+  animalId       String
+  animal         Animal   @relation(fields: [animalId], references: [id], onDelete: Cascade)
+  raceDate       DateTime
+  raceName       String?
+  position       Int?
+  timeSeconds    Decimal? @db.Decimal(8, 3)
+  distanceM      Int?
+  trackCondition String?
+  createdAt      DateTime @default(now())
+
+  @@map("race_performances")
+}
+
+model WeightRecord {
+  id           String   @id @default(uuid())
+  animalId     String
+  animal       Animal   @relation(fields: [animalId], references: [id], onDelete: Cascade)
+  measuredDate DateTime
+  weightKg     Decimal  @db.Decimal(7, 2)
+  measuredBy   String?
+  createdAt    DateTime @default(now())
+
+  @@map("weight_records")
+}
+
+// ─────────────────────────────────────────────
+// EXPENSES (enhanced from V1)
+// ─────────────────────────────────────────────
+
+model Expense {
+  id          String   @id @default(uuid())
+  fieldId     String?  
+  field       Field?   @relation(fields: [fieldId], references: [id], onDelete: SetNull)
+  animalId    String?  
+  animal      Animal?  @relation(fields: [animalId], references: [id], onDelete: SetNull)
+  missionId   String?  
+  mission     Mission? @relation(fields: [missionId], references: [id], onDelete: SetNull)
+  userId      String?  
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  date        DateTime
+  category    String   // seeds, fertilizer, equipment, labor, irrigation, feed, veterinary, medication, maintenance, other
+  amount      Decimal  @db.Decimal(10, 2)
+  description String?
+  receiptUrl  String?
+  createdAt   DateTime @default(now())
+
+  @@map("expenses")
 }
