@@ -24,6 +24,9 @@ model User {
 
   // Staff whitelist managed by this user
   whitelistStaff WhitelistStaff[]
+  
+  // Security incidents logged by this user
+  securityIncidents SecurityIncident[]
 
   @@map("users")
 }
@@ -38,4 +41,15 @@ model WhitelistStaff {
   updatedAt DateTime @updatedAt
 
   @@map("whitelist_staff")
+}
+
+model SecurityIncident {
+  id        String   @id @default(uuid())
+  type      String   // 'intruder' or 'animal'
+  imagePath String
+  timestamp DateTime @default(now())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("security_incidents")
 }

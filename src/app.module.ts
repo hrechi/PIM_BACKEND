@@ -9,6 +9,8 @@ import { AuthModule } from './auth/auth.module';
 import { UserModule } from './user/user.module';
 import { EmailModule } from './email/email.module';
 import { StaffModule } from './staff/staff.module';
+import { SecurityModule } from './security/security.module';
+import { IncidentModule } from './incident/incident.module';
 
 @Module({
   imports: [
@@ -22,6 +24,8 @@ import { StaffModule } from './staff/staff.module';
     AuthModule,
     UserModule,
     StaffModule,
+    SecurityModule,
+    IncidentModule,
   ],
   controllers: [AppController],
   providers: [AppService],
