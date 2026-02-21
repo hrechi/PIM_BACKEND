@@ -8,6 +8,7 @@ import {
     Param,
     UseGuards,
     Req,
+    Query,
 } from '@nestjs/common';
 import { AnimalsService } from './animals.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -23,8 +24,8 @@ export class AnimalsController {
     }
 
     @Get()
-    findAll(@Req() req: any) {
-        return this.animalsService.findAllByFarmer(req.user.id);
+    findAll(@Req() req: any, @Query('animalType') animalType?: string) {
+        return this.animalsService.findAllByFarmer(req.user.id, animalType);
     }
 
     @Get('stats')

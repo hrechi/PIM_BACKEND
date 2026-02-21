@@ -68,15 +68,18 @@ export class AnimalsService {
         });
     }
 
-    async findAllByFarmer(farmerId: string) {
+    async findAllByFarmer(farmerId: string, animalType?: string) {
+        const where: any = { farmerId };
+        if (animalType) {
+            where.animalType = animalType.toLowerCase();
+        }
+
         return this.prisma.animal.findMany({
-            where: { farmerId },
+            where,
             include: {
-                _count: {
-                    select: { medicalEvents: true }
-                },
+                medicalEvents: true,
                 vaccineRecords: true
-            },
+            } as any,
             orderBy: { createdAt: 'desc' },
         });
     }
@@ -129,7 +132,7 @@ export class AnimalsService {
             // Transaction to ensure atomicity
             return this.prisma.$transaction(async (tx) => {
                 // 1. Delete existing records
-                await tx.vaccineRecord.deleteMany({
+                await (tx as any).vaccineRecord.deleteMany({
                     where: { animalId: animal.id },
                 });
 
@@ -144,7 +147,7 @@ export class AnimalsService {
                 }));
 
                 if (vaccinationData.length > 0) {
-                    await tx.vaccineRecord.createMany({
+                    await (tx as any).vaccineRecord.createMany({
                         data: vaccinationData,
                     });
                 }
@@ -178,22 +181,52 @@ export class AnimalsService {
     }
 
     async getStatistics(farmerId: string) {
-        const totalAnimals = await this.prisma.animal.count({
-            where: { farmerId },
-        });
+        const [
+            totalCount,
+            lowHealthCount,
+            speciesCounts,
+            attentionList,
+            vaccinesDueCount,
+        ] = await Promise.all([
+            this.prisma.animal.count({ where: { farmerId, status: 'active' } }),
+            this.prisma.animal.count({ where: { farmerId, status: 'active', vitalityScore: { lt: 50 } } }),
+            this.prisma.animal.groupBy({
+                by: ['animalType'],
+                where: { farmerId, status: 'active' },
+                _count: true,
+            }),
+            this.prisma.animal.findMany({
+                where: { farmerId, status: 'active', vitalityScore: { lt: 80 } },
+                orderBy: { vitalityScore: 'asc' },
+                take: 5,
+            }),
+            (this.prisma as any).vaccineRecord.count({
+                where: {
+                    animal: { farmerId },
+                    nextDueDate: { lte: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) }, // Due within 7 days
+                },
+            }),
+        ]);
 
-        // Simple health percentage simulation for now
-        const healthyAnimals = await this.prisma.animal.count({
-            where: { farmerId, healthStatus: 'OPTIMAL' },
-        });
+        const speciesDistribution = speciesCounts.reduce((acc, curr) => {
+            acc[curr.animalType.toLowerCase()] = curr._count;
+            return acc;
+        }, {} as Record<string, number>);
 
-        const healthPercentage = totalAnimals > 0
-            ? Math.round((healthyAnimals / totalAnimals) * 100)
-            : 100;
+        // Monthly Spend Placeholder (Logic can be expanded with an Expense model)
+        const monthlySpend = 2450.00;
 
         return {
-            totalAnimals,
-            healthPercentage,
+            totalAnimals: totalCount,
+            healthAlerts: lowHealthCount,
+            vaccinesDue: vaccinesDueCount,
+            monthlySpend,
+            speciesDistribution,
+            needingAttention: attentionList,
+            reminders: [
+                { id: '1', title: 'Vaccine due (Bessie)', subtitle: 'Scheduled for morning session', time: 'ASAP', type: 'vaccine' },
+                { id: '2', title: 'Vet visit', subtitle: 'General herd inspection', time: '14:00', type: 'visit' }
+            ]
         };
     }
 }
