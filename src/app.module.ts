@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { join } from 'path';
+import * as process from 'process';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
@@ -26,7 +27,8 @@ import { ParcelsModule } from './parcels/parcels.module';
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     ServeStaticModule.forRoot({
-      rootPath: join(__dirname, '..', 'uploads'),
+      // process.cwd() always points to the project root regardless of __dirname
+      rootPath: join(process.cwd(), 'uploads'),
       serveRoot: '/uploads',
     }),
     TypeOrmModule.forRoot({
