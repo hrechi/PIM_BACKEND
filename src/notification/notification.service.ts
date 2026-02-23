@@ -77,6 +77,8 @@ export class NotificationService implements OnModuleInit {
 
       // Data payload (always delivered, used by Flutter when app is open)
       data: {
+        click_action: 'FLUTTER_NOTIFICATION_CLICK',
+        screen: 'INCIDENT_DETAILS',
         incidentId: incident.id,
         type: incident.type,
         image_url: imageUrl,

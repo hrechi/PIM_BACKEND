@@ -57,6 +57,12 @@ export class IncidentService {
     });
   }
 
+  async getIncidentById(id: string, userId: string) {
+    return this.prisma.securityIncident.findFirst({
+      where: { id, userId },
+    });
+  }
+
   async deleteIncident(id: string, userId: string) {
     return this.prisma.securityIncident.deleteMany({
       where: { id, userId },
