@@ -15,6 +15,9 @@ lerna-debug.log*
 # OS
 .DS_Store
 
+# Firebase service account (contains private key — NEVER commit)
+firebase-service-account.json
+
 # Tests
 /coverage
 /.nyc_output

@@ -11,6 +11,14 @@ import { UpdateProfileDto } from './dto/update-profile.dto';
 export class UserService {
   constructor(private prisma: PrismaService) {}
 
+  async saveFcmToken(userId: string, token: string) {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { fcmToken: token },
+    });
+    return { message: 'FCM token saved' };
+  }
+
   async getProfile(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },

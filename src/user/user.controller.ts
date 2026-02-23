@@ -84,6 +84,13 @@ export class UserController {
     return this.userService.updateProfilePicture(req.user.id, filePath);
   }
 
+  @Post('fcm-token')
+  @ApiOperation({ summary: 'Save device FCM token for push notifications' })
+  @ApiResponse({ status: 201, description: 'FCM token saved' })
+  async saveFcmToken(@Req() req: any, @Body() body: { token: string }) {
+    return this.userService.saveFcmToken(req.user.id, body.token);
+  }
+
   @Delete('profile')
   @ApiOperation({ summary: 'Delete user account permanently' })
   @ApiResponse({ status: 200, description: 'Account deleted' })

@@ -81,6 +81,7 @@ model User {
   farmName       String
   profilePicture String?
   refreshToken   String?
+  fcmToken       String?
   otp            String?
   otpExpiresAt   DateTime?
   fields         Field[]

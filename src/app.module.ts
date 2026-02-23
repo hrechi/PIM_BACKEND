@@ -19,6 +19,7 @@ import { SoilMeasurement } from './modules/soil/soil.entity';
 import { StaffModule } from './staff/staff.module';
 import { SecurityModule } from './security/security.module';
 import { IncidentModule } from './incident/incident.module';
+import { NotificationModule } from './notification/notification.module';
 import { AnimalsModule } from './animals/animals.module';
 import { ParcelsModule } from './parcels/parcels.module';
 
@@ -53,6 +54,7 @@ import { ParcelsModule } from './parcels/parcels.module';
     StaffModule,
     SecurityModule,
     IncidentModule,
+    NotificationModule,
     AnimalsModule,
     ParcelsModule,
   ],
