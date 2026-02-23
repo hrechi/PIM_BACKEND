@@ -20,6 +20,8 @@ import { SecurityModule } from './security/security.module';
 import { IncidentModule } from './incident/incident.module';
 import { AnimalsModule } from './animals/animals.module';
 import { ParcelsModule } from './parcels/parcels.module';
+import { WeatherModule } from './weather/weather.module';
+import { IrrigationModule } from './irrigation/irrigation.module';
 
 
 @Module({
@@ -53,6 +55,8 @@ import { ParcelsModule } from './parcels/parcels.module';
     IncidentModule,
     AnimalsModule,
     ParcelsModule,
+    WeatherModule,
+    IrrigationModule,
   ],
   controllers: [AppController],
   providers: [AppService],
