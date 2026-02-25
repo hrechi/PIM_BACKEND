@@ -2,7 +2,7 @@ import {
     Controller,
     Get,
     Post,
-    Put,
+    Patch,
     Delete,
     Body,
     Param,
@@ -33,7 +33,7 @@ export class AnimalsController {
         return this.animalsService.getStatistics(req.user.id);
     }
 
-    @Put(':nodeId')
+    @Patch(':nodeId')
     update(@Param('nodeId') nodeId: string, @Body() data: any, @Req() req: any) {
         return this.animalsService.update(nodeId, data, req.user.id);
     }

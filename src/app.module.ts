@@ -20,6 +20,7 @@ import { SecurityModule } from './security/security.module';
 import { IncidentModule } from './incident/incident.module';
 import { AnimalsModule } from './animals/animals.module';
 import { ParcelsModule } from './parcels/parcels.module';
+import { MilkProductionModule } from './milk-production/milk-production.module';
 
 
 @Module({
@@ -53,8 +54,9 @@ import { ParcelsModule } from './parcels/parcels.module';
     IncidentModule,
     AnimalsModule,
     ParcelsModule,
+    MilkProductionModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule { }
