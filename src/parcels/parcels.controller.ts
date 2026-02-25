@@ -4,11 +4,15 @@ import { CreateParcelDto } from './dto/create-parcel.dto';
 import { UpdateParcelDto } from './dto/update-parcel.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CreateCropDto, CreateFertilizationDto, CreateHarvestDto, CreatePestDiseaseDto } from './dto/nested.dto';
+import { CropSuitabilityService } from '../crop-suitability/crop-suitability.service';
 
 @UseGuards(JwtAuthGuard)
 @Controller('parcels')
 export class ParcelsController {
-  constructor(private readonly parcelsService: ParcelsService) { }
+  constructor(
+    private readonly parcelsService: ParcelsService,
+    private readonly cropSuitabilityService: CropSuitabilityService,
+  ) {}
 
   @Post()
   create(@Req() req, @Body() createParcelDto: CreateParcelDto) {
@@ -55,5 +59,18 @@ export class ParcelsController {
   @Post(':id/harvests')
   addHarvest(@Req() req, @Param('id') id: string, @Body() dto: CreateHarvestDto) {
     return this.parcelsService.addHarvest(id, req.user.id, dto);
+  }
+
+  @Get(':id/analyze-existing-crops')
+  async analyzeExistingCrops(@Req() req, @Param('id') id: string) {
+    return this.cropSuitabilityService.analyzeExistingCrops(
+      id,
+      req.user.id,
+    );
+  }
+
+  @Get(':id/recommend-crops')
+  async recommendCrops(@Req() req, @Param('id') id: string) {
+    return this.cropSuitabilityService.recommendCrops(id, req.user.id);
   }
 }

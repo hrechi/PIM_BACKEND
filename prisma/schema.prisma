@@ -529,3 +529,30 @@ model Harvest {
 
   @@map("harvests")
 }
+
+// ─────────────────────────────────────────────
+// CROP SUITABILITY CONFIGURATION
+// ─────────────────────────────────────────────
+
+model CropRequirement {
+  id               String  @id @default(uuid())
+  cropName         String  @map("crop_name")
+  minPH            Float   @map("min_ph")
+  maxPH            Float   @map("max_ph")
+  minMoisture      Float   @map("min_moisture")
+  maxMoisture      Float   @map("max_moisture")
+  nitrogenRequired Float   @map("nitrogen_required")
+
+  @@map("crop_requirements")
+  @@index([cropName])
+}
+
+model CropRegion {
+  id       String @id @default(uuid())
+  cropName String @map("crop_name")
+  country  String
+
+  @@map("crop_regions")
+  @@index([cropName])
+  @@index([country])
+}

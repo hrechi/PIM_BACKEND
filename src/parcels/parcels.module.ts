@@ -3,10 +3,12 @@ import { ParcelsService } from './parcels.service';
 import { ParcelsController } from './parcels.controller';
 
 import { PrismaModule } from '../prisma/prisma.module';
+import { SoilModule } from '../soil/soil.module';
+import { CropSuitabilityService } from '../crop-suitability/crop-suitability.service';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, SoilModule],
   controllers: [ParcelsController],
-  providers: [ParcelsService],
+  providers: [ParcelsService, CropSuitabilityService],
 })
-export class ParcelsModule { }
+export class ParcelsModule {}
