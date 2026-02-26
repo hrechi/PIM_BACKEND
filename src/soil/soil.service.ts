@@ -113,6 +113,22 @@ export class SoilService {
   }
 
   /**
+   * Find the latest soil measurement (by createdAt)
+   */
+  async findLatest(): Promise<SoilMeasurementWithStatus> {
+    const [measurement] = await this.soilRepository.find({
+      order: { createdAt: 'DESC' },
+      take: 1,
+    });
+
+    if (!measurement) {
+      throw new NotFoundException('No soil measurements found');
+    }
+
+    return this.enrichWithStatus(measurement);
+  }
+
+  /**
    * Find a single soil measurement by ID
    */
   async findOne(id: string): Promise<SoilMeasurementWithStatus> {

@@ -103,16 +103,17 @@ model User {
 }
 
 model Field {
-  id               String   @id @default(uuid())
+  id               String             @id @default(uuid())
   userId           String
-  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   name             String
   cropType         String?
-  areaCoordinates  Json     // [[lat, lng], [lat, lng], ...]
-  areaSize         Float?   // in square meters
+  areaCoordinates  Json               // [[lat, lng], [lat, lng], ...]
+  areaSize         Float?             // in square meters
   missions         Mission[]
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  soilMeasurements SoilMeasurement[]
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
 
   @@map("fields")
   @@index([userId])
@@ -200,12 +201,15 @@ model SoilMeasurement {
   temperature  Float
   latitude     Float
   longitude    Float
+  fieldId      String?  @map("field_id")
+  field        Field?   @relation(fields: [fieldId], references: [id], onDelete: SetNull)
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   @@map("soil_measurements")
   @@index([createdAt])
   @@index([latitude, longitude])
+  @@index([fieldId])
 }
 
 // ─────────────────────────────────────────────
@@ -527,4 +531,31 @@ model Harvest {
   updatedAt        DateTime @updatedAt
 
   @@map("harvests")
+}
+
+// ─────────────────────────────────────────────
+// CROP SUITABILITY CONFIGURATION
+// ─────────────────────────────────────────────
+
+model CropRequirement {
+  id               String  @id @default(uuid())
+  cropName         String  @map("crop_name")
+  minPH            Float   @map("min_ph")
+  maxPH            Float   @map("max_ph")
+  minMoisture      Float   @map("min_moisture")
+  maxMoisture      Float   @map("max_moisture")
+  nitrogenRequired Float   @map("nitrogen_required")
+
+  @@map("crop_requirements")
+  @@index([cropName])
+}
+
+model CropRegion {
+  id       String @id @default(uuid())
+  cropName String @map("crop_name")
+  country  String
+
+  @@map("crop_regions")
+  @@index([cropName])
+  @@index([country])
 }

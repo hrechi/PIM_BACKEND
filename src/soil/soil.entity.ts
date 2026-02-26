@@ -35,6 +35,10 @@ export class SoilMeasurement {
   @Column({ type: 'float', nullable: false })
   longitude: number;
 
+  @Column({ type: 'uuid', name: 'field_id', nullable: true })
+  @Index()
+  fieldId: string;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
   createdAt: Date;
 

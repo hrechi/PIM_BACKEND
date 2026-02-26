@@ -187,6 +187,8 @@ export class AnimalsService {
             speciesCounts,
             attentionList,
             vaccinesDueCount,
+            todayMilk,
+            yesterdayMilk,
         ] = await Promise.all([
             this.prisma.animal.count({ where: { farmerId, status: 'active' } }),
             this.prisma.animal.count({ where: { farmerId, status: 'active', vitalityScore: { lt: 50 } } }),
@@ -206,6 +208,26 @@ export class AnimalsService {
                     nextDueDate: { lte: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) }, // Due within 7 days
                 },
             }),
+            this.prisma.milkProduction.aggregate({
+                where: {
+                    animal: { farmerId },
+                    date: {
+                        gte: new Date(new Date().setHours(0, 0, 0, 0)),
+                        lt: new Date(new Date().setHours(23, 59, 59, 999)),
+                    },
+                },
+                _sum: { totalL: true },
+            }),
+            this.prisma.milkProduction.aggregate({
+                where: {
+                    animal: { farmerId },
+                    date: {
+                        gte: new Date(new Date(new Date().setDate(new Date().getDate() - 1)).setHours(0, 0, 0, 0)),
+                        lt: new Date(new Date(new Date().setDate(new Date().getDate() - 1)).setHours(23, 59, 59, 999)),
+                    },
+                },
+                _sum: { totalL: true },
+            }),
         ]);
 
         const speciesDistribution = speciesCounts.reduce((acc, curr) => {
@@ -223,6 +245,8 @@ export class AnimalsService {
             monthlySpend,
             speciesDistribution,
             needingAttention: attentionList,
+            todayMilk: todayMilk._sum.totalL ? Number(todayMilk._sum.totalL) : 0,
+            yesterdayMilk: yesterdayMilk._sum.totalL ? Number(yesterdayMilk._sum.totalL) : 0,
             reminders: [
                 { id: '1', title: 'Vaccine due (Bessie)', subtitle: 'Scheduled for morning session', time: 'ASAP', type: 'vaccine' },
                 { id: '2', title: 'Vet visit', subtitle: 'General herd inspection', time: '14:00', type: 'visit' }
