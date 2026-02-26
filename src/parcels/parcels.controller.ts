@@ -61,16 +61,8 @@ export class ParcelsController {
     return this.parcelsService.addHarvest(id, req.user.id, dto);
   }
 
-  @Get(':id/analyze-existing-crops')
-  async analyzeExistingCrops(@Req() req, @Param('id') id: string) {
-    return this.cropSuitabilityService.analyzeExistingCrops(
-      id,
-      req.user.id,
-    );
-  }
-
-  @Get(':id/recommend-crops')
-  async recommendCrops(@Req() req, @Param('id') id: string) {
-    return this.cropSuitabilityService.recommendCrops(id, req.user.id);
+  @Get(':id/ai-advice')
+  getAiAdvice(@Req() req, @Param('id') id: string) {
+    return this.parcelsService.getAiAdvice(id, req.user.id);
   }
 }
