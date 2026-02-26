@@ -24,6 +24,8 @@ import { AnimalsModule } from './animals/animals.module';
 import { ParcelsModule } from './parcels/parcels.module';
 import { SirenModule } from './siren/siren.module';
 import { MilkProductionModule } from './milk-production/milk-production.module';
+import { WeatherModule } from './weather/weather.module';
+import { IrrigationModule } from './irrigation/irrigation.module';
 
 
 @Module({
@@ -61,6 +63,8 @@ import { MilkProductionModule } from './milk-production/milk-production.module';
     ParcelsModule,
     SirenModule,
     MilkProductionModule,
+    WeatherModule,
+    IrrigationModule,
   ],
   controllers: [AppController],
   providers: [AppService],
