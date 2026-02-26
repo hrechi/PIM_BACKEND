@@ -85,6 +85,12 @@ export class IncidentController {
     return this.incidentService.getAllIncidents(userId);
   }
 
+  @Get(':id')
+  async getIncidentById(@Req() req: any, @Param('id') id: string) {
+    const userId = req.user.id;
+    return this.incidentService.getIncidentById(id, userId);
+  }
+
   @Delete(':id')
   async deleteIncident(@Req() req: any, @Param('id') id: string) {
     const userId = req.user.id;

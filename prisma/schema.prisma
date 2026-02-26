@@ -81,6 +81,7 @@ model User {
   farmName       String
   profilePicture String?
   refreshToken   String?
+  fcmToken       String?
   otp            String?
   otpExpiresAt   DateTime?
   fields         Field[]
@@ -184,6 +185,8 @@ model SecurityIncident {
   type      String   // 'intruder' or 'animal'
   imagePath String
   timestamp DateTime @default(now())
+  latitude  Float?
+  longitude Float?
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 

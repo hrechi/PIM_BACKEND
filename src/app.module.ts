@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { join } from 'path';
+import * as process from 'process';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
@@ -18,8 +19,10 @@ import { SoilMeasurement } from './soil/soil.entity';
 import { StaffModule } from './staff/staff.module';
 import { SecurityModule } from './security/security.module';
 import { IncidentModule } from './incident/incident.module';
+import { NotificationModule } from './notification/notification.module';
 import { AnimalsModule } from './animals/animals.module';
 import { ParcelsModule } from './parcels/parcels.module';
+import { SirenModule } from './siren/siren.module';
 import { MilkProductionModule } from './milk-production/milk-production.module';
 
 
@@ -27,15 +30,16 @@ import { MilkProductionModule } from './milk-production/milk-production.module';
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     ServeStaticModule.forRoot({
-      rootPath: join(__dirname, '..', 'uploads'),
+      // process.cwd() always points to the project root regardless of __dirname
+      rootPath: join(process.cwd(), 'uploads'),
       serveRoot: '/uploads',
     }),
     TypeOrmModule.forRoot({
       type: 'postgres',
       host: process.env.DB_HOST || 'localhost',
       port: parseInt(process.env.DB_PORT || '5432', 10),
-      username: process.env.DB_USERNAME || 'mohamedyessinenahdi',
-      password: process.env.DB_PASSWORD || '',
+      username: process.env.DB_USERNAME || 'macbook',
+      password: process.env.DB_PASSWORD || 'macbook',
       database: process.env.DB_NAME || 'fieldly',
       entities: [SoilMeasurement],
       synchronize: true,
@@ -52,8 +56,10 @@ import { MilkProductionModule } from './milk-production/milk-production.module';
     StaffModule,
     SecurityModule,
     IncidentModule,
+    NotificationModule,
     AnimalsModule,
     ParcelsModule,
+    SirenModule,
     MilkProductionModule,
   ],
   controllers: [AppController],
