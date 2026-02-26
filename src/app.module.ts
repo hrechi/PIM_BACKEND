@@ -22,6 +22,7 @@ import { IncidentModule } from './incident/incident.module';
 import { NotificationModule } from './notification/notification.module';
 import { AnimalsModule } from './animals/animals.module';
 import { ParcelsModule } from './parcels/parcels.module';
+import { SirenModule } from './siren/siren.module';
 
 
 @Module({
@@ -57,6 +58,7 @@ import { ParcelsModule } from './parcels/parcels.module';
     NotificationModule,
     AnimalsModule,
     ParcelsModule,
+    SirenModule,
   ],
   controllers: [AppController],
   providers: [AppService],

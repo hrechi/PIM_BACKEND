@@ -21,6 +21,8 @@ export class IncidentService {
       data: {
         type: createIncidentDto.type,
         imagePath,
+        latitude: createIncidentDto.latitude ?? null,
+        longitude: createIncidentDto.longitude ?? null,
         userId,
       },
     });
