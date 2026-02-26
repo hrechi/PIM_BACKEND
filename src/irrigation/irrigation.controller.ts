@@ -16,6 +16,7 @@ import {
 import { IrrigationService } from './irrigation.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
+
 @ApiTags('Irrigation')
 @Controller('irrigation')
 export class IrrigationController {
