@@ -45,7 +45,7 @@ import { IrrigationModule } from './irrigation/irrigation.module';
       database: process.env.DB_NAME || 'fieldly',
       entities: [SoilMeasurement],
       synchronize: true,
-    }),
+    }), 
     PrismaModule,
     EmailModule,
     AuthModule,
