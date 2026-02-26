@@ -20,7 +20,7 @@ export class WeatherService {
   }
 
   /**
-   * Compute the centroid (average lat/lng) of a polygon's coordinates.
+   * Compute the centroid (average lat/lng) of a polygon's coordinates. 
    * areaCoordinates is stored as [[lat, lng], [lat, lng], ...]
    */
   private computeCentroid(areaCoordinates: number[][]): { lat: number; lng: number } {
