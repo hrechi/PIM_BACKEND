@@ -56,4 +56,9 @@ export class ParcelsController {
   addHarvest(@Req() req, @Param('id') id: string, @Body() dto: CreateHarvestDto) {
     return this.parcelsService.addHarvest(id, req.user.id, dto);
   }
+
+  @Get(':id/ai-advice')
+  getAiAdvice(@Req() req, @Param('id') id: string) {
+    return this.parcelsService.getAiAdvice(id, req.user.id);
+  }
 }
