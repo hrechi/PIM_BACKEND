@@ -57,7 +57,7 @@ export class NotificationService implements OnModuleInit {
       return;
     }
 
-    const apiBase = process.env.API_BASE_URL || 'http://192.168.100.9:3000';
+    const apiBase = process.env.API_BASE_URL || 'http://192.168.1.18:3000';
     const imageUrl = `${apiBase}${incident.imagePath}`;
 
     const isIntruder = incident.type === 'intruder';
