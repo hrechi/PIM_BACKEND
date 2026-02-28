@@ -26,6 +26,7 @@ import { SirenModule } from './siren/siren.module';
 import { MilkProductionModule } from './milk-production/milk-production.module';
 import { WeatherModule } from './weather/weather.module';
 import { IrrigationModule } from './irrigation/irrigation.module';
+import { NewsModule } from './news/news.module';
 
 
 @Module({
@@ -40,12 +41,12 @@ import { IrrigationModule } from './irrigation/irrigation.module';
       type: 'postgres',
       host: process.env.DB_HOST || 'localhost',
       port: parseInt(process.env.DB_PORT || '5432', 10),
-      username: process.env.DB_USERNAME || 'postgres',
-      password: process.env.DB_PASSWORD || 'postgres',
+      username: process.env.DB_USERNAME || 'mohamedyessinenahdi',
+      password: process.env.DB_PASSWORD || '',
       database: process.env.DB_NAME || 'fieldly',
       entities: [SoilMeasurement],
       synchronize: true,
-    }), 
+    }),
     PrismaModule,
     EmailModule,
     AuthModule,
@@ -65,6 +66,7 @@ import { IrrigationModule } from './irrigation/irrigation.module';
     MilkProductionModule,
     WeatherModule,
     IrrigationModule,
+    NewsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
