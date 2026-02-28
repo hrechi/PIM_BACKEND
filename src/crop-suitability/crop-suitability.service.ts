@@ -8,6 +8,9 @@ import {
 	CropDecision,
 	RecommendCropsResponseDto,
 	RecommendedCropDto,
+	SoilProfileDto,
+	PhStatus,
+	NutrientStatus,
 } from './dto/analyze-crop.dto';
 
 interface ParcelWithRelations {
@@ -43,6 +46,28 @@ interface CropRegionConfig {
 	country: string;
 }
 
+// Old interfaces for deprecated rule-based methods
+/*
+interface SoilProfile {
+	fertilityIndex: number;
+	overallSuitability: OverallSuitability;
+	phStatus: PhStatus;
+	moistureStatus: MoistureStatus;
+	nitrogenStatus: NitrogenStatus;
+	ph: number;
+	moisture: number;
+	nitrogen: number | null;
+}
+
+interface CropCompatibility {
+	phCompatibility: number;
+	moistureCompatibility: number;
+	nitrogenCompatibility: number;
+	overall: number;
+}
+*/
+
+
 @Injectable()
 export class CropSuitabilityService {
 	constructor(
@@ -50,6 +75,205 @@ export class CropSuitabilityService {
 		private readonly soilService: SoilService,
 		private readonly soilAiService: SoilAiService,
 	) {}
+
+	// ========================================================================
+	// OLD RULE-BASED METHODS (DEPRECATED - Replaced by ML in analyzeExistingCrops and recommendCrops)
+	// Kept for reference only
+	// ========================================================================
+	
+	/*
+	private async computeSoilProfile(): Promise<SoilProfile> {
+		const latestMeasurement = await this.soilService.findLatest();
+		const prediction = await this.soilAiService.predictWiltingRisk(
+			latestMeasurement.id,
+		);
+
+		// fertilityIndex = (100 - wilting_score) / 100
+		const fertilityIndex = Math.max(
+			0,
+			Math.min(1, (100 - prediction.wilting_score) / 100),
+		);
+
+		// Determine overall suitability
+		let overallSuitability: OverallSuitability;
+		if (fertilityIndex >= 0.75) {
+			overallSuitability = 'SUITABLE';
+		} else if (fertilityIndex >= 0.5) {
+			overallSuitability = 'LIMITED';
+		} else {
+			overallSuitability = 'POOR';
+		}
+
+		// Determine pH status
+		let phStatus: PhStatus;
+		if (latestMeasurement.ph < 6.0) {
+			phStatus = 'ACIDIC';
+		} else if (latestMeasurement.ph <= 7.5) {
+			phStatus = 'NEUTRAL';
+		} else {
+			phStatus = 'ALKALINE';
+		}
+
+		// Determine moisture status
+		let moistureStatus: MoistureStatus;
+		if (latestMeasurement.soilMoisture < 20) {
+			moistureStatus = 'LOW';
+		} else if (latestMeasurement.soilMoisture <= 60) {
+			moistureStatus = 'OPTIMAL';
+		} else {
+			moistureStatus = 'HIGH';
+		}
+
+		// Determine nitrogen status (we'll get this from parcel, but for now use a placeholder)
+		// This will be overridden when we have parcel-specific nitrogen data
+		const nitrogenStatus: NitrogenStatus = 'ADEQUATE';
+
+		return {
+			fertilityIndex,
+			overallSuitability,
+			phStatus,
+			moistureStatus,
+			nitrogenStatus,
+			ph: latestMeasurement.ph,
+			moisture: latestMeasurement.soilMoisture,
+			nitrogen: null,
+		};
+	}
+
+	private calculateCropCompatibility(
+		soilProfile: SoilProfile,
+		requirement: CropRequirementConfig,
+	): CropCompatibility {
+		// pH Compatibility
+		let phCompatibility = 0;
+		if (
+			soilProfile.ph >= requirement.minPH &&
+			soilProfile.ph <= requirement.maxPH
+		) {
+			phCompatibility = 1.0;
+		} else {
+			const phDelta = Math.min(
+				Math.abs(soilProfile.ph - requirement.minPH),
+				Math.abs(soilProfile.ph - requirement.maxPH),
+			);
+			if (phDelta <= 0.5) {
+				phCompatibility = 0.5;
+			} else {
+				phCompatibility = 0;
+			}
+		}
+
+		// Moisture Compatibility
+		let moistureCompatibility = 0;
+		if (
+			soilProfile.moisture >= requirement.minMoisture &&
+			soilProfile.moisture <= requirement.maxMoisture
+		) {
+			moistureCompatibility = 1.0;
+		} else {
+			const moistureDelta = Math.min(
+				Math.abs(soilProfile.moisture - requirement.minMoisture),
+				Math.abs(soilProfile.moisture - requirement.maxMoisture),
+			);
+			if (moistureDelta <= 10) {
+				moistureCompatibility = 0.5;
+			} else {
+				moistureCompatibility = 0;
+			}
+		}
+
+		// Nitrogen Compatibility
+		let nitrogenCompatibility = 1.0; // Default to compatible if no data
+		if (soilProfile.nitrogen !== null) {
+			if (soilProfile.nitrogen >= requirement.nitrogenRequired) {
+				nitrogenCompatibility = 1.0;
+			} else {
+				const nitrogenDeficit = requirement.nitrogenRequired - soilProfile.nitrogen;
+				if (nitrogenDeficit <= 10) {
+					nitrogenCompatibility = 0.5;
+				} else {
+					nitrogenCompatibility = 0;
+				}
+			}
+		}
+
+		// Overall crop compatibility
+		const overall =
+			phCompatibility * 0.4 +
+			moistureCompatibility * 0.3 +
+			nitrogenCompatibility * 0.3;
+
+		return {
+			phCompatibility,
+			moistureCompatibility,
+			nitrogenCompatibility,
+			overall,
+		};
+	}
+
+	private generateRecommendations(
+		compatibility: CropCompatibility,
+		soilProfile: SoilProfile,
+		requirement: CropRequirementConfig,
+	): string[] {
+		const recommendations: string[] = [];
+
+		if (compatibility.phCompatibility < 1) {
+			if (soilProfile.ph < requirement.minPH) {
+				recommendations.push(
+					`Soil pH (${soilProfile.ph.toFixed(1)}) is below optimal range (${requirement.minPH}-${requirement.maxPH}). Consider applying lime to raise pH.`,
+				);
+			} else {
+				recommendations.push(
+					`Soil pH (${soilProfile.ph.toFixed(1)}) is above optimal range (${requirement.minPH}-${requirement.maxPH}). Consider applying sulfur to lower pH.`,
+				);
+			}
+		}
+
+		if (compatibility.moistureCompatibility < 1) {
+			if (soilProfile.moisture < requirement.minMoisture) {
+				recommendations.push(
+					`Soil moisture (${soilProfile.moisture.toFixed(1)}%) is below optimal range (${requirement.minMoisture}-${requirement.maxMoisture}%). Increase irrigation frequency.`,
+				);
+			} else {
+				recommendations.push(
+					`Soil moisture (${soilProfile.moisture.toFixed(1)}%) is above optimal range (${requirement.minMoisture}-${requirement.maxMoisture}%). Improve drainage or reduce irrigation.`,
+				);
+			}
+		}
+
+		if (compatibility.nitrogenCompatibility < 1 && soilProfile.nitrogen !== null) {
+			recommendations.push(
+				`Nitrogen level (${soilProfile.nitrogen} mg/kg) is below requirement (${requirement.nitrogenRequired} mg/kg). Apply nitrogen-rich fertilizer.`,
+			);
+		}
+
+		return recommendations;
+	}
+
+	private determineCropDecision(
+		suitabilityScore: number,
+		soilProfile: SoilProfile,
+	): CropDecision {
+		// If soil overall suitability is POOR, cannot plant anything
+		if (soilProfile.overallSuitability === 'POOR') {
+			return 'CANNOT_PLANT';
+		}
+
+		// Decision based on suitability score
+		if (suitabilityScore >= 70) {
+			return 'CAN_PLANT';
+		} else if (suitabilityScore >= 40) {
+			return 'CAN_PLANT_WITH_IMPROVEMENT';
+		} else {
+			return 'CANNOT_PLANT';
+		}
+	}
+	*/
+
+	// ========================================================================
+	// END OF DEPRECATED METHODS
+	// ========================================================================
 
 	/**
 	 * Normalize crop names to match the standard naming in crop_requirements table.
@@ -99,9 +323,21 @@ export class CropSuitabilityService {
 		return normalized;
 	}
 
+	/**
+	 * Analyze existing crops using unified ML-based AI service
+	 */
 	async analyzeExistingCrops(
 		parcelId: string,
 		farmerId: string,
+		measurementData?: {
+			N?: number;
+			P?: number;
+			K?: number;
+			ph?: number;
+			temperature?: number;
+			humidity?: number;
+			rainfall?: number;
+		},
 	): Promise<AnalyzeExistingCropsResponseDto> {
 		const parcel = (await this.prisma.parcel.findFirst({
 			where: { id: parcelId, farmerId },
@@ -112,121 +348,69 @@ export class CropSuitabilityService {
 			throw new NotFoundException('Parcel not found or you do not have access');
 		}
 
-		const latestMeasurement = await this.soilService.findLatest();
-		const prediction = await this.soilAiService.predictWiltingRisk(
-			latestMeasurement.id,
-		);
+		// Use provided measurement data if available, otherwise fall back to parcel defaults
+		// Priority: measurementData > parcel values > defaults
+		const N = measurementData?.N ?? parcel.nitrogenLevel ?? 40;
+		const P = measurementData?.P ?? parcel.phosphorusLevel ?? 30;
+		const K = measurementData?.K ?? parcel.potassiumLevel ?? 30;
+		const ph = measurementData?.ph ?? parcel.soilPh ?? 6.5;
+		const temperature = measurementData?.temperature ?? 25 + Math.random() * 5;
+		const humidity = measurementData?.humidity ?? 60 + Math.random() * 20;
+		const rainfall = measurementData?.rainfall ?? 100 + Math.random() * 100;
 
-		const soilHealthScore = Math.max(
-			0,
-			Math.min(100, 100 - prediction.wilting_score),
-		);
-		const wiltingRisk =
-			prediction.risk_level === 'Medium'
-				? 'Moderate'
-				: prediction.risk_level;
+		// Prepare farmer's crops list
+		const farmerCrops = parcel.crops.map(c => c.cropName.toLowerCase());
 
-		const cropsAnalysis: CropAnalysisItemDto[] = [];
+		// Get region from parcel location
+		const region = parcel.location || 'Lebanon';
 
-		const prismaAny = this.prisma as any;
+		// Call ML-based crop suitability API with parcel-specific data
+		const aiResponse = await this.soilAiService.predictCropSuitability({
+			N,
+			P,
+			K,
+			temperature,
+			humidity,
+			ph,
+			rainfall,
+			region,
+			farmerCrops,
+		});
 
-		for (const crop of parcel.crops) {
-			const normalizedCropName = this.normalizeCropName(crop.cropName);
-			
-			const requirement = (await prismaAny.cropRequirement.findFirst({
-				where: { cropName: normalizedCropName },
-			})) as CropRequirementConfig | null;
+		// Map AI response to DTO format
+		const soilProfileDto: SoilProfileDto = {
+			soilHealthScore: Math.round(aiResponse.soilProfile.soilHealthScore * 100) / 100,
+			fertilityIndex: Math.round(aiResponse.soilProfile.fertilityIndex * 100) / 100,
+			phStatus: aiResponse.soilProfile.phStatus as PhStatus,
+			nutrientStatus: aiResponse.soilProfile.nutrientStatus as NutrientStatus,
+		};
 
-			const region = (await prismaAny.cropRegion.findFirst({
-				where: {
-					cropName: normalizedCropName,
-					country: parcel.location,
-				},
-			})) as CropRegionConfig | null;
-
-			let score = 100;
-			const recommendations: string[] = [];
-
-			const regionAllowed = !!region;
-
-			if (!requirement) {
-				score = 0;
-				recommendations.push(
-					'No agronomic requirements configured for this crop',
-				);
-			} else {
-				if (latestMeasurement.ph < requirement.minPH) {
-					score -= 30;
-					recommendations.push(
-						'Soil pH is below the optimal range for this crop',
-					);
-				} else if (latestMeasurement.ph > requirement.maxPH) {
-					score -= 30;
-					recommendations.push(
-						'Soil pH is above the optimal range for this crop',
-					);
-				}
-
-				if (latestMeasurement.soilMoisture < requirement.minMoisture) {
-					score -= 25;
-					recommendations.push(
-						'Soil moisture is below the optimal range. Consider improving irrigation.',
-					);
-				} else if (latestMeasurement.soilMoisture > requirement.maxMoisture) {
-					score -= 25;
-					recommendations.push(
-						'Soil moisture is above the optimal range. Improve drainage where possible.',
-					);
-				}
-
-				if (
-					parcel.nitrogenLevel != null &&
-					parcel.nitrogenLevel < requirement.nitrogenRequired
-				) {
-					score -= 20;
-					recommendations.push(
-						'Nitrogen level is below requirement. Consider fertilization.',
-					);
-				}
-			}
-
-			if (!regionAllowed) {
-				score = Math.min(score, 40);
-				recommendations.push(
-					'Crop is not configured as allowed for this country.',
-				);
-			}
-
-			if (score < 0) {
-				score = 0;
-			}
-
-			const decision: CropDecision =
-				score >= 70
-					? 'CAN_PLANT'
-					: score >= 50
-					? 'CAN_PLANT_WITH_IMPROVEMENT'
-					: 'CANNOT_PLANT';
-
-			cropsAnalysis.push({
-				crop: crop.cropName,
-				regionAllowed,
-				suitabilityScore: score,
-				decision,
-				recommendations,
-			});
-		}
+		const cropsAnalysis: CropAnalysisItemDto[] = aiResponse.farmerCropsAnalysis.map(analysis => ({
+			crop: analysis.crop,
+			probability: Math.round(analysis.probability * 100) / 100,
+			decision: analysis.decision as CropDecision,
+			recommendations: [], // Individual crop recommendations can be added here if needed
+		}));
 
 		return {
-			soilHealthScore,
-			wiltingRisk,
+			soilProfile: soilProfileDto,
 			cropsAnalysis,
+			recommendations: aiResponse.recommendations,
 		};
 	}
 
 	async recommendCrops(
 		parcelId: string,
 		farmerId: string,
+		measurementData?: {
+			N?: number;
+			P?: number;
+			K?: number;
+			ph?: number;
+			temperature?: number;
+			humidity?: number;
+			rainfall?: number;
+		},
 	): Promise<RecommendCropsResponseDto> {
 		const parcel = await this.prisma.parcel.findFirst({
 			where: { id: parcelId, farmerId },
@@ -236,116 +420,50 @@ export class CropSuitabilityService {
 			throw new NotFoundException('Parcel not found or you do not have access');
 		}
 
-		const latestMeasurement = await this.soilService.findLatest();
-		const prediction = await this.soilAiService.predictWiltingRisk(
-			latestMeasurement.id,
+		// Use measurement data if provided, otherwise use parcel values, otherwise use defaults
+		const N = measurementData?.N ?? parcel.nitrogenLevel ?? 40;
+		const P = measurementData?.P ?? parcel.phosphorusLevel ?? 30;
+		const K = measurementData?.K ?? parcel.potassiumLevel ?? 30;
+		const ph = measurementData?.ph ?? parcel.soilPh ?? 6.5;
+		const temperature = measurementData?.temperature ?? 25.0;
+		const humidity = measurementData?.humidity ?? 65.0;
+		const rainfall = measurementData?.rainfall ?? 100.0;
+		const region = parcel.location;
+
+		// Call ML API to get crop recommendations (without farmerCrops)
+		const mlResult = await this.soilAiService.predictCropSuitability({
+			N,
+			P,
+			K,
+			temperature,
+			humidity,
+			ph,
+			rainfall,
+			region,
+			// Don't pass farmerCrops to get general recommendations
+		});
+
+		// Map soil profile
+		const soilProfileDto: SoilProfileDto = {
+			soilHealthScore: mlResult.soilProfile.soilHealthScore,
+			fertilityIndex: mlResult.soilProfile.fertilityIndex,
+			phStatus: mlResult.soilProfile.phStatus as PhStatus,
+			nutrientStatus: mlResult.soilProfile.nutrientStatus as NutrientStatus,
+		};
+
+		// Map recommended crops from ML best crops
+		const recommendedCrops: RecommendedCropDto[] = mlResult.bestCrops.map(
+			(crop) => ({
+				crop: crop.crop,
+				probability: crop.probability,
+				decision: 'CAN_PLANT', // Top ML recommendations are plantable
+			}),
 		);
-
-		const soilHealthScore = Math.max(
-			0,
-			Math.min(100, 100 - prediction.wilting_score),
-		);
-		const wiltingRisk =
-			prediction.risk_level === 'Medium'
-				? 'Moderate'
-				: prediction.risk_level;
-
-		const prismaAny = this.prisma as any;
-
-		const regions = (await prismaAny.cropRegion.findMany({
-			where: { country: parcel.location },
-		})) as CropRegionConfig[];
-
-		if (regions.length === 0) {
-			return {
-				soilHealthScore,
-				wiltingRisk,
-				recommendedCrops: [],
-			};
-		}
-
-		const cropNames: string[] = Array.from(
-			new Set(regions.map((r) => r.cropName)),
-		);
-
-		const requirements = (await prismaAny.cropRequirement.findMany({
-			where: { cropName: { in: cropNames } },
-		})) as CropRequirementConfig[];
-
-		const requirementByCrop = new Map<string, CropRequirementConfig>(
-			requirements.map((req) => [req.cropName, req]),
-		);
-
-		const recommended: RecommendedCropDto[] = [];
-
-		for (const cropName of cropNames) {
-			const requirement = requirementByCrop.get(cropName);
-			if (!requirement) {
-				continue;
-			}
-
-			let score = 100;
-			const recommendations: string[] = [];
-
-			if (latestMeasurement.ph < requirement.minPH) {
-				score -= 30;
-				recommendations.push(
-					'Soil pH is below the optimal range for this crop',
-				);
-			} else if (latestMeasurement.ph > requirement.maxPH) {
-				score -= 30;
-				recommendations.push(
-					'Soil pH is above the optimal range for this crop',
-				);
-			}
-
-			if (latestMeasurement.soilMoisture < requirement.minMoisture) {
-				score -= 25;
-				recommendations.push(
-					'Soil moisture is below the optimal range. Consider improving irrigation.',
-				);
-			} else if (latestMeasurement.soilMoisture > requirement.maxMoisture) {
-				score -= 25;
-				recommendations.push(
-					'Soil moisture is above the optimal range. Improve drainage where possible.',
-				);
-			}
-
-			if (
-				parcel.nitrogenLevel != null &&
-				parcel.nitrogenLevel < requirement.nitrogenRequired
-			) {
-				score -= 20;
-				recommendations.push(
-					'Nitrogen level is below requirement. Consider fertilization.',
-				);
-			}
-
-			if (score < 0) {
-				score = 0;
-			}
-
-			const decision: CropDecision =
-				score >= 70
-					? 'CAN_PLANT'
-					: score >= 50
-					? 'CAN_PLANT_WITH_IMPROVEMENT'
-					: 'CANNOT_PLANT';
-
-			recommended.push({
-				crop: cropName,
-				suitabilityScore: score,
-				decision,
-				recommendations,
-			});
-		}
-
-		recommended.sort((a, b) => b.suitabilityScore - a.suitabilityScore);
 
 		return {
-			soilHealthScore,
-			wiltingRisk,
-			recommendedCrops: recommended.slice(0, 5),
+			soilProfile: soilProfileDto,
+			recommendedCrops,
+			recommendations: mlResult.recommendations,
 		};
 	}
 }
