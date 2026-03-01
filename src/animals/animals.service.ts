@@ -21,12 +21,13 @@ export class AnimalsService {
     }
 
     async create(data: any, farmerId: string) {
-        const { vaccines, ...rest } = data;
+        const { vaccines, fieldId, ...rest } = data;
 
         // Transform incoming data to match schema
         const transformedData: any = {
             ...rest,
-            farmerId // Explicitly set foreign key from JWT
+            farmerId, // Explicitly set foreign key from JWT
+            fieldId  // Explicitly set field association
         };
 
         // Handle species-specific gestation calculation
@@ -52,13 +53,17 @@ export class AnimalsService {
 
         // Map vaccines to vaccineRecords relation
         if (vaccines && Array.isArray(vaccines)) {
+            const otherVaccine = await this.prisma.vaccine.findUnique({ where: { code: 'OTHER' } });
+
             transformedData.vaccineRecords = {
-                create: vaccines.filter(v => v.name || v.vaccineName).map((v: any) => ({
-                    vaccineName: v.name || v.vaccineName,
-                    vaccineDate: new Date(v.date || v.vaccineDate),
-                    nextDueDate: v.nextDueDate ? new Date(v.nextDueDate) : null,
-                    vetName: v.vetName,
+                create: vaccines.filter(v => v.name || v.vaccineName || v.vaccineId).map((v: any) => ({
+                    vaccineId: v.vaccineId || otherVaccine?.id || '',
+                    administeredAt: new Date(v.date || v.vaccineDate || v.administeredAt || new Date()),
+                    administeredBy: v.administeredBy || v.vetName || 'System',
+                    doseGiven: v.doseGiven || 1.0,
                     lotNumber: v.lotNumber,
+                    nextDueDate: v.nextDueDate ? new Date(v.nextDueDate) : null,
+                    observations: v.notes || v.observations || (v.name || v.vaccineName),
                 })),
             };
         }
@@ -68,10 +73,13 @@ export class AnimalsService {
         });
     }
 
-    async findAllByFarmer(farmerId: string, animalType?: string) {
+    async findAllByFarmer(farmerId: string, animalType?: string, fieldId?: string) {
         const where: any = { farmerId };
         if (animalType) {
             where.animalType = animalType.toLowerCase();
+        }
+        if (fieldId) {
+            where.fieldId = fieldId;
         }
 
         return this.prisma.animal.findMany({
@@ -137,12 +145,15 @@ export class AnimalsService {
                 });
 
                 // 2. Create new records
-                const vaccinationData = vaccines.filter(v => v.name || v.vaccineName).map((v: any) => ({
-                    vaccineName: v.name || v.vaccineName,
-                    vaccineDate: new Date(v.date || v.vaccineDate),
-                    nextDueDate: v.nextDueDate ? new Date(v.nextDueDate) : null,
-                    vetName: v.vetName,
+                const otherVaccine = await tx.vaccine.findUnique({ where: { code: 'OTHER' } });
+                const vaccinationData = vaccines.filter(v => v.name || v.vaccineName || v.vaccineId).map((v: any) => ({
+                    vaccineId: v.vaccineId || otherVaccine?.id || '',
+                    administeredAt: new Date(v.date || v.vaccineDate || v.administeredAt || new Date()),
+                    administeredBy: v.administeredBy || v.vetName || 'System',
+                    doseGiven: v.doseGiven || 1.0,
                     lotNumber: v.lotNumber,
+                    nextDueDate: v.nextDueDate ? new Date(v.nextDueDate) : null,
+                    observations: v.notes || v.observations || (v.name || v.vaccineName),
                     animalId: animal.id, // Explicitly set the animal link
                 }));
 
@@ -180,7 +191,12 @@ export class AnimalsService {
         });
     }
 
-    async getStatistics(farmerId: string) {
+    async getStatistics(farmerId: string, fieldId?: string) {
+        const baseWhere: any = { farmerId, status: 'active' };
+        if (fieldId) {
+            baseWhere.fieldId = fieldId;
+        }
+
         const [
             totalCount,
             lowHealthCount,
@@ -190,27 +206,27 @@ export class AnimalsService {
             todayMilk,
             yesterdayMilk,
         ] = await Promise.all([
-            this.prisma.animal.count({ where: { farmerId, status: 'active' } }),
-            this.prisma.animal.count({ where: { farmerId, status: 'active', vitalityScore: { lt: 50 } } }),
+            this.prisma.animal.count({ where: baseWhere }),
+            this.prisma.animal.count({ where: { ...baseWhere, vitalityScore: { lt: 50 } } }),
             this.prisma.animal.groupBy({
                 by: ['animalType'],
-                where: { farmerId, status: 'active' },
+                where: baseWhere,
                 _count: true,
             }),
             this.prisma.animal.findMany({
-                where: { farmerId, status: 'active', vitalityScore: { lt: 80 } },
+                where: { ...baseWhere, vitalityScore: { lt: 80 } },
                 orderBy: { vitalityScore: 'asc' },
                 take: 5,
             }),
             (this.prisma as any).vaccineRecord.count({
                 where: {
-                    animal: { farmerId },
+                    animal: baseWhere,
                     nextDueDate: { lte: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) }, // Due within 7 days
                 },
             }),
             this.prisma.milkProduction.aggregate({
                 where: {
-                    animal: { farmerId },
+                    animal: baseWhere,
                     date: {
                         gte: new Date(new Date().setHours(0, 0, 0, 0)),
                         lt: new Date(new Date().setHours(23, 59, 59, 999)),
@@ -220,7 +236,7 @@ export class AnimalsService {
             }),
             this.prisma.milkProduction.aggregate({
                 where: {
-                    animal: { farmerId },
+                    animal: baseWhere,
                     date: {
                         gte: new Date(new Date(new Date().setDate(new Date().getDate() - 1)).setHours(0, 0, 0, 0)),
                         lt: new Date(new Date(new Date().setDate(new Date().getDate() - 1)).setHours(23, 59, 59, 999)),

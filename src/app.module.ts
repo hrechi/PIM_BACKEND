@@ -26,7 +26,9 @@ import { SirenModule } from './siren/siren.module';
 import { MilkProductionModule } from './milk-production/milk-production.module';
 import { WeatherModule } from './weather/weather.module';
 import { IrrigationModule } from './irrigation/irrigation.module';
-
+import { GeoModule } from './geo/geo.module';
+import { VaccinesModule } from './vaccines/vaccines.module';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
@@ -45,7 +47,7 @@ import { IrrigationModule } from './irrigation/irrigation.module';
       database: process.env.DB_NAME || 'fieldly',
       entities: [SoilMeasurement],
       synchronize: true,
-    }), 
+    }),
     PrismaModule,
     EmailModule,
     AuthModule,
@@ -65,6 +67,9 @@ import { IrrigationModule } from './irrigation/irrigation.module';
     MilkProductionModule,
     WeatherModule,
     IrrigationModule,
+    GeoModule,
+    VaccinesModule,
+    ScheduleModule.forRoot(),
   ],
   controllers: [AppController],
   providers: [AppService],

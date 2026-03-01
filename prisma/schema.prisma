@@ -71,6 +71,60 @@ enum AlertLevel {
   critical
 }
 
+// ajout pour le module vaccin
+
+enum RegulationStatus {
+  MANDATORY
+  MANDATORY_ZONES
+  MANDATORY_CONDITIONAL
+  RECOMMENDED
+  VOLUNTARY
+  FORBIDDEN
+  FORBIDDEN_ZONES
+  NOT_APPLICABLE
+  UNDER_ERADICATION
+}
+
+enum FMDZoneStatus {
+  ENDEMIC_WITH_VAX
+  FREE_WITH_VAX
+  FREE_WITHOUT_VAX
+  SURVEILLANCE
+}
+
+enum ScheduleStatus {
+  PENDING
+  NOTIFIED
+  DONE
+  OVERDUE
+  CANCELLED
+}
+
+enum VaccineRoute {
+  SUBCUTANEOUS
+  INTRAMUSCULAR
+  INTRANASAL
+  ORAL
+}
+
+enum VaccinePriority {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum OIERegion {
+  AFRICA_NORTH
+  AFRICA_SUB_SAHARAN
+  EUROPE_WEST
+  EUROPE_EAST
+  AMERICAS_NORTH
+  AMERICAS_SOUTH
+  AMERICAS_CENTRAL
+  ASIA_PACIFIC
+  MIDDLE_EAST
+}
+// fin ajout pour le module vaccin
 
 model User {
   id             String   @id @default(uuid())
@@ -115,6 +169,17 @@ model Field {
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
 
+  // Ajouts pour le module vaccin
+  countryCode  String?      // ISO 3166 dérivé du GPS — ex: "TN", "FR", "US"
+  regionCode   String?      // sous-zone si applicable — ex: "AR-PATAGONIA"
+  fmdFreeZone  Boolean      @default(false)  // calculé à partir du countryCode + regionCode
+  countryId    String?
+  regionId     String?
+  country      Country?     @relation(fields: [countryId], references: [id])
+  region       FieldRegion? @relation(fields: [regionId], references: [id])
+  // fin ajout pour le module vaccin
+
+  animals      Animal[]
   @@map("fields")
   @@index([userId])
 }
@@ -221,6 +286,8 @@ model Animal {
   nodeId       String       @unique
   farmerId     String
   farmer       User         @relation(fields: [farmerId], references: [id])
+  fieldId      String
+  field        Field        @relation(fields: [fieldId], references: [id], onDelete: Cascade)
 
   // Identity
   name         String
@@ -248,6 +315,12 @@ model Animal {
   activityLevel       String       @default("MODERATE") // LOW, MODERATE, HIGH
   lastVetCheck        DateTime?
   vaccination         Boolean      @default(false)
+
+  // Ajouts pour le module vaccin
+  vaccineSchedules VaccineSchedule[]
+  vaccineRecords   VaccineRecord[]
+  // fin ajout pour le module vaccin
+
   healthRiskScore     Float?       // Calculated by AI model (sprint suivant)
   diseaseHistoryCount Int          @default(0) // Calculated from medical_events
 
@@ -291,7 +364,7 @@ model Animal {
   updatedAt DateTime @updatedAt
 
   // Relations
-  vaccineRecords   VaccineRecord[]
+  // delete vaccinRecords 
   medicalEvents    MedicalEvent[]
   sensorReadings   SensorReading[]
   healthAlerts     HealthAlert[]
@@ -303,20 +376,180 @@ model Animal {
   @@map("animals")
 }
 
+// ─── Référentiel Pays / Régions (module vaccin) ──────────────────────────────────────────
+
+model Country {
+  id              String        @id @default(uuid())
+  code            String        @unique  // ISO 3166-1 alpha-2 : "TN", "FR", "US"...
+  nameEn          String
+  nameFr          String
+  nameAr          String?
+  vetAuthority    String        // "DGSV / OEP", "DGAL", "USDA-APHIS"...
+  vetAuthorityUrl String?
+  oieRegion       OIERegion
+  fmdZoneStatus   FMDZoneStatus @default(ENDEMIC_WITH_VAX)
+  timezone        String        @default("UTC")
+  createdAt       DateTime      @default(now())
+
+  regions         FieldRegion[]
+  campaigns       VaccineCampaignPeriod[]
+  regulations     VaccineRegulation[]
+  fields          Field[]
+
+  @@map("countries")
+}
+
+model FieldRegion {
+  id            String        @id @default(uuid())
+  countryId     String
+  code          String        // "AR-PATAGONIA", "AR-CENTRE-NORTH"
+  name          String
+  fmdZoneStatus FMDZoneStatus
+  notes         String?
+
+  country       Country       @relation(fields: [countryId], references: [id])
+  fields        Field[]
+  regulations   VaccineRegulation[]
+
+  @@unique([countryId, code])
+  @@map("field_regions")
+}
+
+// ─── Référentiel Vaccins ──────────────────────────────────────────────────
+
+model Vaccine {
+  id                   String      @id @default(uuid())
+  code                 String      @unique  // "FMD", "LSD", "BRUCELLA_AB"...
+  nameFr               String
+  nameEn               String
+  nameAr               String?
+  targetSpecies        Json        // ["cow","sheep"] — correspond à AnimalType
+  manufacturer         String?
+  doseUnit             String      @default("ml")
+  defaultIntervalDays  Int         @default(365)
+  isCoreVaccine        Boolean     @default(false)
+  intervalDaysOverride Int?
+  notes                String?
+  createdAt            DateTime    @default(now())
+
+  regulations          VaccineRegulation[]
+  schedules            VaccineSchedule[]
+  records              VaccineRecord[]
+
+  @@map("vaccines")
+}
+
+model VaccineRegulation {
+  id                 String           @id @default(uuid())
+  countryId          String
+  regionId           String?          // null = règle nationale, non-null = règle zonale
+  vaccineId          String
+  species            String           // "cow" | "horse" | "sheep" | "dog"
+  status             RegulationStatus
+  frequency          String?          // "BIANNUAL", "ANNUAL", "TRIENNIAL", "ONCE"
+  intervalDays       Int
+  ageMinDays         Int?
+  ageMaxDays         Int?
+  mandatoryFor       String?
+  legalBasis         String?
+  isFreeNational     Boolean          @default(false)
+  isSubsidized       Boolean          @default(false)
+  subsidyAmount      Float?
+  seasonalMonthStart Int?
+  seasonalMonthEnd   Int?
+  notes              String?
+  updatedAt          DateTime         @updatedAt
+
+  country            Country          @relation(fields: [countryId], references: [id])
+  region             FieldRegion?     @relation(fields: [regionId], references: [id])
+  vaccine            Vaccine          @relation(fields: [vaccineId], references: [id])
+
+  @@unique([countryId, regionId, vaccineId, species])
+  @@map("vaccine_regulations")
+}
+
+model VaccineCampaignPeriod {
+  id            String   @id @default(uuid())
+  countryId     String
+  vaccineCode   String
+  species       Json     // ["cow","sheep"]
+  startMonth    Int      // 1 = janvier
+  endMonth      Int
+  isFree        Boolean  @default(false)
+  isSubsidized  Boolean  @default(false)
+  subsidyAmount Float?
+  notes         String?
+
+  country       Country  @relation(fields: [countryId], references: [id])
+
+  @@map("vaccine_campaign_periods")
+}
+
+// ─── Planning & Notifications ──────────────────────────────────────────────
+
+model VaccineSchedule {
+  id                 String          @id @default(uuid())
+  animalId           String
+  animal             Animal          @relation(fields: [animalId], references: [id], onDelete: Cascade)
+  vaccineId          String
+  vaccine            Vaccine         @relation(fields: [vaccineId], references: [id])
+  regulationId       String?         // null si créé manuellement
+  scheduledDate      DateTime
+  reminderDaysBefore Int             @default(3)
+  isRecurring        Boolean         @default(false)
+  recurrenceDays     Int?
+  isMandatory        Boolean         @default(false)
+  priority           VaccinePriority @default(MEDIUM)
+  status             ScheduleStatus  @default(PENDING)
+  notes              String?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  records            VaccineRecord[]
+  notifications      VaccineNotificationLog[]
+
+  @@map("vaccine_schedules")
+}
+
+model VaccineNotificationLog {
+  id         String          @id @default(uuid())
+  scheduleId String
+  schedule   VaccineSchedule @relation(fields: [scheduleId], references: [id])
+  sentAt     DateTime        @default(now())
+  type       String          // "REMINDER_D14", "URGENT_D3", "DUE_TODAY", "OVERDUE"
+  title      String
+  body       String
+  success    Boolean         @default(true)
+
+  @@map("vaccine_notification_logs")
+}
+// fin module vaccine
+
 // ─────────────────────────────────────────────
 // VACCINE RECORDS
 // ─────────────────────────────────────────────
 
 model VaccineRecord {
-  id           String    @id @default(uuid())
-  animalId     String
-  animal       Animal    @relation(fields: [animalId], references: [id], onDelete: Cascade)
-  vaccineName  String
-  vaccineDate  DateTime
-  nextDueDate  DateTime?
-  vetName      String?   // Nom du vétérinaire (texte libre)
-  lotNumber    String?
-  createdAt    DateTime  @default(now())
+  
+  // delete from id --> created_at
+  id             String           @id @default(uuid())
+  scheduleId     String?
+  schedule       VaccineSchedule? @relation(fields: [scheduleId], references: [id])
+  animalId       String
+  animal         Animal           @relation(fields: [animalId], references: [id], onDelete: Cascade)
+  vaccineId      String
+  vaccine        Vaccine          @relation(fields: [vaccineId], references: [id])
+  administeredBy String           // nom du vétérinaire (texte libre — cohérent avec MedicalEvent.vetName)
+  administeredAt DateTime
+  lotNumber      String?
+  doseGiven      Float
+  doseUnit       String           @default("ml")
+  route          VaccineRoute     @default(SUBCUTANEOUS)
+  bodyWeight     Float?
+  nextDueDate    DateTime?        // calculé = administeredAt + regulation.intervalDays
+  dateEstimated  Boolean          @default(false)  // true si date estimée (non connue)
+  observations   String?
+  createdAt      DateTime         @default(now())
 
   @@map("vaccine_records")
 }

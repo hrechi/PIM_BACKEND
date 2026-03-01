@@ -41,8 +41,6 @@ export class NotificationService implements OnModuleInit {
 
   /**
    * Send a security incident push notification to a specific device.
-   * @param fcmToken  Device FCM token stored on the user record
-   * @param incident  Incident details to include in the payload
    */
   async sendIncidentAlert(
     fcmToken: string,
@@ -68,14 +66,7 @@ export class NotificationService implements OnModuleInit {
 
     const message: admin.messaging.Message = {
       token: fcmToken,
-
-      // Visible notification (shown in system tray when app is in background)
-      notification: {
-        title,
-        body,
-      },
-
-      // Data payload (always delivered, used by Flutter when app is open)
+      notification: { title, body },
       data: {
         click_action: 'FLUTTER_NOTIFICATION_CLICK',
         screen: 'INCIDENT_DETAILS',
@@ -85,8 +76,6 @@ export class NotificationService implements OnModuleInit {
         title,
         body,
       },
-
-      // Android-specific: high priority + alarm sound
       android: {
         priority: 'high',
         notification: {
@@ -97,8 +86,6 @@ export class NotificationService implements OnModuleInit {
           color: '#FF0000',
         },
       },
-
-      // iOS-specific
       apns: {
         payload: {
           aps: {
@@ -107,9 +94,7 @@ export class NotificationService implements OnModuleInit {
             badge: 1,
           },
         },
-        headers: {
-          'apns-priority': '10',
-        },
+        headers: { 'apns-priority': '10' },
       },
     };
 
@@ -118,6 +103,46 @@ export class NotificationService implements OnModuleInit {
       this.logger.log(`✅ Push sent for incident ${incident.id} → ${response}`);
     } catch (err) {
       this.logger.error(`❌ Push failed for incident ${incident.id}:`, err);
+    }
+  }
+
+  /**
+   * Generic FCM send — utilisé par VaccineReminderCron et tout autre module.
+   */
+  async sendToDevice(
+    fcmToken: string,
+    payload: {
+      notification: { title: string; body: string };
+      data?: Record<string, string>;
+    },
+  ): Promise<void> {
+    if (!this.initialized) {
+      this.logger.warn('Firebase not initialized — skipping push notification');
+      return;
+    }
+
+    const message: admin.messaging.Message = {
+      token: fcmToken,
+      notification: payload.notification,
+      data: payload.data ?? {},
+      android: {
+        priority: 'high',
+        notification: {
+          channelId: 'vaccine_reminders',
+          sound: 'default',
+        },
+      },
+      apns: {
+        payload: { aps: { sound: 'default', contentAvailable: true } },
+        headers: { 'apns-priority': '10' },
+      },
+    };
+
+    try {
+      const response = await admin.messaging().send(message);
+      this.logger.log(`✅ Push sent → ${response}`);
+    } catch (err) {
+      this.logger.error('❌ Push failed:', err);
     }
   }
 }
