@@ -99,7 +99,23 @@ model User {
   
   // Security incidents logged by this user
   securityIncidents SecurityIncident[]
+  savedArticles     SavedArticle[]
   @@map("users")
+}
+
+model SavedArticle {
+  id          String   @id @default(uuid())
+  title       String
+  description String?  @db.Text
+  url         String
+  imageUrl    String?
+  source      String
+  farmerId    String
+  farmer      User     @relation(fields: [farmerId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+
+  @@map("saved_articles")
+  @@index([farmerId])
 }
 
 model Field {
