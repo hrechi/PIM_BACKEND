@@ -193,23 +193,27 @@ model SecurityIncident {
   @@map("security_incidents")
 }
 model SoilMeasurement {
-  id           String   @id @default(uuid())
-  ph           Float
-  soilMoisture Float    @map("soil_moisture")
-  sunlight     Float
-  nutrients    Json
-  temperature  Float
-  latitude     Float
-  longitude    Float
-  fieldId      String?  @map("field_id")
-  field        Field?   @relation(fields: [fieldId], references: [id], onDelete: SetNull)
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  id                   String   @id @default(uuid())
+  ph                   Float
+  soilMoisture         Float    @map("soil_moisture")
+  sunlight             Float
+  nutrients            Json
+  temperature          Float
+  latitude             Float
+  longitude            Float
+  fieldId              String?  @map("field_id")
+  field                Field?   @relation(fields: [fieldId], references: [id], onDelete: SetNull)
+  imagePath            String?  @map("image_path")
+  soilType             String?  @map("soil_type")
+  detectionConfidence  Float?   @map("detection_confidence")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
 
   @@map("soil_measurements")
   @@index([createdAt])
   @@index([latitude, longitude])
   @@index([fieldId])
+  @@index([soilType])
 }
 
 // ─────────────────────────────────────────────

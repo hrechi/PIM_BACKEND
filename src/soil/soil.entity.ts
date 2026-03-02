@@ -39,6 +39,16 @@ export class SoilMeasurement {
   @Index()
   fieldId: string;
 
+  @Column({ type: 'varchar', name: 'image_path', nullable: true })
+  imagePath: string;
+
+  @Column({ type: 'varchar', name: 'soil_type', nullable: true })
+  @Index()
+  soilType: string;
+
+  @Column({ type: 'float', name: 'detection_confidence', nullable: true })
+  detectionConfidence: number;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
   createdAt: Date;
 
