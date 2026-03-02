@@ -205,6 +205,7 @@ export class AnimalsService {
             vaccinesDueCount,
             todayMilk,
             yesterdayMilk,
+            monthlyExpenseAggregate,
         ] = await Promise.all([
             this.prisma.animal.count({ where: baseWhere }),
             this.prisma.animal.count({ where: { ...baseWhere, vitalityScore: { lt: 50 } } }),
@@ -218,10 +219,11 @@ export class AnimalsService {
                 orderBy: { vitalityScore: 'asc' },
                 take: 5,
             }),
-            (this.prisma as any).vaccineRecord.count({
+            (this.prisma as any).vaccineSchedule.count({
                 where: {
                     animal: baseWhere,
-                    nextDueDate: { lte: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) }, // Due within 7 days
+                    status: { in: ['PENDING', 'NOTIFIED', 'OVERDUE'] },
+                    scheduledDate: { lte: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) }, // Due within 7 days
                 },
             }),
             this.prisma.milkProduction.aggregate({
@@ -244,6 +246,15 @@ export class AnimalsService {
                 },
                 _sum: { totalL: true },
             }),
+            this.prisma.expense.aggregate({
+                where: {
+                    farmId: farmerId,
+                    date: {
+                        gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+                    },
+                },
+                _sum: { amount: true },
+            }),
         ]);
 
         const speciesDistribution = speciesCounts.reduce((acc, curr) => {
@@ -251,14 +262,11 @@ export class AnimalsService {
             return acc;
         }, {} as Record<string, number>);
 
-        // Monthly Spend Placeholder (Logic can be expanded with an Expense model)
-        const monthlySpend = 2450.00;
-
         return {
             totalAnimals: totalCount,
             healthAlerts: lowHealthCount,
             vaccinesDue: vaccinesDueCount,
-            monthlySpend,
+            monthlySpend: monthlyExpenseAggregate?._sum?.amount ? Number(monthlyExpenseAggregate._sum.amount) : 0,
             speciesDistribution,
             needingAttention: attentionList,
             todayMilk: todayMilk._sum.totalL ? Number(todayMilk._sum.totalL) : 0,
