@@ -30,6 +30,8 @@ import { NewsModule } from './news/news.module';
 import { GeoModule } from './geo/geo.module';
 import { VaccinesModule } from './vaccines/vaccines.module';
 import { ScheduleModule } from '@nestjs/schedule';
+import { ReportsModule } from './reports/reports.module';
+
 
 @Module({
   imports: [
@@ -69,6 +71,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     NewsModule,
     GeoModule,
     VaccinesModule,
+    ReportsModule,
     ScheduleModule.forRoot(),
   ],
   controllers: [AppController],

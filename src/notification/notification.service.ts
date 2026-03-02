@@ -55,14 +55,10 @@ export class NotificationService implements OnModuleInit {
       return;
     }
 
-    const apiBase = process.env.API_BASE_URL || 'http://192.168.1.12:3000';
+    const apiBase = process.env.API_BASE_URL || 'http://192.168.1.25:3000';
     const imageUrl = `${apiBase}${incident.imagePath}`;
 
-    const isIntruder = incident.type === 'intruder';
-    const title = isIntruder ? '🚨 INTRUDER DETECTED' : '🐾 ANIMAL DETECTED';
-    const body = isIntruder
-      ? 'An unknown person was detected on your farm!'
-      : 'An animal was detected in a restricted area!';
+    const { title, body } = this.getNotificationContent(incident.type);
 
     const message: admin.messaging.Message = {
       token: fcmToken,
@@ -143,6 +139,46 @@ export class NotificationService implements OnModuleInit {
       this.logger.log(`✅ Push sent → ${response}`);
     } catch (err) {
       this.logger.error('❌ Push failed:', err);
+    }
+  }
+
+  private getNotificationContent(type: string): { title: string; body: string } {
+    switch (type) {
+      case 'intruder':
+        return {
+          title: '🚨 INTRUDER DETECTED',
+          body: 'An unknown person was detected on your farm!',
+        };
+      case 'animal':
+        return {
+          title: '🐾 ANIMAL DETECTED',
+          body: 'An animal was detected in a restricted area!',
+        };
+      case 'acoustic_glass':
+        return {
+          title: '🔊 GLASS BREAK DETECTED',
+          body: 'A glass breaking sound was detected on your farm!',
+        };
+      case 'acoustic_loud':
+        return {
+          title: '🔊 LOUD NOISE DETECTED',
+          body: 'An unusually loud noise was detected on your farm!',
+        };
+      case 'acoustic_anomaly':
+        return {
+          title: '🔊 SOUND ANOMALY DETECTED',
+          body: 'An unusual sound pattern was detected on your farm!',
+        };
+      case 'acoustic_engine':
+        return {
+          title: '🔊 ENGINE SOUND DETECTED',
+          body: 'An engine or vehicle sound was detected on your farm!',
+        };
+      default:
+        return {
+          title: '⚠️ SECURITY ALERT',
+          body: `A security event (${type}) was detected on your farm!`,
+        };
     }
   }
 }

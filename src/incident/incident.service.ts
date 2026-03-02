@@ -17,12 +17,21 @@ export class IncidentService {
     createIncidentDto: CreateIncidentDto,
     imagePath: string,
   ) {
+    this.logger.log(
+      `Creating incident: type=${createIncidentDto.type}, ` +
+      `lat=${createIncidentDto.latitude}, lng=${createIncidentDto.longitude}, ` +
+      `latType=${typeof createIncidentDto.latitude}, lngType=${typeof createIncidentDto.longitude}`,
+    );
+
+    const lat = createIncidentDto.latitude != null ? Number(createIncidentDto.latitude) : null;
+    const lng = createIncidentDto.longitude != null ? Number(createIncidentDto.longitude) : null;
+
     const incident = await this.prisma.securityIncident.create({
       data: {
         type: createIncidentDto.type,
         imagePath,
-        latitude: createIncidentDto.latitude ?? null,
-        longitude: createIncidentDto.longitude ?? null,
+        latitude: isNaN(lat as number) ? null : lat,
+        longitude: isNaN(lng as number) ? null : lng,
         userId,
       },
     });
