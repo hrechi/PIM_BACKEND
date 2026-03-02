@@ -9,13 +9,23 @@ import {
   Query,
   HttpCode,
   HttpStatus,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
+  ParseFilePipe,
+  MaxFileSizeValidator,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { extname } from 'path';
+import { FileValidator } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
   ApiResponse,
   ApiParam,
   ApiQuery,
+  ApiConsumes,
 } from '@nestjs/swagger';
 import { SoilService } from './soil.service';
 import { SoilAiService } from './soil-ai.service';
@@ -23,6 +33,20 @@ import { CreateSoilDto } from './dto/create-soil.dto';
 import { UpdateSoilDto } from './dto/update-soil.dto';
 import { QuerySoilDto } from './dto/query-soil.dto';
 import { BatchPredictionDto } from './dto/batch-prediction.dto';
+
+// Custom file extension validator for soil images
+class ImageFileValidator extends FileValidator {
+  private allowedExtensions = ['.jpg', '.jpeg', '.png', '.webp'];
+
+  isValid(file: Express.Multer.File): boolean {
+    const ext = extname(file.originalname).toLowerCase();
+    return this.allowedExtensions.includes(ext);
+  }
+
+  buildErrorMessage(): string {
+    return 'Only image files (jpg, jpeg, png, webp) are allowed';
+  }
+}
 
 @ApiTags('Soil Measurements')
 @Controller('soil')
@@ -65,6 +89,91 @@ export class SoilController {
   })
   create(@Body() createSoilDto: CreateSoilDto) {
     return this.soilService.create(createSoilDto);
+  }
+
+  @Post('with-image')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({
+    summary: 'Create soil measurement with photo',
+    description:
+      'Upload soil photo for type detection and create measurement. The AI service will analyze the image to detect soil type, confidence, and suggest pH/moisture values.',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Soil measurement created with AI-detected soil type',
+    schema: {
+      example: {
+        id: '550e8400-e29b-41d4-a716-446655440000',
+        ph: 6.5,
+        soilMoisture: 55.0,
+        sunlight: 850.5,
+        nutrients: { nitrogen: 50, phosphorus: 40, potassium: 45 },
+        temperature: 22.5,
+        latitude: 40.7128,
+        longitude: -74.006,
+        imagePath: 'uploads/soil/soil-1234567890-xyz.jpg',
+        soilType: 'Loam',
+        detectionConfidence: 0.85,
+        createdAt: '2026-03-01T12:00:00.000Z',
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid file or validation failed',
+  })
+  @ApiResponse({
+    status: 503,
+    description: 'AI service unavailable',
+  })
+  @UseInterceptors(
+    FileInterceptor('image', {
+      storage: diskStorage({
+        destination: './uploads/soil',
+        filename: (req, file, cb) => {
+          const uniqueSuffix =
+            Date.now() + '-' + Math.round(Math.random() * 1e9);
+          cb(null, `soil-${uniqueSuffix}${extname(file.originalname)}`);
+        },
+      }),
+    }),
+  )
+  async createWithImage(
+    @Body() body: any,
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({ maxSize: 10 * 1024 * 1024 }), // 10 MB
+          new ImageFileValidator({}),
+        ],
+      }),
+    )
+    file: Express.Multer.File,
+  ) {
+    if (!file) {
+      throw new BadRequestException('Image file is required');
+    }
+
+    // Parse multipart form data to correct types
+    // (multipart/form-data sends everything as strings)
+    const createSoilDto: CreateSoilDto = {
+      ph: parseFloat(body.ph),
+      soilMoisture: parseFloat(body.soilMoisture),
+      sunlight: parseFloat(body.sunlight),
+      nutrients: typeof body.nutrients === 'string' 
+        ? JSON.parse(body.nutrients) 
+        : body.nutrients,
+      temperature: parseFloat(body.temperature),
+      latitude: parseFloat(body.latitude),
+      longitude: parseFloat(body.longitude),
+      fieldId: body.fieldId || undefined,
+    };
+
+    const imagePath = `uploads/soil/${file.filename}`;
+
+    // Call service method to handle AI classification and creation
+    return this.soilService.createWithImage(createSoilDto, imagePath, file.path);
   }
 
   @Get()

@@ -41,6 +41,43 @@ export interface SoilPredictionResult {
   };
 }
 
+/**
+ * Interface for ML-based crop suitability request
+ */
+interface CropSuitabilityRequest {
+  N: number;
+  P: number;
+  K: number;
+  temperature: number;
+  humidity: number;
+  ph: number;
+  rainfall: number;
+  region: string;
+  farmerCrops?: string[];
+}
+
+/**
+ * Interface for ML-based crop suitability response
+ */
+export interface CropSuitabilityAiResponse {
+  soilProfile: {
+    soilHealthScore: number;
+    fertilityIndex: number;
+    phStatus: string;
+    nutrientStatus: string;
+  };
+  bestCrops: Array<{
+    crop: string;
+    probability: number;
+  }>;
+  farmerCropsAnalysis: Array<{
+    crop: string;
+    probability: number;
+    decision: string;
+  }>;
+  recommendations: string[];
+}
+
 @Injectable()
 export class SoilAiService {
   private readonly logger = new Logger(SoilAiService.name);
@@ -193,6 +230,72 @@ export class SoilAiService {
         status: 'unavailable',
         service_url: this.aiServiceUrl,
       };
+    }
+  }
+
+  /**
+   * Call unified ML-based crop recommendation API
+   * 
+   * @param input - Soil and environmental parameters
+   * @returns Complete crop suitability analysis from ML model
+   */
+  async predictCropSuitability(input: {
+    N: number;
+    P: number;
+    K: number;
+    temperature: number;
+    humidity: number;
+    ph: number;
+    rainfall: number;
+    region: string;
+    farmerCrops?: string[];
+  }): Promise<CropSuitabilityAiResponse> {
+    try {
+      this.logger.log(`Calling ML crop suitability prediction for region: ${input.region}`);
+
+      const request: CropSuitabilityRequest = {
+        N: input.N,
+        P: input.P,
+        K: input.K,
+        temperature: input.temperature,
+        humidity: input.humidity,
+        ph: input.ph,
+        rainfall: input.rainfall,
+        region: input.region,
+        farmerCrops: input.farmerCrops || [],
+      };
+
+      const response = await this.axiosInstance.post<CropSuitabilityAiResponse>(
+        '/predict-crop-suitability',
+        request,
+      );
+
+      this.logger.log(`ML prediction received: Soil Health=${response.data.soilProfile.soilHealthScore}, Best Crop=${response.data.bestCrops[0]?.crop}`);
+
+      return response.data;
+
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        if (error.response) {
+          this.logger.error(`AI service error: ${error.response.status} - ${JSON.stringify(error.response.data)}`);
+          throw new HttpException(
+            `AI crop prediction failed: ${error.response.data?.detail || 'Unknown error'}`,
+            error.response.status,
+          );
+        } else if (error.request) {
+          this.logger.error('AI service not reachable for crop prediction');
+          throw new HttpException(
+            'AI service is not available. Please ensure the AI service is running.',
+            HttpStatus.SERVICE_UNAVAILABLE,
+          );
+        }
+      }
+
+      this.logger.error(`Crop prediction error: ${error.message}`);
+      throw new HttpException(
+        error.message || 'Failed to generate crop prediction',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 }
