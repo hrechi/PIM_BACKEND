@@ -26,14 +26,10 @@ import { SirenModule } from './siren/siren.module';
 import { MilkProductionModule } from './milk-production/milk-production.module';
 import { WeatherModule } from './weather/weather.module';
 import { IrrigationModule } from './irrigation/irrigation.module';
-<<<<<<< HEAD
 import { NewsModule } from './news/news.module';
-
-=======
 import { GeoModule } from './geo/geo.module';
 import { VaccinesModule } from './vaccines/vaccines.module';
 import { ScheduleModule } from '@nestjs/schedule';
->>>>>>> Animals
 
 @Module({
   imports: [
@@ -43,15 +39,13 @@ import { ScheduleModule } from '@nestjs/schedule';
       rootPath: join(process.cwd(), 'uploads'),
       serveRoot: '/uploads',
     }),
-    TypeOrmModule.forRoot({
-      type: 'postgres',
-      host: process.env.DB_HOST || 'localhost',
-      port: parseInt(process.env.DB_PORT || '5432', 10),
-      username: process.env.DB_USERNAME || 'mohamedyessinenahdi',
-      password: process.env.DB_PASSWORD || '',
-      database: process.env.DB_NAME || 'fieldly',
-      entities: [SoilMeasurement],
-      synchronize: true,
+    TypeOrmModule.forRootAsync({
+      useFactory: () => ({
+        type: 'postgres',
+        url: process.env.DATABASE_URL,
+        entities: [SoilMeasurement],
+        synchronize: true, // Be careful with this in production
+      }),
     }),
     PrismaModule,
     EmailModule,
@@ -72,13 +66,10 @@ import { ScheduleModule } from '@nestjs/schedule';
     MilkProductionModule,
     WeatherModule,
     IrrigationModule,
-<<<<<<< HEAD
     NewsModule,
-=======
     GeoModule,
     VaccinesModule,
     ScheduleModule.forRoot(),
->>>>>>> Animals
   ],
   controllers: [AppController],
   providers: [AppService],
