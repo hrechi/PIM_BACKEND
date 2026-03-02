@@ -53,4 +53,21 @@ export class SirenGateway
 
     return { event: 'siren_ack', data: { status: 'siren_triggered' } };
   }
+
+  @SubscribeMessage('stop_siren')
+  handleStopSiren(
+    @MessageBody() data: { timestamp?: string },
+    @ConnectedSocket() client: Socket,
+  ) {
+    this.logger.warn(
+      `🔇 SIREN STOPPED by ${client.id} at ${data?.timestamp ?? new Date().toISOString()}`,
+    );
+
+    this.server.emit('stop_siren', {
+      stopped_by: client.id,
+      timestamp: data?.timestamp ?? new Date().toISOString(),
+    });
+
+    return { event: 'siren_ack', data: { status: 'siren_stopped' } };
+  }
 }

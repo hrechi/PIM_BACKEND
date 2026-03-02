@@ -26,6 +26,7 @@ import { SirenModule } from './siren/siren.module';
 import { MilkProductionModule } from './milk-production/milk-production.module';
 import { WeatherModule } from './weather/weather.module';
 import { IrrigationModule } from './irrigation/irrigation.module';
+import { ReportsModule } from './reports/reports.module';
 
 
 @Module({
@@ -65,6 +66,7 @@ import { IrrigationModule } from './irrigation/irrigation.module';
     MilkProductionModule,
     WeatherModule,
     IrrigationModule,
+    ReportsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

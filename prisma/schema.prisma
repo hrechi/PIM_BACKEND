@@ -99,6 +99,9 @@ model User {
   
   // Security incidents logged by this user
   securityIncidents SecurityIncident[]
+
+  // Daily AI-generated farm reports
+  dailyReports DailyReport[]
   @@map("users")
 }
 
@@ -192,6 +195,23 @@ model SecurityIncident {
 
   @@map("security_incidents")
 }
+
+model DailyReport {
+  id                  String   @id @default(uuid())
+  summary             String   @db.Text
+  totalIncidents      Int
+  criticalAlerts      Int
+  peakActivityHour    Int      // 0–23
+  averageThreatLevel  String   // 'low' | 'medium' | 'high' | 'critical'
+  userId              String
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt           DateTime @default(now())
+
+  @@map("daily_reports")
+  @@index([userId])
+  @@index([createdAt])
+}
+
 model SoilMeasurement {
   id           String   @id @default(uuid())
   ph           Float
