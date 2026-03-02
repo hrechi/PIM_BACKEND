@@ -126,6 +126,95 @@ export class VaccinesService {
         });
     }
 
+    async updateSchedule(id: string, scheduledDate: string) {
+        return this.prisma.vaccineSchedule.update({
+            where: { id },
+            data: { scheduledDate: new Date(scheduledDate) },
+            include: { vaccine: true },
+        });
+    }
+
+    async getAllSchedules(userId: string) {
+        // En tant qu'admin ou fermier, on veut voir tous les vaccins de ses champs
+        const fields = await this.prisma.field.findMany({
+            where: { userId },
+            select: { id: true },
+        });
+        const fieldIds = fields.map(f => f.id);
+
+        return this.prisma.vaccineSchedule.findMany({
+            where: {
+                animal: { fieldId: { in: fieldIds } },
+                status: { in: ['PENDING', 'NOTIFIED', 'OVERDUE'] },
+            },
+            include: { vaccine: true, animal: true },
+            orderBy: { scheduledDate: 'asc' },
+        });
+    }
+
+    async bulkMarkDone(dto: any) {
+        const results: any[] = [];
+        const administeredAt = new Date(dto.administeredAt);
+
+        const vaccine = await this.prisma.vaccine.findUnique({
+            where: { code: dto.vaccineCode },
+        });
+        if (!vaccine) throw new NotFoundException(`Vaccin ${dto.vaccineCode} inconnu`);
+
+        for (const animalId of dto.animalIds) {
+            // 1. Trouver si un planning existe pour cet animal et ce vaccin
+            const schedule = await this.prisma.vaccineSchedule.findFirst({
+                where: {
+                    animalId,
+                    vaccineId: vaccine.id,
+                    status: { in: ['PENDING', 'NOTIFIED', 'OVERDUE'] },
+                },
+            });
+
+            // 2. Créer le record
+            const record = await this.prisma.vaccineRecord.create({
+                data: {
+                    animalId,
+                    vaccineId: vaccine.id,
+                    scheduleId: schedule?.id ?? null,
+                    administeredBy: dto.administeredBy,
+                    administeredAt,
+                    doseGiven: dto.doseGiven,
+                    lotNumber: dto.lotNumber ?? null,
+                    nextDueDate: schedule?.isRecurring && schedule?.recurrenceDays
+                        ? new Date(administeredAt.getTime() + schedule.recurrenceDays * 86400000)
+                        : null,
+                },
+            });
+
+            // 3. Mettre à jour le planning si trouvé
+            if (schedule) {
+                await this.prisma.vaccineSchedule.update({
+                    where: { id: schedule.id },
+                    data: { status: 'DONE' },
+                });
+
+                // 4. Recréer le prochain si récurrent
+                if (schedule.isRecurring && schedule.recurrenceDays) {
+                    const nextDate = new Date(administeredAt.getTime() + schedule.recurrenceDays * 86400000);
+                    await this.prisma.vaccineSchedule.create({
+                        data: {
+                            animalId,
+                            vaccineId: vaccine.id,
+                            scheduledDate: nextDate,
+                            isMandatory: schedule.isMandatory,
+                            isRecurring: true,
+                            recurrenceDays: schedule.recurrenceDays,
+                            reminderDaysBefore: schedule.reminderDaysBefore,
+                        },
+                    });
+                }
+            }
+            results.push(record);
+        }
+        return { count: results.length, records: results };
+    }
+
     async markDone(scheduleId: string, body: { administeredBy: string; doseGiven: number; lotNumber?: string }) {
         const schedule = await this.prisma.vaccineSchedule.findUnique({
             where: { id: scheduleId },
