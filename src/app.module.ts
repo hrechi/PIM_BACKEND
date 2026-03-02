@@ -41,7 +41,7 @@ import { ShortsModule } from './shorts/shorts.module';
       // process.cwd() always points to the project root regardless of __dirname
       rootPath: join(process.cwd(), 'uploads'),
       serveRoot: '/uploads',
-    }),
+    }), 
     TypeOrmModule.forRootAsync({
       useFactory: () => ({
         type: 'postgres',
