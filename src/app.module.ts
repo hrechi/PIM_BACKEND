@@ -26,8 +26,14 @@ import { SirenModule } from './siren/siren.module';
 import { MilkProductionModule } from './milk-production/milk-production.module';
 import { WeatherModule } from './weather/weather.module';
 import { IrrigationModule } from './irrigation/irrigation.module';
+<<<<<<< HEAD
 import { NewsModule } from './news/news.module';
 
+=======
+import { GeoModule } from './geo/geo.module';
+import { VaccinesModule } from './vaccines/vaccines.module';
+import { ScheduleModule } from '@nestjs/schedule';
+>>>>>>> Animals
 
 @Module({
   imports: [
@@ -66,7 +72,13 @@ import { NewsModule } from './news/news.module';
     MilkProductionModule,
     WeatherModule,
     IrrigationModule,
+<<<<<<< HEAD
     NewsModule,
+=======
+    GeoModule,
+    VaccinesModule,
+    ScheduleModule.forRoot(),
+>>>>>>> Animals
   ],
   controllers: [AppController],
   providers: [AppService],
