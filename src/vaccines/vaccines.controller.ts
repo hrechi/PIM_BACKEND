@@ -28,8 +28,21 @@ export class VaccinesController {
     }
 
     @Get('countries/:code/regulations')
-    getRegulations(@Param('code') code: string, @Query('species') species?: string) {
-        return this.vaccinesService.getCountryRegulations(code, species);
+    getRegulations(
+        @Param('code') code: string,
+        @Query('species') species?: string,
+        @Query('region') regionCode?: string,
+    ) {
+        return this.vaccinesService.getCountryRegulations(code, species, regionCode);
+    }
+
+    /** Get regulations for a specific field — auto-resolves country from GPS */
+    @Get('fields/:fieldId/regulations')
+    getFieldRegulations(
+        @Param('fieldId') fieldId: string,
+        @Query('species') species?: string,
+    ) {
+        return this.vaccinesService.getFieldRegulations(fieldId, species);
     }
 
     // ── Records ────────────────────────────────────────────────────────────
