@@ -2,12 +2,16 @@ import {
     Injectable, NotFoundException, BadRequestException
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { GeoService } from '../geo/geo.service';
 import { CreateVaccineRecordDto } from './dto/create-vaccine-record.dto';
 import { CreateVaccineScheduleDto } from './dto/create-vaccine-schedule.dto';
 
 @Injectable()
 export class VaccinesService {
-    constructor(private prisma: PrismaService) { }
+    constructor(
+        private prisma: PrismaService,
+        private geo: GeoService,
+    ) { }
 
     // ── Référentiel ─────────────────────────────────────────────────────────
 
@@ -27,14 +31,80 @@ export class VaccinesService {
         });
     }
 
-    async getCountryRegulations(countryCode: string, species?: string) {
+    async getCountryRegulations(countryCode: string, species?: string, regionCode?: string) {
         const country = await this.prisma.country.findUnique({ where: { code: countryCode.toUpperCase() } });
         if (!country) throw new NotFoundException(`Pays ${countryCode} non trouvé`);
+
+        // Resolve region if provided
+        let regionId: string | undefined;
+        if (regionCode) {
+            const region = await this.prisma.fieldRegion.findUnique({
+                where: { countryId_code: { countryId: country.id, code: regionCode } },
+            });
+            regionId = region?.id;
+        }
 
         return this.prisma.vaccineRegulation.findMany({
             where: {
                 countryId: country.id,
                 ...(species ? { species } : {}),
+                // National rules (regionId null) + region-specific rules if region is known
+                ...(regionCode
+                    ? {
+                        OR: [
+                            { regionId: null },
+                            ...(regionId ? [{ regionId }] : []),
+                        ],
+                    }
+                    : {}),
+            },
+            include: { vaccine: true, region: true },
+            orderBy: [{ status: 'asc' }, { vaccine: { nameEn: 'asc' } }],
+        });
+    }
+
+    /**
+     * Resolve a field's country (via GPS if needed) and return matching regulations.
+     * This is what the frontend should call — it handles the geo-resolution automatically.
+     */
+    async getFieldRegulations(fieldId: string, species?: string) {
+        const field = await this.prisma.field.findUnique({ where: { id: fieldId } });
+        if (!field) throw new NotFoundException('Field introuvable');
+
+        // Auto-resolve country from GPS if not cached yet
+        let countryCode = field.countryCode;
+        if (!countryCode) {
+            countryCode = await this.geo.resolveAndCacheFieldCountry(fieldId);
+        }
+        if (!countryCode) {
+            throw new BadRequestException('Impossible de déterminer le pays depuis les coordonnées GPS du champ');
+        }
+
+        const country = await this.prisma.country.findUnique({ where: { code: countryCode.toUpperCase() } });
+        if (!country) throw new NotFoundException(`Pays ${countryCode} non supporté`);
+
+        // Check for region
+        const regionCode = field.regionCode;
+        let regionId: string | undefined;
+        if (regionCode) {
+            const region = await this.prisma.fieldRegion.findUnique({
+                where: { countryId_code: { countryId: country.id, code: regionCode } },
+            });
+            regionId = region?.id;
+        }
+
+        return this.prisma.vaccineRegulation.findMany({
+            where: {
+                countryId: country.id,
+                ...(species ? { species } : {}),
+                ...(regionCode
+                    ? {
+                        OR: [
+                            { regionId: null },
+                            ...(regionId ? [{ regionId }] : []),
+                        ],
+                    }
+                    : {}),
             },
             include: { vaccine: true, region: true },
             orderBy: [{ status: 'asc' }, { vaccine: { nameEn: 'asc' } }],

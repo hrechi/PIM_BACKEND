@@ -31,6 +31,7 @@ import { GeoModule } from './geo/geo.module';
 import { VaccinesModule } from './vaccines/vaccines.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ReportsModule } from './reports/reports.module';
+import { ShortsModule } from './shorts/shorts.module';
 
 
 @Module({
@@ -40,7 +41,7 @@ import { ReportsModule } from './reports/reports.module';
       // process.cwd() always points to the project root regardless of __dirname
       rootPath: join(process.cwd(), 'uploads'),
       serveRoot: '/uploads',
-    }),
+    }), 
     TypeOrmModule.forRootAsync({
       useFactory: () => ({
         type: 'postgres',
@@ -73,6 +74,7 @@ import { ReportsModule } from './reports/reports.module';
     VaccinesModule,
     ReportsModule,
     ScheduleModule.forRoot(),
+    ShortsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
