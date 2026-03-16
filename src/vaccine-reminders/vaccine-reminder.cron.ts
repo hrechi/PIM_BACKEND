@@ -12,8 +12,8 @@ export class VaccineReminderCron {
         private notifications: NotificationService,
     ) { }
 
-    /** Rappels intelligents — 7h00 chaque jour */
-    @Cron('0 7 * * *')
+    /** Rappels intelligents — Every minute for testing (was 0 7 * * *) */
+    @Cron('* * * * *')
     async sendVaccineReminders() {
         const now = new Date();
         const in30days = new Date(now.getTime() + 30 * 86400000);
@@ -39,7 +39,7 @@ export class VaccineReminderCron {
                 (schedule.scheduledDate.getTime() - now.getTime()) / 86400000,
             );
 
-            if (![14, 7, 3, 1, 0].includes(daysLeft)) continue;
+            // Temporarily commented out for testing: if (![14, 7, 3, 1, 0].includes(daysLeft)) continue;
 
             const animalName = schedule.animal.name;
             const vaccineName = schedule.vaccine.nameFr;
@@ -51,16 +51,16 @@ export class VaccineReminderCron {
             let type: string;
 
             if (daysLeft <= 0) {
-                title = `💉 Aujourd'hui : ${vaccineName}`;
-                body = `Vacciniser ${animalName} contre ${vaccineName}. Marquez comme fait dans l'app.`;
+                title = `💉 Due today: ${vaccineName}`;
+                body = `Vaccinate ${animalName} against ${vaccineName}. Mark as done in the app.`;
                 type = 'DUE_TODAY';
             } else if (daysLeft <= 3) {
-                title = `🚨 Urgent : ${vaccineName} dans ${daysLeft}j`;
-                body = `${animalName} doit être vacciné(e) contre ${vaccineName} dans ${daysLeft} jour(s).`;
+                title = `🚨 Urgent: ${vaccineName} in ${daysLeft}d`;
+                body = `${animalName} must be vaccinated against ${vaccineName} in ${daysLeft} day(s).`;
                 type = 'URGENT_D3';
             } else {
-                title = `⏰ Rappel vaccin dans ${daysLeft}j`;
-                body = `${animalName} — ${vaccineName} prévu le ${schedule.scheduledDate.toLocaleDateString('fr-FR')}.`;
+                title = `⏰ Vaccine reminder in ${daysLeft}d`;
+                body = `${animalName} — ${vaccineName} scheduled for ${schedule.scheduledDate.toLocaleDateString('en-GB')}.`;
                 type = 'REMINDER';
             }
 
@@ -84,7 +84,7 @@ export class VaccineReminderCron {
             });
             sent++;
         }
-        this.logger.log(`✅ ${sent} rappels vaccins envoyés`);
+        this.logger.log(`✅ ${sent} vaccine reminders sent`);
     }
 
     /** Marquer OVERDUE — 6h00 chaque jour */
@@ -97,6 +97,6 @@ export class VaccineReminderCron {
             },
             data: { status: 'OVERDUE' },
         });
-        this.logger.log(`🔴 ${result.count} plannings marqués OVERDUE`);
+        this.logger.log(`🔴 ${result.count} schedules marked OVERDUE`);
     }
 }

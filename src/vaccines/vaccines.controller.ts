@@ -3,9 +3,11 @@ import {
 } from '@nestjs/common';
 import { VaccinesService } from './vaccines.service';
 import { RegionalVaccineService } from '../vaccine-regional/regional.service';
+import { NotificationService } from '../notification/notification.service';
 import { CreateVaccineRecordDto } from './dto/create-vaccine-record.dto';
 import { CreateVaccineScheduleDto } from './dto/create-vaccine-schedule.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PrismaService } from '../prisma/prisma.service';
 
 @UseGuards(JwtAuthGuard)
 @Controller()
@@ -13,6 +15,8 @@ export class VaccinesController {
     constructor(
         private vaccinesService: VaccinesService,
         private regionalService: RegionalVaccineService,
+        private notifications: NotificationService,
+        private prisma: PrismaService,
     ) { }
 
     // ── Référentiel ────────────────────────────────────────────────────────
@@ -87,5 +91,35 @@ export class VaccinesController {
         @Body() body: { administeredBy: string; doseGiven: number; lotNumber?: string },
     ) {
         return this.vaccinesService.markDone(id, body);
+    }
+
+    // ── Test notification (DEV) ────────────────────────────────────────────
+
+    /** Sends an immediate test push to the logged-in user's device.
+     *  Call: GET /vaccines/test-notification  (with Authorization: Bearer <token>)
+     */
+    @Get('vaccines/test-notification')
+    async testNotification(@Request() req: any) {
+        const user = await this.prisma.user.findUnique({
+            where: { id: req.user.id },
+            select: { fcmToken: true, name: true },
+        });
+
+        if (!user?.fcmToken) {
+            return {
+                ok: false,
+                message: 'No FCM token found. Make sure the app sent the token after login.',
+            };
+        }
+
+        await this.notifications.sendToDevice(user.fcmToken, {
+            notification: {
+                title: '🧪 Test Notification',
+                body: `Hello ${user.name ?? 'Farmer'}! Firebase push notifications are working correctly.`,
+            },
+            data: { type: 'TEST' },
+        });
+
+        return { ok: true, message: 'Test notification sent! Check your device.' };
     }
 }
