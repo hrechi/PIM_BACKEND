@@ -32,6 +32,7 @@ import { VaccinesModule } from './vaccines/vaccines.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ReportsModule } from './reports/reports.module';
 import { ShortsModule } from './shorts/shorts.module';
+import { CommunityModule } from './community/community.module';
 
 
 @Module({
@@ -75,6 +76,7 @@ import { ShortsModule } from './shorts/shorts.module';
     ReportsModule,
     ScheduleModule.forRoot(),
     ShortsModule,
+    CommunityModule,
   ],
   controllers: [AppController],
   providers: [AppService],
