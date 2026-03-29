@@ -41,8 +41,6 @@ export class NotificationService implements OnModuleInit {
 
   /**
    * Send a security incident push notification to a specific device.
-   * @param fcmToken  Device FCM token stored on the user record
-   * @param incident  Incident details to include in the payload
    */
   async sendIncidentAlert(
     fcmToken: string,
@@ -57,25 +55,14 @@ export class NotificationService implements OnModuleInit {
       return;
     }
 
-    const apiBase = process.env.API_BASE_URL || 'http://192.168.1.12:3000';
+    const apiBase = process.env.API_BASE_URL || 'http://192.168.1.25:3000';
     const imageUrl = `${apiBase}${incident.imagePath}`;
 
-    const isIntruder = incident.type === 'intruder';
-    const title = isIntruder ? '🚨 INTRUDER DETECTED' : '🐾 ANIMAL DETECTED';
-    const body = isIntruder
-      ? 'An unknown person was detected on your farm!'
-      : 'An animal was detected in a restricted area!';
+    const { title, body } = this.getNotificationContent(incident.type);
 
     const message: admin.messaging.Message = {
       token: fcmToken,
-
-      // Visible notification (shown in system tray when app is in background)
-      notification: {
-        title,
-        body,
-      },
-
-      // Data payload (always delivered, used by Flutter when app is open)
+      notification: { title, body },
       data: {
         click_action: 'FLUTTER_NOTIFICATION_CLICK',
         screen: 'INCIDENT_DETAILS',
@@ -85,8 +72,6 @@ export class NotificationService implements OnModuleInit {
         title,
         body,
       },
-
-      // Android-specific: high priority + alarm sound
       android: {
         priority: 'high',
         notification: {
@@ -97,8 +82,6 @@ export class NotificationService implements OnModuleInit {
           color: '#FF0000',
         },
       },
-
-      // iOS-specific
       apns: {
         payload: {
           aps: {
@@ -107,9 +90,7 @@ export class NotificationService implements OnModuleInit {
             badge: 1,
           },
         },
-        headers: {
-          'apns-priority': '10',
-        },
+        headers: { 'apns-priority': '10' },
       },
     };
 
@@ -118,6 +99,86 @@ export class NotificationService implements OnModuleInit {
       this.logger.log(`✅ Push sent for incident ${incident.id} → ${response}`);
     } catch (err) {
       this.logger.error(`❌ Push failed for incident ${incident.id}:`, err);
+    }
+  }
+
+  /**
+   * Generic FCM send — utilisé par VaccineReminderCron et tout autre module.
+   */
+  async sendToDevice(
+    fcmToken: string,
+    payload: {
+      notification: { title: string; body: string };
+      data?: Record<string, string>;
+    },
+  ): Promise<void> {
+    if (!this.initialized) {
+      this.logger.warn('Firebase not initialized — skipping push notification');
+      return;
+    }
+
+    const message: admin.messaging.Message = {
+      token: fcmToken,
+      notification: payload.notification,
+      data: payload.data ?? {},
+      android: {
+        priority: 'high',
+        notification: {
+          channelId: 'vaccine_reminders',
+          sound: 'default',
+        },
+      },
+      apns: {
+        payload: { aps: { sound: 'default', contentAvailable: true } },
+        headers: { 'apns-priority': '10' },
+      },
+    };
+
+    try {
+      const response = await admin.messaging().send(message);
+      this.logger.log(`✅ Push sent → ${response}`);
+    } catch (err) {
+      this.logger.error('❌ Push failed:', err);
+    }
+  }
+
+  private getNotificationContent(type: string): { title: string; body: string } {
+    switch (type) {
+      case 'intruder':
+        return {
+          title: '🚨 INTRUDER DETECTED',
+          body: 'An unknown person was detected on your farm!',
+        };
+      case 'animal':
+        return {
+          title: '🐾 ANIMAL DETECTED',
+          body: 'An animal was detected in a restricted area!',
+        };
+      case 'acoustic_glass':
+        return {
+          title: '🔊 GLASS BREAK DETECTED',
+          body: 'A glass breaking sound was detected on your farm!',
+        };
+      case 'acoustic_loud':
+        return {
+          title: '🔊 LOUD NOISE DETECTED',
+          body: 'An unusually loud noise was detected on your farm!',
+        };
+      case 'acoustic_anomaly':
+        return {
+          title: '🔊 SOUND ANOMALY DETECTED',
+          body: 'An unusual sound pattern was detected on your farm!',
+        };
+      case 'acoustic_engine':
+        return {
+          title: '🔊 ENGINE SOUND DETECTED',
+          body: 'An engine or vehicle sound was detected on your farm!',
+        };
+      default:
+        return {
+          title: '⚠️ SECURITY ALERT',
+          body: `A security event (${type}) was detected on your farm!`,
+        };
     }
   }
 }

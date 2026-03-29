@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req, Query } from '@nestjs/common';
 import { ParcelsService } from './parcels.service';
 import { CreateParcelDto } from './dto/create-parcel.dto';
 import { UpdateParcelDto } from './dto/update-parcel.dto';
@@ -64,5 +64,43 @@ export class ParcelsController {
   @Get(':id/ai-advice')
   getAiAdvice(@Req() req, @Param('id') id: string) {
     return this.parcelsService.getAiAdvice(id, req.user.id);
+  }
+
+  @Get(':id/analyze-existing-crops')
+  analyzeExistingCrops(
+    @Req() req,
+    @Param('id') id: string,
+    @Query('N') N?: number,
+    @Query('P') P?: number,
+    @Query('K') K?: number,
+    @Query('ph') ph?: number,
+    @Query('temperature') temperature?: number,
+    @Query('humidity') humidity?: number,
+    @Query('rainfall') rainfall?: number,
+  ) {
+    return this.cropSuitabilityService.analyzeExistingCrops(
+      id,
+      req.user.id,
+      { N, P, K, ph, temperature, humidity, rainfall },
+    );
+  }
+
+  @Get(':id/recommend-crops')
+  recommendCrops(
+    @Req() req,
+    @Param('id') id: string,
+    @Query('N') N?: number,
+    @Query('P') P?: number,
+    @Query('K') K?: number,
+    @Query('ph') ph?: number,
+    @Query('temperature') temperature?: number,
+    @Query('humidity') humidity?: number,
+    @Query('rainfall') rainfall?: number,
+  ) {
+    return this.cropSuitabilityService.recommendCrops(
+      id,
+      req.user.id,
+      { N, P, K, ph, temperature, humidity, rainfall },
+    );
   }
 }

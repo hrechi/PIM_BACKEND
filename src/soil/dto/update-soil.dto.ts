@@ -8,6 +8,7 @@ import {
   IsLatitude,
   IsLongitude,
   IsUUID,
+  IsString,
 } from 'class-validator';
 
 export class UpdateSoilDto {
@@ -89,4 +90,32 @@ export class UpdateSoilDto {
   @IsOptional()
   @IsUUID('4', { message: 'Field ID must be a valid UUID' })
   fieldId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Path to uploaded soil image',
+    example: 'uploads/soil/soil-1234567890-xyz.jpg',
+  })
+  @IsOptional()
+  @IsString()
+  imagePath?: string;
+
+  @ApiPropertyOptional({
+    description: 'Detected soil type from image analysis',
+    example: 'Loam',
+  })
+  @IsOptional()
+  @IsString()
+  soilType?: string;
+
+  @ApiPropertyOptional({
+    description: 'Confidence score of soil type detection (0-1)',
+    minimum: 0,
+    maximum: 1,
+    example: 0.85,
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(1)
+  detectionConfidence?: number;
 }

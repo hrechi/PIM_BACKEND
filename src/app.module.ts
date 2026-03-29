@@ -30,6 +30,11 @@ import { NewsModule } from './news/news.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { CalendarModule } from './calendar/calendar.module';
 import { HealthScoreModule } from './health-score/health-score.module';
+import { GeoModule } from './geo/geo.module';
+import { VaccinesModule } from './vaccines/vaccines.module';
+import { ReportsModule } from './reports/reports.module';
+import { ShortsModule } from './shorts/shorts.module';
+
 
 @Module({
   imports: [
@@ -38,16 +43,14 @@ import { HealthScoreModule } from './health-score/health-score.module';
       // process.cwd() always points to the project root regardless of __dirname
       rootPath: join(process.cwd(), 'uploads'),
       serveRoot: '/uploads',
-    }),
-    TypeOrmModule.forRoot({
-      type: 'postgres',
-      host: process.env.DB_HOST || 'localhost',
-      port: parseInt(process.env.DB_PORT || '5432', 10),
-      username: process.env.DB_USERNAME || 'mohamedyessinenahdi',
-      password: process.env.DB_PASSWORD || '',
-      database: process.env.DB_NAME || 'fieldly',
-      entities: [SoilMeasurement],
-      synchronize: true,
+    }), 
+    TypeOrmModule.forRootAsync({
+      useFactory: () => ({
+        type: 'postgres',
+        url: process.env.DATABASE_URL,
+        entities: [SoilMeasurement],
+        synchronize: true, // Be careful with this in production
+      }),
     }),
     PrismaModule,
     EmailModule,
@@ -72,6 +75,10 @@ import { HealthScoreModule } from './health-score/health-score.module';
     AnalyticsModule,
     CalendarModule,
     HealthScoreModule,
+    GeoModule,
+    VaccinesModule,
+    ReportsModule,
+    ShortsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

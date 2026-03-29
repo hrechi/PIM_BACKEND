@@ -9,6 +9,7 @@ import {
   IsLongitude,
   IsOptional,
   IsUUID,
+  IsString,
 } from 'class-validator';
 
 export class CreateSoilDto {
@@ -91,4 +92,35 @@ export class CreateSoilDto {
   @IsOptional()
   @IsUUID('4', { message: 'Field ID must be a valid UUID' })
   fieldId?: string;
+
+  @ApiProperty({
+    description: 'Path to uploaded soil image',
+    example: 'uploads/soil/soil-1234567890-xyz.jpg',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  imagePath?: string;
+
+  @ApiProperty({
+    description: 'Detected soil type from image analysis',
+    example: 'Loam',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  soilType?: string;
+
+  @ApiProperty({
+    description: 'Confidence score of soil type detection (0-1)',
+    minimum: 0,
+    maximum: 1,
+    example: 0.85,
+    required: false,
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(1)
+  detectionConfidence?: number;
 }

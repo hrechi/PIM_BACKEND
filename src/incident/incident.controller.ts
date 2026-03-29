@@ -1,4 +1,5 @@
 import {
+  
   Controller,
   Post,
   Get,
@@ -10,30 +11,16 @@ import {
   UploadedFile,
   BadRequestException,
   Req,
-  ParseFilePipe,
-  MaxFileSizeValidator,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
-import { FileValidator } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { IncidentService } from './incident.service';
 import { CreateIncidentDto } from './dto/create-incident.dto';
 
-// Custom file extension validator (more reliable than MIME type on mobile)
-class ImageFileValidator extends FileValidator {
-  private allowedExtensions = ['.jpg', '.jpeg', '.png', '.webp'];
-
-  isValid(file: Express.Multer.File): boolean {
-    const ext = extname(file.originalname).toLowerCase();
-    return this.allowedExtensions.includes(ext);
-  }
-
-  buildErrorMessage(): string {
-    return 'Only image files (jpg, jpeg, png, webp) are allowed';
-  }
-}
+const ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif'];
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 
 @Controller('security/incidents')
 @UseGuards(JwtAuthGuard)
@@ -55,18 +42,21 @@ export class IncidentController {
   async createIncident(
     @Req() req: any,
     @Body() createIncidentDto: CreateIncidentDto,
-    @UploadedFile(
-      new ParseFilePipe({
-        validators: [
-          new MaxFileSizeValidator({ maxSize: 5 * 1024 * 1024 }), // 5 MB
-          new ImageFileValidator({}),
-        ],
-      }),
-    )
-    file: Express.Multer.File,
+    @UploadedFile() file: Express.Multer.File,
   ) {
     if (!file) {
       throw new BadRequestException('Image file is required');
+    }
+
+    // Validate file size
+    if (file.size > MAX_FILE_SIZE) {
+      throw new BadRequestException(`File too large. Maximum size is ${MAX_FILE_SIZE / 1024 / 1024}MB`);
+    }
+
+    // Validate file extension (case-insensitive, includes iOS HEIC)
+    const ext = extname(file.originalname).toLowerCase();
+    if (!ALLOWED_EXTENSIONS.includes(ext)) {
+      throw new BadRequestException(`Invalid file type "${ext}". Allowed: ${ALLOWED_EXTENSIONS.join(', ')}`);
     }
 
     const userId = req.user.id;
