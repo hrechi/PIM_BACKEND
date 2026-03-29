@@ -27,7 +27,9 @@ import { MilkProductionModule } from './milk-production/milk-production.module';
 import { WeatherModule } from './weather/weather.module';
 import { IrrigationModule } from './irrigation/irrigation.module';
 import { NewsModule } from './news/news.module';
-
+import { AnalyticsModule } from './analytics/analytics.module';
+import { CalendarModule } from './calendar/calendar.module';
+import { HealthScoreModule } from './health-score/health-score.module';
 
 @Module({
   imports: [
@@ -67,6 +69,9 @@ import { NewsModule } from './news/news.module';
     WeatherModule,
     IrrigationModule,
     NewsModule,
+    AnalyticsModule,
+    CalendarModule,
+    HealthScoreModule,
   ],
   controllers: [AppController],
   providers: [AppService],
