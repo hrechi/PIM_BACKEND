@@ -26,9 +26,17 @@ import { SirenModule } from './siren/siren.module';
 import { MilkProductionModule } from './milk-production/milk-production.module';
 import { WeatherModule } from './weather/weather.module';
 import { IrrigationModule } from './irrigation/irrigation.module';
+import { NewsModule } from './news/news.module';
+import { AnalyticsModule } from './analytics/analytics.module';
+import { CalendarModule } from './calendar/calendar.module';
+import { HealthScoreModule } from './health-score/health-score.module';
+import { GeoModule } from './geo/geo.module';
+import { VaccinesModule } from './vaccines/vaccines.module';
 import { ReportsModule } from './reports/reports.module';
+import { ShortsModule } from './shorts/shorts.module';
+import { CommunityModule } from './community/community.module';
 
-
+ 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -36,17 +44,15 @@ import { ReportsModule } from './reports/reports.module';
       // process.cwd() always points to the project root regardless of __dirname
       rootPath: join(process.cwd(), 'uploads'),
       serveRoot: '/uploads',
-    }),
-    TypeOrmModule.forRoot({
-      type: 'postgres',
-      host: process.env.DB_HOST || 'localhost',
-      port: parseInt(process.env.DB_PORT || '5432', 10),
-      username: process.env.DB_USERNAME || 'macbook',
-      password: process.env.DB_PASSWORD || 'macbook',
-      database: process.env.DB_NAME || 'fieldly',
-      entities: [SoilMeasurement],
-      synchronize: true,
     }), 
+    TypeOrmModule.forRootAsync({
+      useFactory: () => ({
+        type: 'postgres',
+        url: process.env.DATABASE_URL,
+        entities: [SoilMeasurement],
+        synchronize: true, // Be careful with this in production
+      }),
+    }),
     PrismaModule,
     EmailModule,
     AuthModule,
@@ -66,7 +72,15 @@ import { ReportsModule } from './reports/reports.module';
     MilkProductionModule,
     WeatherModule,
     IrrigationModule,
+    NewsModule,
+    AnalyticsModule,
+    CalendarModule,
+    HealthScoreModule,
+    GeoModule,
+    VaccinesModule,
     ReportsModule,
+    ShortsModule,
+    CommunityModule,
   ],
   controllers: [AppController],
   providers: [AppService],

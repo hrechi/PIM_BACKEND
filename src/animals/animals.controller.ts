@@ -24,13 +24,13 @@ export class AnimalsController {
     }
 
     @Get()
-    findAll(@Req() req: any, @Query('animalType') animalType?: string) {
-        return this.animalsService.findAllByFarmer(req.user.id, animalType);
+    findAll(@Req() req: any, @Query('animalType') animalType?: string, @Query('fieldId') fieldId?: string) {
+        return this.animalsService.findAllByFarmer(req.user.id, animalType, fieldId);
     }
 
     @Get('stats')
-    getStats(@Req() req: any) {
-        return this.animalsService.getStatistics(req.user.id);
+    getStats(@Req() req: any, @Query('fieldId') fieldId?: string) {
+        return this.animalsService.getStatistics(req.user.id, fieldId);
     }
 
     @Patch(':nodeId')

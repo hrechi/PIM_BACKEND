@@ -9,6 +9,10 @@ export interface SoilMeasurementWithStatus {
   temperature: number;
   latitude: number;
   longitude: number;
+  fieldId?: string;
+  imagePath?: string;
+  soilType?: string;
+  detectionConfidence?: number;
   createdAt: Date;
   updatedAt: Date;
   phStatus: PhStatus;

@@ -4,6 +4,7 @@ import {
   BadRequestException,
   HttpException,
   HttpStatus,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, MoreThanOrEqual, LessThanOrEqual } from 'typeorm';
@@ -16,13 +17,24 @@ import {
   SoilMeasurementWithStatus,
   PaginatedResponse,
 } from './interfaces';
+import * as fs from 'fs';
+import axios from 'axios';
+import FormData = require('form-data');
 
 @Injectable()
 export class SoilService {
+  private readonly logger = new Logger(SoilService.name);
+  private readonly aiServiceUrl: string;
+
   constructor(
     @InjectRepository(SoilMeasurement)
     private readonly soilRepository: Repository<SoilMeasurement>,
-  ) {}
+  ) {
+    // Ensure URL doesn't end with slash to avoid double slashes
+    const baseUrl = process.env.AI_SERVICE_URL || 'http://localhost:8000';
+    this.aiServiceUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    this.logger.log(`🤖 AI Service URL configured: ${this.aiServiceUrl}`);
+  }
 
   /**
    * Create a new soil measurement
@@ -35,6 +47,104 @@ export class SoilService {
     } catch (error) {
       throw new HttpException(
         'Failed to create soil measurement',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * Create soil measurement with image classification
+   * Calls AI service to detect soil type from photo
+   */
+  async createWithImage(
+    createSoilDto: CreateSoilDto,
+    imagePath: string,
+    imageFilePath: string,
+  ): Promise<SoilMeasurementWithStatus> {
+    try {
+      // Call AI service to classify soil image
+      let soilType = 'Unknown';
+      let detectionConfidence = 0.0;
+      let estimatedPh = createSoilDto.ph;
+      let estimatedMoisture = createSoilDto.soilMoisture;
+
+      try {
+        this.logger.log('Calling AI service to classify soil image...');
+        
+        // Read image file and create form data
+        const formData = new FormData();
+        formData.append('image', fs.createReadStream(imageFilePath));
+
+        const fullUrl = `${this.aiServiceUrl}/classify-soil-image`;
+        this.logger.log(`📡 Calling AI endpoint: ${fullUrl}`);
+
+        const response = await axios.post(
+          fullUrl,
+          formData,
+          {
+            headers: formData.getHeaders(),
+            timeout: 15000, // 15 second timeout
+          },
+        );
+
+        const aiResult = response.data;
+        this.logger.log(`✅ AI Classification result: ${JSON.stringify(aiResult)}`);
+
+        soilType = aiResult.soilType || 'Unknown';
+        detectionConfidence = aiResult.confidence || 0.0;
+        
+        // Use AI estimates if values weren't manually provided or if confidence is high
+        if (detectionConfidence >= 0.7) {
+          // Only suggest values if confidence is high enough
+          if (!createSoilDto.ph && aiResult.estimatedPh) {
+            estimatedPh = aiResult.estimatedPh;
+          }
+          if (!createSoilDto.soilMoisture && aiResult.estimatedMoisture) {
+            estimatedMoisture = aiResult.estimatedMoisture;
+          }
+        }
+      } catch (aiError) {
+        this.logger.error(`❌ AI service classification failed: ${aiError.message}`);
+        if (aiError.response) {
+          this.logger.error(`Response status: ${aiError.response.status}`);
+          this.logger.error(`Response data: ${JSON.stringify(aiError.response.data)}`);
+        }
+        if (aiError.code === 'ECONNREFUSED') {
+          this.logger.error(`⚠️ Cannot connect to AI service at ${this.aiServiceUrl}`);
+        }
+        // Continue with Unknown soil type - don't fail the whole request
+      }
+
+      // Create measurement with AI-detected soil type
+      const measurementData = {
+        ...createSoilDto,
+        imagePath,
+        soilType,
+        detectionConfidence,
+        // Use estimated values only if not provided by user
+        ph: createSoilDto.ph || estimatedPh,
+        soilMoisture: createSoilDto.soilMoisture || estimatedMoisture,
+      };
+
+      const measurement = this.soilRepository.create(measurementData);
+      const savedMeasurement = await this.soilRepository.save(measurement);
+      
+      this.logger.log(`✅ Soil measurement created with type: ${soilType} (confidence: ${detectionConfidence})`);
+      this.logger.log(`📊 Saved measurement data: ${JSON.stringify({
+        id: savedMeasurement.id,
+        soilType: savedMeasurement.soilType,
+        detectionConfidence: savedMeasurement.detectionConfidence,
+        imagePath: savedMeasurement.imagePath,
+      })}`);
+      
+      const enriched = this.enrichWithStatus(savedMeasurement);
+      this.logger.log(`📤 Returning to client: soilType=${enriched.soilType}, confidence=${enriched.detectionConfidence}`);
+      
+      return enriched;
+    } catch (error) {
+      this.logger.error('Failed to create soil measurement with image:', error);
+      throw new HttpException(
+        'Failed to create soil measurement with image',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
