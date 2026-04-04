@@ -135,6 +135,12 @@ enum CommunityReactionType {
   LIKE
   DISLIKE
 }
+
+enum AssetStatus {
+  AVAILABLE
+  IN_USE
+  MAINTENANCE
+}
 // fin ajout pour le module vaccin
 
 model User {
@@ -161,6 +167,7 @@ model User {
   expenses       Expense[]
   // Staff whitelist managed by this user
   whitelistStaff WhitelistStaff[]
+  assets         Asset[]
   
   // Security incidents logged by this user
   securityIncidents SecurityIncident[]
@@ -203,6 +210,7 @@ model Field {
   areaSize         Float?             // in square meters
   missions         Mission[]
   soilMeasurements SoilMeasurement[]
+  assets           Asset[]            // Assets assigned to this field
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
 
@@ -276,10 +284,42 @@ model WhitelistStaff {
   imagePath String
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignedAssets Asset[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@map("whitelist_staff")
+}
+
+model Asset {
+  id              String          @id @default(uuid())
+  name            String
+  category        String
+  status          AssetStatus     @default(AVAILABLE)
+  imageUrl        String?         @map("image_url")
+  serialNumber    String          @map("serial_number")
+  lastServiceDate DateTime?       @map("last_service_date")
+  
+  // Field relation (primary location for this asset)
+  fieldId         String          @map("field_id")
+  field           Field           @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+  
+  // User who owns this asset
+  userId          String          @map("user_id")
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Staff member it's assigned to (optional)
+  assignedToId    String?         @map("assigned_to_id")
+  assignedTo      WhitelistStaff? @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
+  
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  @@unique([userId, serialNumber])
+  @@index([userId])
+  @@index([fieldId])
+  @@index([assignedToId])
+  @@map("assets")
 }
 
 model SecurityIncident {

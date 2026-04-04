@@ -35,6 +35,7 @@ import { VaccinesModule } from './vaccines/vaccines.module';
 import { ReportsModule } from './reports/reports.module';
 import { ShortsModule } from './shorts/shorts.module';
 import { CommunityModule } from './community/community.module';
+import { AssetModule } from './asset/asset.module';
 
  
 @Module({
@@ -81,6 +82,7 @@ import { CommunityModule } from './community/community.module';
     ReportsModule,
     ShortsModule,
     CommunityModule,
+    AssetModule,
   ],
   controllers: [AppController],
   providers: [AppService],
