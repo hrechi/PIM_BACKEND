@@ -16,7 +16,7 @@ export class ChatService {
   /**
    * Parse date references from user message
    * Handles: today, tomorrow, this week, next week, specific dates, day names, etc.
-   */
+   */ 
   private parseDateFromMessage(message: string): Date | null {
     const lowerMessage = message.toLowerCase();
     const today = new Date();

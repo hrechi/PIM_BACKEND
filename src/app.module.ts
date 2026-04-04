@@ -27,11 +27,14 @@ import { MilkProductionModule } from './milk-production/milk-production.module';
 import { WeatherModule } from './weather/weather.module';
 import { IrrigationModule } from './irrigation/irrigation.module';
 import { NewsModule } from './news/news.module';
+import { AnalyticsModule } from './analytics/analytics.module';
+import { CalendarModule } from './calendar/calendar.module';
+import { HealthScoreModule } from './health-score/health-score.module';
 import { GeoModule } from './geo/geo.module';
 import { VaccinesModule } from './vaccines/vaccines.module';
-import { ScheduleModule } from '@nestjs/schedule';
 import { ReportsModule } from './reports/reports.module';
 import { ShortsModule } from './shorts/shorts.module';
+import { CommunityModule } from './community/community.module';
 
  
 @Module({
@@ -70,11 +73,14 @@ import { ShortsModule } from './shorts/shorts.module';
     WeatherModule,
     IrrigationModule,
     NewsModule,
+    AnalyticsModule,
+    CalendarModule,
+    HealthScoreModule,
     GeoModule,
     VaccinesModule,
     ReportsModule,
-    ScheduleModule.forRoot(),
     ShortsModule,
+    CommunityModule,
   ],
   controllers: [AppController],
   providers: [AppService],
