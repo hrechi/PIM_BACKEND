@@ -35,6 +35,7 @@ import { VaccinesModule } from './vaccines/vaccines.module';
 import { ReportsModule } from './reports/reports.module';
 import { ShortsModule } from './shorts/shorts.module';
 import { HarvestOptimizationModule } from './harvest-optimization/harvest-optimization.module';
+import { QuizModule } from './quiz/quiz.module';
 
 @Module({
   imports: [
@@ -80,7 +81,9 @@ import { HarvestOptimizationModule } from './harvest-optimization/harvest-optimi
     ReportsModule,
     ShortsModule,
     HarvestOptimizationModule,
+    QuizModule,
   ],
+
   controllers: [AppController],
   providers: [AppService],
 })
