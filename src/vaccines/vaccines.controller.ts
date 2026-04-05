@@ -28,8 +28,21 @@ export class VaccinesController {
     }
 
     @Get('countries/:code/regulations')
-    getRegulations(@Param('code') code: string, @Query('species') species?: string) {
-        return this.vaccinesService.getCountryRegulations(code, species);
+    getRegulations(
+        @Param('code') code: string,
+        @Query('species') species?: string,
+        @Query('region') regionCode?: string,
+    ) {
+        return this.vaccinesService.getCountryRegulations(code, species, regionCode);
+    }
+
+    /** Get regulations for a specific field — auto-resolves country from GPS */
+    @Get('fields/:fieldId/regulations')
+    getFieldRegulations(
+        @Param('fieldId') fieldId: string,
+        @Query('species') species?: string,
+    ) {
+        return this.vaccinesService.getFieldRegulations(fieldId, species);
     }
 
     // ── Records ────────────────────────────────────────────────────────────
@@ -56,14 +69,29 @@ export class VaccinesController {
         return this.vaccinesService.getUpcoming(fieldId, days ? parseInt(days) : 30);
     }
 
+    @Get('vaccine-schedules/all')
+    getAllSchedules(@Request() req: any) {
+        return this.vaccinesService.getAllSchedules(req.user.id);
+    }
+
     @Post('vaccine-schedules')
     createSchedule(@Body() dto: CreateVaccineScheduleDto) {
         return this.vaccinesService.createSchedule(dto);
     }
 
+    @Post('vaccine-schedules/bulk-done')
+    bulkMarkDone(@Body() dto: any) {
+        return this.vaccinesService.bulkMarkDone(dto);
+    }
+
     @Post('vaccine-schedules/generate/:animalId')
     generateSmartPlan(@Param('animalId') animalId: string) {
         return this.regionalService.generateSmartPlan(animalId);
+    }
+
+    @Patch('vaccine-schedules/:id')
+    updateSchedule(@Param('id') id: string, @Body('scheduledDate') date: string) {
+        return this.vaccinesService.updateSchedule(id, date);
     }
 
     @Patch('vaccine-schedules/:id/done')

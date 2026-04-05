@@ -124,6 +124,16 @@ enum OIERegion {
   ASIA_PACIFIC
   MIDDLE_EAST
 }
+
+enum CommunityPostType {
+  STANDARD
+  VOTE
+}
+
+enum CommunityReactionType {
+  LIKE
+  DISLIKE
+}
 // fin ajout pour le module vaccin
 
 model User {
@@ -157,6 +167,13 @@ model User {
 
   // Daily AI-generated farm reports
   dailyReports DailyReport[]
+
+  // Community module
+  communityPosts            CommunityPost[]
+  communityPostReactions    CommunityPostReaction[]
+  communityComments         CommunityComment[]
+  communityCommentReactions CommunityCommentReaction[]
+  communityPollVotes        CommunityPollVote[]
   @@map("users")
 }
 
@@ -728,6 +745,117 @@ model Expense {
 
   @@map("expenses")
 }
+
+model CommunityPost {
+  id              String            @id @default(uuid())
+  authorId        String
+  author          User              @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  type            CommunityPostType @default(STANDARD)
+  content         String            @db.Text
+  imagePath       String?
+  commentsCount   Int               @default(0)
+  likesCount      Int               @default(0)
+  dislikesCount   Int               @default(0)
+  pollQuestion    String?
+  pollEndsAt      DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  pollOptions     CommunityPollOption[]
+  pollVotes       CommunityPollVote[]
+  reactions       CommunityPostReaction[]
+  comments        CommunityComment[]
+
+  @@map("community_posts")
+  @@index([authorId])
+  @@index([createdAt])
+}
+
+model CommunityPostReaction {
+  id        String                @id @default(uuid())
+  postId    String
+  post      CommunityPost         @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      CommunityReactionType
+  createdAt DateTime              @default(now())
+
+  @@map("community_post_reactions")
+  @@unique([postId, userId])
+  @@index([userId])
+}
+
+model CommunityComment {
+  id             String                    @id @default(uuid())
+  postId         String
+  post           CommunityPost             @relation(fields: [postId], references: [id], onDelete: Cascade)
+  authorId       String
+  author         User                      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  parentCommentId String?
+  parentComment  CommunityComment?         @relation("CommunityCommentReplies", fields: [parentCommentId], references: [id], onDelete: Cascade)
+  replies        CommunityComment[]        @relation("CommunityCommentReplies")
+  content        String                    @db.Text
+  likesCount     Int                       @default(0)
+  dislikesCount  Int                       @default(0)
+  repliesCount   Int                       @default(0)
+  createdAt      DateTime                  @default(now())
+  updatedAt      DateTime                  @updatedAt
+
+  reactions      CommunityCommentReaction[]
+
+  @@map("community_comments")
+  @@index([postId])
+  @@index([authorId])
+  @@index([parentCommentId])
+  @@index([createdAt])
+}
+
+model CommunityCommentReaction {
+  id         String                @id @default(uuid())
+  commentId  String
+  comment    CommunityComment      @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type       CommunityReactionType
+  createdAt  DateTime              @default(now())
+
+  @@map("community_comment_reactions")
+  @@unique([commentId, userId])
+  @@index([userId])
+}
+
+model CommunityPollOption {
+  id          String               @id @default(uuid())
+  postId      String
+  post        CommunityPost        @relation(fields: [postId], references: [id], onDelete: Cascade)
+  text        String
+  votesCount  Int                  @default(0)
+  position    Int
+  createdAt   DateTime             @default(now())
+
+  votes       CommunityPollVote[]
+
+  @@map("community_poll_options")
+  @@index([postId])
+  @@unique([postId, position])
+}
+
+model CommunityPollVote {
+  id          String               @id @default(uuid())
+  postId      String
+  post        CommunityPost        @relation(fields: [postId], references: [id], onDelete: Cascade)
+  optionId    String
+  option      CommunityPollOption  @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime             @default(now())
+
+  @@map("community_poll_votes")
+  @@unique([postId, userId])
+  @@index([optionId])
+  @@index([userId])
+}
+
 model Parcel {
   id                     String          @id @default(uuid())
   location               String

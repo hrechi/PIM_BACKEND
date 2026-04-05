@@ -2,12 +2,16 @@ import {
     Injectable, NotFoundException, BadRequestException
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { GeoService } from '../geo/geo.service';
 import { CreateVaccineRecordDto } from './dto/create-vaccine-record.dto';
 import { CreateVaccineScheduleDto } from './dto/create-vaccine-schedule.dto';
 
 @Injectable()
 export class VaccinesService {
-    constructor(private prisma: PrismaService) { }
+    constructor(
+        private prisma: PrismaService,
+        private geo: GeoService,
+    ) { }
 
     // ── Référentiel ─────────────────────────────────────────────────────────
 
@@ -27,14 +31,80 @@ export class VaccinesService {
         });
     }
 
-    async getCountryRegulations(countryCode: string, species?: string) {
+    async getCountryRegulations(countryCode: string, species?: string, regionCode?: string) {
         const country = await this.prisma.country.findUnique({ where: { code: countryCode.toUpperCase() } });
         if (!country) throw new NotFoundException(`Pays ${countryCode} non trouvé`);
+
+        // Resolve region if provided
+        let regionId: string | undefined;
+        if (regionCode) {
+            const region = await this.prisma.fieldRegion.findUnique({
+                where: { countryId_code: { countryId: country.id, code: regionCode } },
+            });
+            regionId = region?.id;
+        }
 
         return this.prisma.vaccineRegulation.findMany({
             where: {
                 countryId: country.id,
                 ...(species ? { species } : {}),
+                // National rules (regionId null) + region-specific rules if region is known
+                ...(regionCode
+                    ? {
+                        OR: [
+                            { regionId: null },
+                            ...(regionId ? [{ regionId }] : []),
+                        ],
+                    }
+                    : {}),
+            },
+            include: { vaccine: true, region: true },
+            orderBy: [{ status: 'asc' }, { vaccine: { nameEn: 'asc' } }],
+        });
+    }
+
+    /**
+     * Resolve a field's country (via GPS if needed) and return matching regulations.
+     * This is what the frontend should call — it handles the geo-resolution automatically.
+     */
+    async getFieldRegulations(fieldId: string, species?: string) {
+        const field = await this.prisma.field.findUnique({ where: { id: fieldId } });
+        if (!field) throw new NotFoundException('Field introuvable');
+
+        // Auto-resolve country from GPS if not cached yet
+        let countryCode = field.countryCode;
+        if (!countryCode) {
+            countryCode = await this.geo.resolveAndCacheFieldCountry(fieldId);
+        }
+        if (!countryCode) {
+            throw new BadRequestException('Impossible de déterminer le pays depuis les coordonnées GPS du champ');
+        }
+
+        const country = await this.prisma.country.findUnique({ where: { code: countryCode.toUpperCase() } });
+        if (!country) throw new NotFoundException(`Pays ${countryCode} non supporté`);
+
+        // Check for region
+        const regionCode = field.regionCode;
+        let regionId: string | undefined;
+        if (regionCode) {
+            const region = await this.prisma.fieldRegion.findUnique({
+                where: { countryId_code: { countryId: country.id, code: regionCode } },
+            });
+            regionId = region?.id;
+        }
+
+        return this.prisma.vaccineRegulation.findMany({
+            where: {
+                countryId: country.id,
+                ...(species ? { species } : {}),
+                ...(regionCode
+                    ? {
+                        OR: [
+                            { regionId: null },
+                            ...(regionId ? [{ regionId }] : []),
+                        ],
+                    }
+                    : {}),
             },
             include: { vaccine: true, region: true },
             orderBy: [{ status: 'asc' }, { vaccine: { nameEn: 'asc' } }],
@@ -124,6 +194,95 @@ export class VaccinesService {
             },
             include: { vaccine: true },
         });
+    }
+
+    async updateSchedule(id: string, scheduledDate: string) {
+        return this.prisma.vaccineSchedule.update({
+            where: { id },
+            data: { scheduledDate: new Date(scheduledDate) },
+            include: { vaccine: true },
+        });
+    }
+
+    async getAllSchedules(userId: string) {
+        // En tant qu'admin ou fermier, on veut voir tous les vaccins de ses champs
+        const fields = await this.prisma.field.findMany({
+            where: { userId },
+            select: { id: true },
+        });
+        const fieldIds = fields.map(f => f.id);
+
+        return this.prisma.vaccineSchedule.findMany({
+            where: {
+                animal: { fieldId: { in: fieldIds } },
+                status: { in: ['PENDING', 'NOTIFIED', 'OVERDUE'] },
+            },
+            include: { vaccine: true, animal: true },
+            orderBy: { scheduledDate: 'asc' },
+        });
+    }
+
+    async bulkMarkDone(dto: any) {
+        const results: any[] = [];
+        const administeredAt = new Date(dto.administeredAt);
+
+        const vaccine = await this.prisma.vaccine.findUnique({
+            where: { code: dto.vaccineCode },
+        });
+        if (!vaccine) throw new NotFoundException(`Vaccin ${dto.vaccineCode} inconnu`);
+
+        for (const animalId of dto.animalIds) {
+            // 1. Trouver si un planning existe pour cet animal et ce vaccin
+            const schedule = await this.prisma.vaccineSchedule.findFirst({
+                where: {
+                    animalId,
+                    vaccineId: vaccine.id,
+                    status: { in: ['PENDING', 'NOTIFIED', 'OVERDUE'] },
+                },
+            });
+
+            // 2. Créer le record
+            const record = await this.prisma.vaccineRecord.create({
+                data: {
+                    animalId,
+                    vaccineId: vaccine.id,
+                    scheduleId: schedule?.id ?? null,
+                    administeredBy: dto.administeredBy,
+                    administeredAt,
+                    doseGiven: dto.doseGiven,
+                    lotNumber: dto.lotNumber ?? null,
+                    nextDueDate: schedule?.isRecurring && schedule?.recurrenceDays
+                        ? new Date(administeredAt.getTime() + schedule.recurrenceDays * 86400000)
+                        : null,
+                },
+            });
+
+            // 3. Mettre à jour le planning si trouvé
+            if (schedule) {
+                await this.prisma.vaccineSchedule.update({
+                    where: { id: schedule.id },
+                    data: { status: 'DONE' },
+                });
+
+                // 4. Recréer le prochain si récurrent
+                if (schedule.isRecurring && schedule.recurrenceDays) {
+                    const nextDate = new Date(administeredAt.getTime() + schedule.recurrenceDays * 86400000);
+                    await this.prisma.vaccineSchedule.create({
+                        data: {
+                            animalId,
+                            vaccineId: vaccine.id,
+                            scheduledDate: nextDate,
+                            isMandatory: schedule.isMandatory,
+                            isRecurring: true,
+                            recurrenceDays: schedule.recurrenceDays,
+                            reminderDaysBefore: schedule.reminderDaysBefore,
+                        },
+                    });
+                }
+            }
+            results.push(record);
+        }
+        return { count: results.length, records: results };
     }
 
     async markDone(scheduleId: string, body: { administeredBy: string; doseGiven: number; lotNumber?: string }) {

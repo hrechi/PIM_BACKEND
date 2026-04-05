@@ -12,7 +12,7 @@ async function check() {
     console.log('--- Latest 5 Milk Records ---');
     allRecords.forEach(r => {
         console.log(`ID: ${r.id}, Date: ${r.date.toISOString()}, Animal: ${r.animal?.name}, Total: ${r.totalL}L`);
-    });
+    }); 
 
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
