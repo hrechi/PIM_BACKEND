@@ -34,9 +34,8 @@ import { GeoModule } from './geo/geo.module';
 import { VaccinesModule } from './vaccines/vaccines.module';
 import { ReportsModule } from './reports/reports.module';
 import { ShortsModule } from './shorts/shorts.module';
-import { HarvestOptimizationModule } from './harvest-optimization/harvest-optimization.module';
 
-
+ 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -80,7 +79,6 @@ import { HarvestOptimizationModule } from './harvest-optimization/harvest-optimi
     VaccinesModule,
     ReportsModule,
     ShortsModule,
-    HarvestOptimizationModule,
   ],
   controllers: [AppController],
   providers: [AppService],
