@@ -219,13 +219,7 @@ export class AnimalsService {
                 orderBy: { vitalityScore: 'asc' },
                 take: 5,
             }),
-            (this.prisma as any).vaccineSchedule.count({
-                where: {
-                    animal: baseWhere,
-                    status: { in: ['PENDING', 'NOTIFIED', 'OVERDUE'] },
-                    scheduledDate: { lte: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) }, // Due within 7 days
-                },
-            }),
+            Promise.resolve(0), // Temporary bypass for missing vaccine_schedules table
             this.prisma.milkProduction.aggregate({
                 where: {
                     animal: baseWhere,
