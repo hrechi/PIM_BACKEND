@@ -56,6 +56,35 @@ interface CropSuitabilityRequest {
   farmerCrops?: string[];
 }
 
+export interface CropCompatibilityResponse {
+  cropName: string;
+  canPlant: boolean;
+  reason: string;
+  soilHealth?: number;
+  season?: string;
+  compatibilityScore?: number;
+  modelProbability?: number | null;
+}
+
+export interface SoilCorrectionAction {
+  title: string;
+  description: string;
+  steps: string[];
+  affectedCrops: string;
+  priority: number;
+}
+
+export interface SeasonalPlanResponse {
+  season: string;
+  tasks: string[];
+  warning?: string;
+  amendmentWindow?: string;
+  cropAdvice?: {
+    canPlantNow: string[];
+    riskyThisSeason: string[];
+  };
+}
+
 /**
  * Interface for ML-based crop suitability response
  */
@@ -294,6 +323,99 @@ export class SoilAiService {
       this.logger.error(`Crop prediction error: ${error.message}`);
       throw new HttpException(
         error.message || 'Failed to generate crop prediction',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async checkCropCompatibility(payload: Record<string, any>): Promise<CropCompatibilityResponse> {
+    try {
+      const response = await this.axiosInstance.post<CropCompatibilityResponse>(
+        '/soil/crop-compatibility',
+        payload,
+      );
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        if (error.response) {
+          this.logger.error(`AI compatibility error: ${error.response.status} - ${JSON.stringify(error.response.data)}`);
+          throw new HttpException(
+            `AI compatibility check failed: ${error.response.data?.detail || 'Unknown error'}`,
+            error.response.status,
+          );
+        }
+        if (error.request) {
+          throw new HttpException(
+            'AI service is not available. Please ensure the AI service is running.',
+            HttpStatus.SERVICE_UNAVAILABLE,
+          );
+        }
+      }
+
+      throw new HttpException(
+        error.message || 'Failed to check crop compatibility',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async getSoilCorrections(payload: Record<string, any>): Promise<SoilCorrectionAction[]> {
+    try {
+      const response = await this.axiosInstance.post<SoilCorrectionAction[]>(
+        '/soil/fix-for-crops',
+        payload,
+      );
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        if (error.response) {
+          this.logger.error(`AI soil correction error: ${error.response.status} - ${JSON.stringify(error.response.data)}`);
+          throw new HttpException(
+            `AI soil correction failed: ${error.response.data?.detail || 'Unknown error'}`,
+            error.response.status,
+          );
+        }
+        if (error.request) {
+          throw new HttpException(
+            'AI service is not available. Please ensure the AI service is running.',
+            HttpStatus.SERVICE_UNAVAILABLE,
+          );
+        }
+      }
+
+      throw new HttpException(
+        error.message || 'Failed to fetch soil corrections',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async getSeasonalPlan(payload: Record<string, any>): Promise<SeasonalPlanResponse> {
+    try {
+      const response = await this.axiosInstance.post<SeasonalPlanResponse>(
+        '/soil/seasonal-plan',
+        payload,
+      );
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        if (error.response) {
+          this.logger.error(`AI seasonal plan error: ${error.response.status} - ${JSON.stringify(error.response.data)}`);
+          throw new HttpException(
+            `AI seasonal plan failed: ${error.response.data?.detail || 'Unknown error'}`,
+            error.response.status,
+          );
+        }
+        if (error.request) {
+          throw new HttpException(
+            'AI service is not available. Please ensure the AI service is running.',
+            HttpStatus.SERVICE_UNAVAILABLE,
+          );
+        }
+      }
+
+      throw new HttpException(
+        error.message || 'Failed to fetch seasonal plan',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
