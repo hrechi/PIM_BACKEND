@@ -322,6 +322,8 @@ model SoilMeasurement {
   longitude            Float
   fieldId              String?  @map("field_id")
   field                Field?   @relation(fields: [fieldId], references: [id], onDelete: SetNull)
+  parcelId             String?  @map("parcel_id")
+  parcel               Parcel?  @relation(fields: [parcelId], references: [id], onDelete: Cascade)
   imagePath            String?  @map("image_path")
   soilType             String?  @map("soil_type")
   detectionConfidence  Float?   @map("detection_confidence")
@@ -332,6 +334,7 @@ model SoilMeasurement {
   @@index([createdAt])
   @@index([latitude, longitude])
   @@index([fieldId])
+  @@index([parcelId])
   @@index([soilType])
 }
 
@@ -858,7 +861,7 @@ model CommunityPollVote {
 }
 
 model Parcel {
-  id                     String          @id @default(uuid())
+  id                     String            @id @default(uuid())
   location               String
   areaSize               Float
   boundariesDescription  String
@@ -871,13 +874,14 @@ model Parcel {
   irrigationMethod       String
   irrigationFrequency    String
   farmerId               String
-  farmer                 User            @relation(fields: [farmerId], references: [id])
+  farmer                 User              @relation(fields: [farmerId], references: [id])
   crops                  Crop[]
   fertilizations         Fertilization[]
   pests                  PestDisease[]
   harvests               Harvest[]
-  createdAt              DateTime        @default(now())
-  updatedAt              DateTime        @updatedAt
+  soilMeasurements       SoilMeasurement[]
+  createdAt              DateTime          @default(now())
+  updatedAt              DateTime          @updatedAt
 
   @@map("parcels")
 }

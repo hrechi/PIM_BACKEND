@@ -65,9 +65,15 @@ export class ParcelsService {
 
   async remove(id: string, farmerId: string) {
     await this.findOne(id, farmerId);
-    return this.prisma.parcel.delete({
-      where: { id },
-    });
+    await this.prisma.$transaction([
+      this.prisma.crop.deleteMany({ where: { parcelId: id } }),
+      this.prisma.fertilization.deleteMany({ where: { parcelId: id } }),
+      this.prisma.pestDisease.deleteMany({ where: { parcelId: id } }),
+      this.prisma.harvest.deleteMany({ where: { parcelId: id } }),
+      this.prisma.parcel.delete({ where: { id } }),
+    ]);
+
+    return { message: 'Parcel deleted successfully' };
   }
 
   async addCrop(parcelId: string, farmerId: string, dto: CreateCropDto) {
