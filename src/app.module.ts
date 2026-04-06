@@ -38,7 +38,7 @@ import { CommunityModule } from './community/community.module';
  
  
 @Module({
-  imports: [
+  imports: [ 
     ConfigModule.forRoot({ isGlobal: true }),
     ServeStaticModule.forRoot({
       // process.cwd() always points to the project root regardless of __dirname
