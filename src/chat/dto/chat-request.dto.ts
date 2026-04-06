@@ -14,4 +14,13 @@ export class ChatRequestDto {
   @IsString()
   @IsOptional()
   conversationId?: string;
+
+  @ApiProperty({
+    description:
+      'Preferred BCP-47 language for voice responses (ar-TN, ar-SA, fr-FR, en-US)',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  languageCode?: string;
 }
