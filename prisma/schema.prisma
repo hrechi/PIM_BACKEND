@@ -187,6 +187,11 @@ model Field {
   soilMeasurements SoilMeasurement[]
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
+  
+  // Ajouts pour le module finance
+  currency         String             @default("USD") // TND, EUR, USD, etc.
+  currencySymbol   String             @default("$")
+  expenses     Expense[]
 
   // Ajouts pour le module vaccin
   countryCode  String?      // ISO 3166 dérivé du GPS — ex: "TN", "FR", "US"
@@ -337,6 +342,7 @@ model Animal {
   tagNumber    String?
   profileImage String?
   notes        String?
+  origin       String       @default("purchased") // purchased | born
 
   // Age & reproduction
   age                  Int       // months
@@ -347,6 +353,18 @@ model Animal {
   expectedBirthDate    DateTime? // Calculated: lastInsemination + gestation duration
   birthCount           Int       @default(0)
 
+  // Genealogy (Self-referential)
+  motherId             String?
+  fatherId             String?
+  mother               Animal?   @relation("MotherToChild", fields: [motherId], references: [id])
+  father               Animal?   @relation("FatherToChild", fields: [fatherId], references: [id])
+  childrenFromMother   Animal[]  @relation("MotherToChild")
+  childrenFromFather   Animal[]  @relation("FatherToChild")
+
+  // Birth & Growth
+  birthWeightKg        Float?
+  birthCost           Float?
+
   // Health & status
   status              AnimalStatus @default(active)
   healthStatus        String       @default("OPTIMAL") // OPTIMAL, WARNING, CRITICAL
@@ -355,6 +373,13 @@ model Animal {
   activityLevel       String       @default("MODERATE") // LOW, MODERATE, HIGH
   lastVetCheck        DateTime?
   vaccination         Boolean      @default(false)
+
+  // Fattening & Target Sales
+  isFattening         Boolean      @default(false)
+  fatteningStartDate  DateTime?
+  targetSaleDate      DateTime?
+  buyerName           String?
+  saleWeightKg        Float?
 
   // Ajouts pour le module vaccin
   vaccineSchedules VaccineSchedule[]
@@ -719,6 +744,8 @@ model Expense {
   animal      Animal?  @relation(fields: [animalId], references: [id], onDelete: SetNull)
   farmId      String?  // farmId = userId for now
   farmer      User?    @relation(fields: [farmId], references: [id], onDelete: SetNull)
+  fieldId     String?
+  field       Field?   @relation(fields: [fieldId], references: [id], onDelete: SetNull)
   date        DateTime
   category    String   // alimentation, veterinaire, medicaments, equipements, autre
   amount      Decimal  @db.Decimal(10, 2)

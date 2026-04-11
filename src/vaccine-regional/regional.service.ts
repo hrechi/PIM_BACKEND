@@ -36,7 +36,15 @@ export class RegionalVaccineService {
         const country = await this.prisma.country.findUnique({
             where: { code: resolvedField.countryCode },
         });
-        if (!country) throw new NotFoundException(`Pays ${resolvedField.countryCode} non supporté`);
+        if (!country) {
+            return {
+                animalId,
+                countryCode: resolvedField.countryCode,
+                regionCode: resolvedField.regionCode,
+                generatedCount: 0,
+                schedules: [],
+            };
+        }
 
         // 4. Récupérer les règles pour ce pays + espèce
         const regulations = await this.prisma.vaccineRegulation.findMany({

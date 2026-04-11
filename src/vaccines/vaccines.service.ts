@@ -33,7 +33,7 @@ export class VaccinesService {
 
     async getCountryRegulations(countryCode: string, species?: string, regionCode?: string) {
         const country = await this.prisma.country.findUnique({ where: { code: countryCode.toUpperCase() } });
-        if (!country) throw new NotFoundException(`Pays ${countryCode} non trouvé`);
+        if (!country) return [];
 
         // Resolve region if provided
         let regionId: string | undefined;
@@ -47,7 +47,7 @@ export class VaccinesService {
         return this.prisma.vaccineRegulation.findMany({
             where: {
                 countryId: country.id,
-                ...(species ? { species } : {}),
+                ...(species ? { species: species.toLowerCase() } : {}),
                 // National rules (regionId null) + region-specific rules if region is known
                 ...(regionCode
                     ? {
@@ -81,7 +81,7 @@ export class VaccinesService {
         }
 
         const country = await this.prisma.country.findUnique({ where: { code: countryCode.toUpperCase() } });
-        if (!country) throw new NotFoundException(`Pays ${countryCode} non supporté`);
+        if (!country) return [];
 
         // Check for region
         const regionCode = field.regionCode;
@@ -96,7 +96,7 @@ export class VaccinesService {
         return this.prisma.vaccineRegulation.findMany({
             where: {
                 countryId: country.id,
-                ...(species ? { species } : {}),
+                ...(species ? { species: species.toLowerCase() } : {}),
                 ...(regionCode
                     ? {
                         OR: [

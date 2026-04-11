@@ -177,6 +177,43 @@ export class AnimalsService {
         });
     }
 
+    async sell(nodeId: string, data: any, farmerId: string) {
+        const animal = await this.prisma.animal.findFirst({
+            where: { nodeId, farmerId },
+        });
+
+        if (!animal) {
+            throw new NotFoundException(`Animal with NodeID ${nodeId} not found or access denied`);
+        }
+
+        const { salePrice, saleDate, buyerName, saleWeightKg, notes } = data;
+
+        return this.prisma.animal.update({
+            where: { nodeId },
+            data: {
+                status: 'sold',
+                salePrice,
+                saleDate: new Date(saleDate),
+                buyerName,
+                saleWeightKg,
+                notes: notes ? (animal.notes ? animal.notes + '\n\nSale Note: ' + notes : 'Sale Note: ' + notes) : animal.notes,
+            },
+        });
+    }
+
+    async getSoldAnimals(farmerId: string, fieldId?: string) {
+        const where: any = { farmerId, status: 'sold' };
+        if (fieldId) {
+            where.fieldId = fieldId;
+        }
+
+        return this.prisma.animal.findMany({
+            where,
+            include: { medicalEvents: true, vaccineRecords: true } as any,
+            orderBy: { saleDate: 'desc' },
+        });
+    }
+
     async remove(nodeId: string, farmerId: string) {
         const animal = await this.prisma.animal.findFirst({
             where: { nodeId, farmerId },
@@ -189,6 +226,15 @@ export class AnimalsService {
         return this.prisma.animal.delete({
             where: { nodeId },
         });
+    }
+
+    async findById(id: string, farmerId: string) {
+        const animal = await this.prisma.animal.findFirst({
+            where: { id, farmerId },
+            include: { medicalEvents: true, vaccineRecords: true } as any,
+        });
+        if (!animal) throw new NotFoundException('Animal not found');
+        return animal;
     }
 
     async getStatistics(farmerId: string, fieldId?: string) {
