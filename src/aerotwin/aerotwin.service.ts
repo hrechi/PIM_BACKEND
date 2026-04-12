@@ -25,8 +25,8 @@ export class AeroTwinService {
     const b8: number[][] = [];
 
     for (let i = 0; i < size; i++) {
-      const b4Row = [];
-      const b8Row = [];
+      const b4Row: number[] = [];
+      const b8Row: number[] = [];
       for (let j = 0; j < size; j++) {
         // Red usually lower in vegetation, NIR higher
         // Create some pseudo-random spatial pattern mimicking plants
@@ -53,7 +53,7 @@ export class AeroTwinService {
     let count = 0;
 
     for (let i = 0; i < size; i++) {
-      const row = [];
+      const row: number[] = [];
       for (let j = 0; j < b8Grid[i].length; j++) {
         const nir = b8Grid[i][j];
         const red = b4Grid[i][j];
@@ -286,7 +286,7 @@ export class AeroTwinService {
     let riskZones = 0;
 
     for (let i = 0; i < size; i++) {
-      const row = [];
+      const row: number[] = [];
       for (let j = 0; j < currentGrid[i].length; j++) {
         let currentNDVI = currentGrid[i][j];
         
