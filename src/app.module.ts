@@ -35,8 +35,10 @@ import { VaccinesModule } from './vaccines/vaccines.module';
 import { ReportsModule } from './reports/reports.module';
 import { ShortsModule } from './shorts/shorts.module';
 import { CommunityModule } from './community/community.module';
- 
- 
+import { HarvestOptimizationModule } from './harvest-optimization/harvest-optimization.module';
+import { QuizModule } from './quiz/quiz.module';
+import { AeroTwinModule } from './aerotwin/aerotwin.module';
+
 @Module({
   imports: [ 
     ConfigModule.forRoot({ isGlobal: true }),
@@ -80,8 +82,12 @@ import { CommunityModule } from './community/community.module';
     VaccinesModule,
     ReportsModule,
     ShortsModule,
+    HarvestOptimizationModule,
+    QuizModule,
+    AeroTwinModule,
     CommunityModule,
   ],
+
   controllers: [AppController],
   providers: [AppService],
 })
