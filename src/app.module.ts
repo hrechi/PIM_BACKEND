@@ -85,7 +85,7 @@ import { AeroTwinModule } from './aerotwin/aerotwin.module';
     HarvestOptimizationModule,
     QuizModule,
     AeroTwinModule,
-    CommunityModule,
+    CommunityModule, 
   ],
 
   controllers: [AppController],
