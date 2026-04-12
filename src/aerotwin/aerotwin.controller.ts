@@ -29,9 +29,9 @@ export class AeroTwinController {
   constructor(private readonly aerotwinService: AeroTwinService) {}
 
   @Get('ndvi')
-  async getNDVI(@Query('fieldId') fieldId: string) {
+  async getNDVI(@Query('fieldId') fieldId: string, @Query('date') date: string) {
     if (!fieldId) throw new BadRequestException("fieldId is required");
-    return this.aerotwinService.getNDVI(fieldId);
+    return this.aerotwinService.getOrComputeNDVI(fieldId, date);
   }
 
   @Get('history')
@@ -51,6 +51,12 @@ export class AeroTwinController {
     if (!body.fieldId || !body.params) {
       throw new BadRequestException("fieldId and params are required");
     }
-    return this.aerotwinService.simulateNDVI(body.fieldId, body.params);
+    const simulationResult = await this.aerotwinService.simulateNDVI(body.fieldId, body.params);
+    const alerts = await this.aerotwinService.getAlerts(body.fieldId, body.params);
+    
+    return {
+      ...simulationResult,
+      alerts
+    };
   }
 }
