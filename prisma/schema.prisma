@@ -94,7 +94,8 @@ model Field {
   regionCode      String?
   regionId        String?
   user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  missions        Mission[]
+   missions        Mission[]
+  ndviRecords     NDVIRecord[]
 
   @@index([userId])
   @@map("fields")
@@ -485,6 +486,20 @@ model CropRegion {
   @@index([cropName])
   @@index([country])
   @@map("crop_regions")
+}
+
+model NDVIRecord {
+  id        String   @id @default(uuid())
+  fieldId   String
+  date      DateTime
+  avgNDVI   Float
+  gridData  Json
+  createdAt DateTime @default(now())
+  
+  field     Field    @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+
+  @@index([fieldId])
+  @@map("ndvi_records")
 }
 
 enum AnimalType {

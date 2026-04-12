@@ -36,6 +36,7 @@ import { ReportsModule } from './reports/reports.module';
 import { ShortsModule } from './shorts/shorts.module';
 import { HarvestOptimizationModule } from './harvest-optimization/harvest-optimization.module';
 import { QuizModule } from './quiz/quiz.module';
+import { AeroTwinModule } from './aerotwin/aerotwin.module';
 
 @Module({
   imports: [
@@ -82,6 +83,7 @@ import { QuizModule } from './quiz/quiz.module';
     ShortsModule,
     HarvestOptimizationModule,
     QuizModule,
+    AeroTwinModule,
   ],
 
   controllers: [AppController],
