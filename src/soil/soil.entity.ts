@@ -39,6 +39,13 @@ export class SoilMeasurement {
   @Index()
   fieldId: string;
 
+  @Column({ type: 'text', name: 'parcel_id', nullable: true })
+  @Index()
+  parcelId: string;
+
+  @Column({ type: 'varchar', name: 'legacy_code', length: 20, nullable: true })
+  legacyCode: string;
+
   @Column({ type: 'varchar', name: 'image_path', nullable: true })
   imagePath: string;
 
@@ -48,6 +55,21 @@ export class SoilMeasurement {
 
   @Column({ type: 'float', name: 'detection_confidence', nullable: true })
   detectionConfidence: number;
+
+  @Column({ type: 'varchar', name: 'parcel_location', length: 100, nullable: true })
+  parcelLocation: string;
+
+  @Column({ type: 'varchar', name: 'region', length: 100, default: 'Tunisia' })
+  region: string;
+
+  @Column({ type: 'text', name: 'recovery_action', nullable: true })
+  recoveryAction: string;
+
+  @Column({ type: 'int', name: 'recovery_duration_weeks', nullable: true })
+  recoveryDurationWeeks: number;
+
+  @Column({ type: 'varchar', name: 'outcome', length: 50, nullable: true })
+  outcome: string;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
   createdAt: Date;

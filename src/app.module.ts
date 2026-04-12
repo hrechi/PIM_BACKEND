@@ -4,6 +4,7 @@ import { ServeStaticModule } from '@nestjs/serve-static';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { join } from 'path';
 import * as process from 'process';
+import { DataSource, DataSourceOptions } from 'typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
@@ -39,6 +40,9 @@ import { HarvestOptimizationModule } from './harvest-optimization/harvest-optimi
 import { QuizModule } from './quiz/quiz.module';
 import { AeroTwinModule } from './aerotwin/aerotwin.module';
 
+import { SoilIntelligenceModule } from './soil-intelligence/soil-intelligence.module';
+ 
+ 
 @Module({
   imports: [ 
     ConfigModule.forRoot({ isGlobal: true }),
@@ -54,6 +58,77 @@ import { AeroTwinModule } from './aerotwin/aerotwin.module';
         entities: [SoilMeasurement],
         synchronize: true, // Be careful with this in production
       }),
+      dataSourceFactory: async (options) => {
+        if (!options) {
+          throw new Error('TypeORM options are required to initialize DataSource.');
+        }
+
+        const dataSource = new DataSource(options as DataSourceOptions);
+        await dataSource.initialize();
+
+        // Ensure extensions and schema additions for soil intelligence are available at startup.
+        await dataSource.query('CREATE EXTENSION IF NOT EXISTS pgcrypto;');
+        let hasVectorExtension = true;
+        try {
+          await dataSource.query('CREATE EXTENSION IF NOT EXISTS vector;');
+        } catch {
+          hasVectorExtension = false;
+          // Keep app startup resilient even when pgvector is not installed.
+          // Fingerprint endpoint falls back to Python cosine similarity until pgvector is available.
+          console.warn(
+            '[SoilIntelligence] pgvector extension is not available. Running in fallback mode (no DB vector index).',
+          );
+        }
+
+        await dataSource.query(`
+          ALTER TABLE soil_measurements
+          ADD COLUMN IF NOT EXISTS parcel_id TEXT,
+          ADD COLUMN IF NOT EXISTS legacy_code VARCHAR(20),
+          ADD COLUMN IF NOT EXISTS vector_data JSONB,
+          ADD COLUMN IF NOT EXISTS parcel_location VARCHAR(100),
+          ADD COLUMN IF NOT EXISTS region VARCHAR(100) DEFAULT 'Tunisia',
+          ADD COLUMN IF NOT EXISTS recovery_action TEXT,
+          ADD COLUMN IF NOT EXISTS recovery_duration_weeks INTEGER,
+          ADD COLUMN IF NOT EXISTS outcome VARCHAR(50);
+        `);
+
+        if (hasVectorExtension) {
+          await dataSource.query(`
+            ALTER TABLE soil_measurements
+            ADD COLUMN IF NOT EXISTS vector vector(7);
+          `);
+        }
+
+        await dataSource.query(`
+          CREATE TABLE IF NOT EXISTS soil_weather_alerts (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            parcel_id TEXT REFERENCES parcels(id),
+            soil_measurement_id UUID REFERENCES soil_measurements(id),
+            alert_type VARCHAR(50),
+            severity VARCHAR(20),
+            message TEXT,
+            action TEXT,
+            weather_data JSONB,
+            soil_data JSONB,
+            triggered_at TIMESTAMP DEFAULT NOW(),
+            is_read BOOLEAN DEFAULT FALSE
+          );
+        `);
+
+        if (hasVectorExtension) {
+          await dataSource.query(`
+            CREATE INDEX IF NOT EXISTS idx_soil_measurements_vector
+            ON soil_measurements USING ivfflat (vector vector_cosine_ops) WITH (lists = 100);
+          `);
+        }
+
+        await dataSource.query(`
+          CREATE INDEX IF NOT EXISTS idx_soil_weather_alerts_parcel_read
+          ON soil_weather_alerts (parcel_id, is_read, triggered_at DESC);
+        `);
+
+        return dataSource;
+      },
     }),
     PrismaModule,
     EmailModule,
@@ -86,6 +161,7 @@ import { AeroTwinModule } from './aerotwin/aerotwin.module';
     QuizModule,
     AeroTwinModule,
     CommunityModule,
+    SoilIntelligenceModule,
   ],
 
   controllers: [AppController],

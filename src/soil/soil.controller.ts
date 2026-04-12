@@ -168,6 +168,7 @@ export class SoilController {
       latitude: parseFloat(body.latitude),
       longitude: parseFloat(body.longitude),
       fieldId: body.fieldId || undefined,
+      parcelId: body.parcelId || undefined,
     };
 
     const imagePath = `uploads/soil/${file.filename}`;
