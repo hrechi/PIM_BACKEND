@@ -79,9 +79,23 @@ export class AeroTwinService {
     const targetDate = new Date(dateStr);
     
     // Check if field exists first
-    const field = await this.prisma.field.findUnique({ where: { id: fieldId } });
+    let field = await this.prisma.field.findUnique({ where: { id: fieldId } });
     if (!field) {
-        throw new BadRequestException(`Field with ID ${fieldId} not found`);
+        // Fallback: If the user passed a Parcel ID instead, create a mapping Field
+        const parcel = await this.prisma.parcel.findUnique({ where: { id: fieldId } });
+        if (!parcel) {
+            throw new BadRequestException(`Field with ID ${fieldId} not found`);
+        }
+        
+        field = await this.prisma.field.create({
+            data: {
+                id: parcel.id,
+                userId: parcel.farmerId,
+                name: `Field for ${parcel.location}`,
+                areaSize: parcel.areaSize,
+                areaCoordinates: {},
+            }
+        });
     }
 
     // Check if we already have it

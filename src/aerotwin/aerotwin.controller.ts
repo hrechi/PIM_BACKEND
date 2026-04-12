@@ -1,5 +1,28 @@
 import { Controller, Get, Post, Query, Body, BadRequestException } from '@nestjs/common';
 import { AeroTwinService } from './aerotwin.service';
+import { IsString, IsNumber, ValidateNested, IsObject } from 'class-validator';
+import { Type } from 'class-transformer';
+
+export class SimulationParamsDto {
+  @IsNumber()
+  irrigationChange: number;
+
+  @IsNumber()
+  temperature: number;
+
+  @IsNumber()
+  nitrogenLevel: number;
+}
+
+export class SimulateDto {
+  @IsString()
+  fieldId: string;
+
+  @IsObject()
+  @ValidateNested()
+  @Type(() => SimulationParamsDto)
+  params: SimulationParamsDto;
+}
 
 @Controller('aerotwin')
 export class AeroTwinController {
@@ -25,7 +48,7 @@ export class AeroTwinController {
   }
 
   @Post('simulate')
-  async simulate(@Body() body: { fieldId: string; params: { irrigationChange: number; temperature: number; nitrogenLevel: number } }) {
+  async simulate(@Body() body: SimulateDto) {
     if (!body.fieldId || !body.params) {
       throw new BadRequestException("fieldId and params are required");
     }
