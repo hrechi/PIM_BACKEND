@@ -8,99 +8,104 @@ datasource db {
 }
 
 model User {
-  id                String             @id @default(uuid())
-  email             String?            @unique
-  password          String
-  name              String
-  phone             String?            @unique
-  farmName          String
-  profilePicture    String?
-  refreshToken      String?
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
-  otp               String?
-  otpExpiresAt      DateTime?
-  fcmToken          String?
-  animals           Animal[]
-  conversations     Conversation[]
-  expenses          Expense[]
-  fields            Field[]
-  missions          Mission[]
-  parcels           Parcel[]
-  savedArticles     SavedArticle[]
-  securityIncidents SecurityIncident[]
-  whitelistStaff    WhitelistStaff[]
-  quizResults       QuizResult[]
-  badges            Badge[]
-  dailyReports DailyReport[]
-  communityPosts            CommunityPost[]
-  communityPostReactions    CommunityPostReaction[]
-  communityComments         CommunityComment[]
+  id                        String                     @id @default(uuid())
+  email                     String?                    @unique
+  password                  String
+  name                      String
+  phone                     String?                    @unique
+  farmName                  String
+  profilePicture            String?
+  refreshToken              String?
+  createdAt                 DateTime                   @default(now())
+  updatedAt                 DateTime                   @updatedAt
+  otp                       String?
+  otpExpiresAt              DateTime?
+  fcmToken                  String?
+  animals                   Animal[]
+  badges                    Badge[]
   communityCommentReactions CommunityCommentReaction[]
+  communityComments         CommunityComment[]
   communityPollVotes        CommunityPollVote[]
+  communityPostReactions    CommunityPostReaction[]
+  communityPosts            CommunityPost[]
+  conversations             Conversation[]
+  dailyReports              DailyReport[]
+  expenses                  Expense[]
+  fields                    Field[]
+  missions                  Mission[]
+  parcels                   Parcel[]
+  quizResults               QuizResult[]
+  savedArticles             SavedArticle[]
+  securityIncidents         SecurityIncident[]
+  whitelistStaff            WhitelistStaff[]
+
   @@map("users")
 }
 
 model QuizResult {
-  id              String   @id @default(uuid())
-  userId          String
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  score           Int
-  totalQuestions  Int
-  topic           String
-  parcelId        String?
-  streak          Int      @default(0)
-  createdAt       DateTime @default(now())
-  @@map("quiz_results")
+  id             String   @id @default(uuid())
+  userId         String
+  score          Int
+  totalQuestions Int
+  topic          String
+  parcelId       String?
+  streak         Int      @default(0)
+  createdAt      DateTime @default(now())
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId])
+  @@map("quiz_results")
 }
 
 model Badge {
-  id          String   @id @default(uuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name        String
-  type        String
-  unlockedAt  DateTime @default(now())
-  @@map("badges")
+  id         String   @id @default(uuid())
+  userId     String
+  name       String
+  type       String
+  unlockedAt DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([userId, type])
+  @@map("badges")
 }
 
 model SavedArticle {
   id          String   @id @default(uuid())
   title       String
-  description String?  @db.Text
+  description String?
   url         String
   imageUrl    String?
   source      String
   farmerId    String
   createdAt   DateTime @default(now())
   farmer      User     @relation(fields: [farmerId], references: [id], onDelete: Cascade)
+
   @@index([farmerId])
   @@map("saved_articles")
 }
 
 model Field {
-  id               String             @id @default(uuid())
+  id               String            @id @default(uuid())
   userId           String
   name             String
   cropType         String?
-  areaCoordinates  Json               // [[lat, lng], [lat, lng], ...]
-  areaSize         Float?             // in square meters
-  createdAt        DateTime           @default(now())
-  updatedAt        DateTime           @updatedAt
-  countryCode  String?      // ISO 3166 dérivé du GPS — ex: "TN", "FR", "US"
-  countryId       String?
-  fmdFreeZone  Boolean      @default(false)  // calculé à partir du countryCode + regionCode
-  regionCode   String?      // sous-zone si applicable — ex: "AR-PATAGONIA"
-  regionId        String?
-  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  areaCoordinates  Json
+  areaSize         Float?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  countryCode      String?
+  countryId        String?
+  fmdFreeZone      Boolean           @default(false)
+  regionCode       String?
+  regionId         String?
+  animals          Animal[]
+  country          Country?          @relation(fields: [countryId], references: [id])
+  region           FieldRegion?      @relation(fields: [regionId], references: [id])
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   missions         Mission[]
-  ndviRecords     NDVIRecord[]
+  ndviRecords      NDVIRecord[]
   soilMeasurements SoilMeasurement[]
-  country      Country?     @relation(fields: [countryId], references: [id])
-  region       FieldRegion? @relation(fields: [regionId], references: [id])
-  animals      Animal[]
+
   @@index([userId])
   @@map("fields")
 }
@@ -114,17 +119,18 @@ model Mission {
   dueDate           DateTime?
   assignedDate      DateTime  @default(now())
   completedAt       DateTime?
-  estimatedDuration Int?   // in hours
-  actualDuration  Int?     // in hours
-  progress        Int      @default(0) // 0-100
+  estimatedDuration Int?
+  actualDuration    Int?
+  progress          Int       @default(0)
   notes             String?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
-  missionType     String   // PLANTING, HARVESTING, IRRIGATION, FERTILIZING, PEST_CONTROL, MAINTENANCE, MONITORING, OTHER
-  status          String   @default("PENDING") // PENDING, IN_PROGRESS, COMPLETED, CANCELLED
-  priority        String   @default("MEDIUM") // LOW, MEDIUM, HIGH, URGENT
+  missionType       String
+  status            String    @default("PENDING")
+  priority          String    @default("MEDIUM")
   field             Field     @relation(fields: [fieldId], references: [id], onDelete: Cascade)
   user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId])
   @@index([fieldId])
   @@map("missions")
@@ -138,6 +144,7 @@ model Conversation {
   updatedAt DateTime      @updatedAt
   messages  ChatMessage[]
   user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId])
   @@map("conversations")
 }
@@ -145,10 +152,11 @@ model Conversation {
 model ChatMessage {
   id             String       @id @default(uuid())
   conversationId String
-  role           String   // "user" or "assistant"
-  content        String   @db.Text
+  role           String
+  content        String
   createdAt      DateTime     @default(now())
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
   @@index([conversationId])
   @@map("chat_messages")
 }
@@ -161,49 +169,48 @@ model WhitelistStaff {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@map("whitelist_staff")
 }
 
 model SecurityIncident {
   id        String   @id @default(uuid())
-  type      String   // 'intruder' or 'animal'
+  type      String
   imagePath String
   timestamp DateTime @default(now())
   userId    String
   latitude  Float?
   longitude Float?
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@map("security_incidents")
 }
 
 model SoilMeasurement {
-  ph                   Float
-  soilMoisture         Float    @map("soil_moisture")
-  sunlight             Float
-  nutrients            Json
-  temperature          Float
-  latitude             Float
-  longitude            Float
+  ph                  Float
+  soilMoisture        Float    @map("soil_moisture")
+  sunlight            Float
+  nutrients           Json
+  temperature         Float
+  latitude            Float
+  longitude           Float
   createdAt           DateTime @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt           DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
-  id                  String   @id(map: "PK_26b4f52c4005e567602987343a6") @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  fieldId             String?  @map("field_id") @db.Uuid
+  id                  String   @id @default(uuid())
+  fieldId             String?  @map("field_id")
   imagePath           String?  @map("image_path") @db.VarChar
   soilType            String?  @map("soil_type") @db.VarChar
-  detectionConfidence  Float?   @map("detection_confidence")
-  field                Field?   @relation(fields: [fieldId], references: [id], onDelete: SetNull)
-  parcelId             String?  @map("parcel_id")
-  parcel               Parcel?  @relation(fields: [parcelId], references: [id], onDelete: Cascade)
-  @@index([soilType], map: "IDX_0a742379a0b58d214968308ae8")
-  @@index([createdAt], map: "IDX_1b5048dedf4b0c67b0e3d69028")
-  @@index([fieldId], map: "IDX_b1d30f7933303444ba94550db7")
-  @@index([latitude, longitude], map: "IDX_db34dddb4edfd4e726c70f52b0")
-  @@map("soil_measurements")
-  @@index([createdAt])
-  @@index([latitude, longitude])
-  @@index([fieldId])
-  @@index([parcelId])
+  detectionConfidence Float?   @map("detection_confidence")
+  parcelId            String?  @map("parcel_id")
+  field               Field?   @relation(fields: [fieldId], references: [id])
+  parcel              Parcel?  @relation(fields: [parcelId], references: [id], onDelete: Cascade)
+
   @@index([soilType])
+  @@index([createdAt])
+  @@index([fieldId])
+  @@index([latitude, longitude])
+  @@index([parcelId])
+  @@map("soil_measurements")
 }
 
 model Animal {
@@ -217,31 +224,31 @@ model Animal {
   tagNumber            String?
   profileImage         String?
   notes                String?
-  age                  Int       // months
+  age                  Int
   ageYears             Int               @default(0)
   isPregnant           Boolean?
   lastInseminationDate DateTime?
   lastBirthDate        DateTime?
-  expectedBirthDate    DateTime? // Calculated: lastInsemination + gestation duration
+  expectedBirthDate    DateTime?
   birthCount           Int               @default(0)
   status               AnimalStatus      @default(active)
-  healthStatus        String       @default("OPTIMAL") // OPTIMAL, WARNING, CRITICAL
+  healthStatus         String            @default("OPTIMAL")
   vitalityScore        Int               @default(100)
   bodyTemp             Float?
-  activityLevel       String       @default("MODERATE") // LOW, MODERATE, HIGH
+  activityLevel        String            @default("MODERATE")
   lastVetCheck         DateTime?
   vaccination          Boolean           @default(false)
-  healthRiskScore     Float?       // Calculated by AI model (sprint suivant)
-  diseaseHistoryCount Int          @default(0) // Calculated from medical_events
+  healthRiskScore      Float?
+  diseaseHistoryCount  Int               @default(0)
   weight               Float?
   milkYield            Float?
   woolYield            Float?
   fatContent           Float?
   protein              Float?
-  productionHabit     String?  // ACTIVE, NORMAL, LESS
+  productionHabit      String?
   feedIntakeRecorded   DateTime?
   dewormingScheduled   DateTime?
-  birthHistory        Json?    // List of { date, weight, health }
+  birthHistory         Json?
   dailyMilkAvgL        Decimal?          @db.Decimal(5, 2)
   milkPeakDate         DateTime?
   lactationNumber      Int?
@@ -260,6 +267,7 @@ model Animal {
   updatedAt            DateTime          @updatedAt
   fieldId              String
   farmer               User              @relation(fields: [farmerId], references: [id])
+  field                Field             @relation(fields: [fieldId], references: [id], onDelete: Cascade)
   expenses             Expense[]
   healthAlerts         HealthAlert[]
   medicalEvents        MedicalEvent[]
@@ -267,34 +275,35 @@ model Animal {
   racePerformances     RacePerformance[]
   sensorReadings       SensorReading[]
   vaccineRecords       VaccineRecord[]
+  vaccineSchedules     VaccineSchedule[]
   weightRecords        WeightRecord[]
-  field        Field        @relation(fields: [fieldId], references: [id], onDelete: Cascade)
-  vaccineSchedules VaccineSchedule[]
+
   @@map("animals")
 }
 
 model VaccineRecord {
   id             String           @id @default(uuid())
   animalId       String
-  vaccineName String
-  vaccineDate DateTime
-  nextDueDate    DateTime?        // calculé = administeredAt + regulation.intervalDays
-  vetName     String?
+  vaccineName    String
+  vaccineDate    DateTime
+  nextDueDate    DateTime?
+  vetName        String?
   lotNumber      String?
   createdAt      DateTime         @default(now())
-  animal         Animal           @relation(fields: [animalId], references: [id], onDelete: Cascade)
   scheduleId     String?
-  schedule       VaccineSchedule? @relation(fields: [scheduleId], references: [id])
   vaccineId      String
-  vaccine        Vaccine          @relation(fields: [vaccineId], references: [id])
-  administeredBy String           // nom du vétérinaire (texte libre — cohérent avec MedicalEvent.vetName)
+  administeredBy String
   administeredAt DateTime
   doseGiven      Float
   doseUnit       String           @default("ml")
   route          VaccineRoute     @default(SUBCUTANEOUS)
   bodyWeight     Float?
-  dateEstimated  Boolean          @default(false)  // true si date estimée (non connue)
+  dateEstimated  Boolean          @default(false)
   observations   String?
+  animal         Animal           @relation(fields: [animalId], references: [id], onDelete: Cascade)
+  schedule       VaccineSchedule? @relation(fields: [scheduleId], references: [id])
+  vaccine        Vaccine          @relation(fields: [vaccineId], references: [id])
+
   @@map("vaccine_records")
 }
 
@@ -305,11 +314,12 @@ model MedicalEvent {
   eventType MedicalEventType
   diagnosis String?
   treatment String?
-  vetName   String?          // Nom du vétérinaire (texte libre)
+  vetName   String?
   cost      Decimal?         @db.Decimal(10, 2)
   notes     String?
   createdAt DateTime         @default(now())
   animal    Animal           @relation(fields: [animalId], references: [id], onDelete: Cascade)
+
   @@map("medical_events")
 }
 
@@ -326,6 +336,7 @@ model SensorReading {
   activityScore Float?
   createdAt     DateTime @default(now())
   animal        Animal   @relation(fields: [animalId], references: [id], onDelete: Cascade)
+
   @@index([animalId, timestamp])
   @@map("sensor_readings")
 }
@@ -342,6 +353,7 @@ model HealthAlert {
   notes            String?
   createdAt        DateTime   @default(now())
   animal           Animal     @relation(fields: [animalId], references: [id], onDelete: Cascade)
+
   @@map("health_alerts")
 }
 
@@ -355,6 +367,7 @@ model MilkProduction {
   notes     String?
   createdAt DateTime @default(now())
   animal    Animal   @relation(fields: [animalId], references: [id], onDelete: Cascade)
+
   @@map("milk_productions")
 }
 
@@ -369,6 +382,7 @@ model RacePerformance {
   trackCondition String?
   createdAt      DateTime @default(now())
   animal         Animal   @relation(fields: [animalId], references: [id], onDelete: Cascade)
+
   @@map("race_performances")
 }
 
@@ -380,46 +394,50 @@ model WeightRecord {
   measuredBy   String?
   createdAt    DateTime @default(now())
   animal       Animal   @relation(fields: [animalId], references: [id], onDelete: Cascade)
+
   @@map("weight_records")
 }
 
 model Expense {
   id          String   @id @default(uuid())
   animalId    String?
-  farmId      String?  // farmId = userId for now
+  farmId      String?
   date        DateTime
-  category    String   // alimentation, veterinaire, medicaments, equipements, autre
+  category    String
   amount      Decimal  @db.Decimal(10, 2)
   description String?
   receiptUrl  String?
   createdAt   DateTime @default(now())
-  animal      Animal?  @relation(fields: [animalId], references: [id], onDelete: SetNull)
-  farmer      User?    @relation(fields: [farmId], references: [id], onDelete: SetNull)
+  animal      Animal?  @relation(fields: [animalId], references: [id])
+  farmer      User?    @relation(fields: [farmId], references: [id])
+
   @@map("expenses")
 }
 
 model Parcel {
-  id                     String            @id @default(uuid())
-  location               String
-  areaSize               Float
-  boundariesDescription  String
-  soilType               String
-  soilPh                 Float?
-  nitrogenLevel          Float?
-  phosphorusLevel        Float?
-  potassiumLevel         Float?
-  waterSource            String
-  irrigationMethod       String
-  irrigationFrequency    String
-  farmerId               String
-  createdAt              DateTime          @default(now())
-  updatedAt              DateTime          @updatedAt
-  crops                  Crop[]
-  fertilizations         Fertilization[]
-  harvests               Harvest[]
-  farmer                 User              @relation(fields: [farmerId], references: [id])
-  pests                  PestDisease[]
-  soilMeasurements       SoilMeasurement[]
+  id                    String            @id @default(uuid())
+  location              String
+  areaSize              Float
+  boundariesDescription String
+  soilType              String
+  soilPh                Float?
+  nitrogenLevel         Float?
+  phosphorusLevel       Float?
+  potassiumLevel        Float?
+  waterSource           String
+  irrigationMethod      String
+  irrigationFrequency   String
+  farmerId              String
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+  polygon               Json?
+  crops                 Crop[]
+  fertilizations        Fertilization[]
+  harvests              Harvest[]
+  farmer                User              @relation(fields: [farmerId], references: [id])
+  pests                 PestDisease[]
+  soilMeasurements      SoilMeasurement[]
+
   @@map("parcels")
 }
 
@@ -433,6 +451,7 @@ model Crop {
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
   parcel              Parcel   @relation(fields: [parcelId], references: [id])
+
   @@map("crops")
 }
 
@@ -445,41 +464,45 @@ model Fertilization {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   parcel          Parcel   @relation(fields: [parcelId], references: [id])
+
   @@map("fertilizations")
 }
 
 model PestDisease {
   id            String    @id @default(uuid())
-  issueType      String?
-  treatmentUsed  String?
-  treatmentDate  DateTime?
-  parcelId       String
+  issueType     String?
+  treatmentUsed String?
+  treatmentDate DateTime?
+  parcelId      String
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   parcel        Parcel    @relation(fields: [parcelId], references: [id])
+
   @@map("pest_diseases")
 }
 
 model Harvest {
   id              String    @id @default(uuid())
-  harvestDate      DateTime?
-  totalYield       Float?
-  yieldPerHectare  Float?
-  parcelId         String
+  harvestDate     DateTime?
+  totalYield      Float?
+  yieldPerHectare Float?
+  parcelId        String
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
   parcel          Parcel    @relation(fields: [parcelId], references: [id])
+
   @@map("harvests")
 }
 
 model CropRequirement {
-  id               String  @id @default(uuid())
-  cropName         String  @map("crop_name")
-  minPH            Float   @map("min_ph")
-  maxPH            Float   @map("max_ph")
-  minMoisture      Float   @map("min_moisture")
-  maxMoisture      Float   @map("max_moisture")
-  nitrogenRequired Float   @map("nitrogen_required")
+  id               String @id @default(uuid())
+  cropName         String @map("crop_name")
+  minPH            Float  @map("min_ph")
+  maxPH            Float  @map("max_ph")
+  minMoisture      Float  @map("min_moisture")
+  maxMoisture      Float  @map("max_moisture")
+  nitrogenRequired Float  @map("nitrogen_required")
+
   @@index([cropName])
   @@map("crop_requirements")
 }
@@ -488,6 +511,7 @@ model CropRegion {
   id       String @id @default(uuid())
   cropName String @map("crop_name")
   country  String
+
   @@index([cropName])
   @@index([country])
   @@map("crop_regions")
@@ -501,86 +525,91 @@ model NDVIRecord {
   gridData  Json
   createdAt DateTime @default(now())
   field     Field    @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+
   @@index([fieldId])
   @@map("ndvi_records")
 }
 
 model DailyReport {
-  id                  String   @id @default(uuid())
-  summary             String   @db.Text
-  totalIncidents      Int
-  criticalAlerts      Int
-  peakActivityHour    Int      // 0–23
-  averageThreatLevel  String   // 'low' | 'medium' | 'high' | 'critical'
-  userId              String
-  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt           DateTime @default(now())
-  @@map("daily_reports")
+  id                 String   @id @default(uuid())
+  summary            String
+  totalIncidents     Int
+  criticalAlerts     Int
+  peakActivityHour   Int
+  averageThreatLevel String
+  userId             String
+  createdAt          DateTime @default(now())
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId])
   @@index([createdAt])
+  @@map("daily_reports")
 }
 
 model Country {
-  id              String        @id @default(uuid())
-  code            String        @unique  // ISO 3166-1 alpha-2 : "TN", "FR", "US"...
+  id              String                  @id @default(uuid())
+  code            String                  @unique
   nameEn          String
   nameFr          String
   nameAr          String?
-  vetAuthority    String        // "DGSV / OEP", "DGAL", "USDA-APHIS"...
+  vetAuthority    String
   vetAuthorityUrl String?
   oieRegion       OIERegion
-  fmdZoneStatus   FMDZoneStatus @default(ENDEMIC_WITH_VAX)
-  timezone        String        @default("UTC")
-  createdAt       DateTime      @default(now())
+  fmdZoneStatus   FMDZoneStatus           @default(ENDEMIC_WITH_VAX)
+  timezone        String                  @default("UTC")
+  createdAt       DateTime                @default(now())
   regions         FieldRegion[]
+  fields          Field[]
   campaigns       VaccineCampaignPeriod[]
   regulations     VaccineRegulation[]
-  fields          Field[]
+
   @@map("countries")
 }
 
 model FieldRegion {
-  id            String        @id @default(uuid())
+  id            String              @id @default(uuid())
   countryId     String
-  code          String        // "AR-PATAGONIA", "AR-CENTRE-NORTH"
+  code          String
   name          String
   fmdZoneStatus FMDZoneStatus
   notes         String?
-  country       Country       @relation(fields: [countryId], references: [id])
+  country       Country             @relation(fields: [countryId], references: [id])
   fields        Field[]
   regulations   VaccineRegulation[]
+
   @@unique([countryId, code])
   @@map("field_regions")
 }
 
 model Vaccine {
-  id                   String      @id @default(uuid())
-  code                 String      @unique  // "FMD", "LSD", "BRUCELLA_AB"...
+  id                   String              @id @default(uuid())
+  code                 String              @unique
   nameFr               String
   nameEn               String
   nameAr               String?
-  targetSpecies        Json        // ["cow","sheep"] — correspond à AnimalType
+  targetSpecies        Json
   manufacturer         String?
-  doseUnit             String      @default("ml")
-  defaultIntervalDays  Int         @default(365)
-  isCoreVaccine        Boolean     @default(false)
+  doseUnit             String              @default("ml")
+  defaultIntervalDays  Int                 @default(365)
+  isCoreVaccine        Boolean             @default(false)
   intervalDaysOverride Int?
   notes                String?
-  createdAt            DateTime    @default(now())
+  createdAt            DateTime            @default(now())
+  records              VaccineRecord[]
   regulations          VaccineRegulation[]
   schedules            VaccineSchedule[]
-  records              VaccineRecord[]
+
   @@map("vaccines")
 }
 
 model VaccineRegulation {
   id                 String           @id @default(uuid())
   countryId          String
-  regionId           String?          // null = règle nationale, non-null = règle zonale
+  regionId           String?
   vaccineId          String
-  species            String           // "cow" | "horse" | "sheep" | "dog"
+  species            String
   status             RegulationStatus
-  frequency          String?          // "BIANNUAL", "ANNUAL", "TRIENNIAL", "ONCE"
+  frequency          String?
   intervalDays       Int
   ageMinDays         Int?
   ageMaxDays         Int?
@@ -596,158 +625,168 @@ model VaccineRegulation {
   country            Country          @relation(fields: [countryId], references: [id])
   region             FieldRegion?     @relation(fields: [regionId], references: [id])
   vaccine            Vaccine          @relation(fields: [vaccineId], references: [id])
+
   @@unique([countryId, regionId, vaccineId, species])
   @@map("vaccine_regulations")
 }
 
 model VaccineCampaignPeriod {
-  id            String   @id @default(uuid())
+  id            String  @id @default(uuid())
   countryId     String
   vaccineCode   String
-  species       Json     // ["cow","sheep"]
-  startMonth    Int      // 1 = janvier
+  species       Json
+  startMonth    Int
   endMonth      Int
-  isFree        Boolean  @default(false)
-  isSubsidized  Boolean  @default(false)
+  isFree        Boolean @default(false)
+  isSubsidized  Boolean @default(false)
   subsidyAmount Float?
   notes         String?
-  country       Country  @relation(fields: [countryId], references: [id])
+  country       Country @relation(fields: [countryId], references: [id])
+
   @@map("vaccine_campaign_periods")
 }
 
 model VaccineSchedule {
-  id                 String          @id @default(uuid())
+  id                 String                   @id @default(uuid())
   animalId           String
-  animal             Animal          @relation(fields: [animalId], references: [id], onDelete: Cascade)
   vaccineId          String
-  vaccine            Vaccine         @relation(fields: [vaccineId], references: [id])
-  regulationId       String?         // null si créé manuellement
+  regulationId       String?
   scheduledDate      DateTime
-  reminderDaysBefore Int             @default(3)
-  isRecurring        Boolean         @default(false)
+  reminderDaysBefore Int                      @default(3)
+  isRecurring        Boolean                  @default(false)
   recurrenceDays     Int?
-  isMandatory        Boolean         @default(false)
-  priority           VaccinePriority @default(MEDIUM)
-  status             ScheduleStatus  @default(PENDING)
+  isMandatory        Boolean                  @default(false)
+  priority           VaccinePriority          @default(MEDIUM)
+  status             ScheduleStatus           @default(PENDING)
   notes              String?
-  createdAt          DateTime        @default(now())
-  updatedAt          DateTime        @updatedAt
-  records            VaccineRecord[]
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
   notifications      VaccineNotificationLog[]
+  records            VaccineRecord[]
+  animal             Animal                   @relation(fields: [animalId], references: [id], onDelete: Cascade)
+  vaccine            Vaccine                  @relation(fields: [vaccineId], references: [id])
+
   @@map("vaccine_schedules")
 }
 
 model VaccineNotificationLog {
   id         String          @id @default(uuid())
   scheduleId String
-  schedule   VaccineSchedule @relation(fields: [scheduleId], references: [id])
   sentAt     DateTime        @default(now())
-  type       String          // "REMINDER_D14", "URGENT_D3", "DUE_TODAY", "OVERDUE"
+  type       String
   title      String
   body       String
   success    Boolean         @default(true)
+  schedule   VaccineSchedule @relation(fields: [scheduleId], references: [id])
+
   @@map("vaccine_notification_logs")
 }
 
 model CommunityPost {
-  id              String            @id @default(uuid())
-  authorId        String
-  author          User              @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  type            CommunityPostType @default(STANDARD)
-  content         String            @db.Text
-  imagePath       String?
-  commentsCount   Int               @default(0)
-  likesCount      Int               @default(0)
-  dislikesCount   Int               @default(0)
-  pollQuestion    String?
-  pollEndsAt      DateTime?
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-  pollOptions     CommunityPollOption[]
-  pollVotes       CommunityPollVote[]
-  reactions       CommunityPostReaction[]
-  comments        CommunityComment[]
-  @@map("community_posts")
+  id            String                  @id @default(uuid())
+  authorId      String
+  type          CommunityPostType       @default(STANDARD)
+  content       String
+  imagePath     String?
+  commentsCount Int                     @default(0)
+  likesCount    Int                     @default(0)
+  dislikesCount Int                     @default(0)
+  pollQuestion  String?
+  pollEndsAt    DateTime?
+  createdAt     DateTime                @default(now())
+  updatedAt     DateTime                @updatedAt
+  comments      CommunityComment[]
+  pollOptions   CommunityPollOption[]
+  pollVotes     CommunityPollVote[]
+  reactions     CommunityPostReaction[]
+  author        User                    @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
   @@index([authorId])
   @@index([createdAt])
+  @@map("community_posts")
 }
 
 model CommunityPostReaction {
   id        String                @id @default(uuid())
   postId    String
-  post      CommunityPost         @relation(fields: [postId], references: [id], onDelete: Cascade)
   userId    String
-  user      User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
   type      CommunityReactionType
   createdAt DateTime              @default(now())
-  @@map("community_post_reactions")
+  post      CommunityPost         @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([postId, userId])
   @@index([userId])
+  @@map("community_post_reactions")
 }
 
 model CommunityComment {
-  id             String                    @id @default(uuid())
-  postId         String
-  post           CommunityPost             @relation(fields: [postId], references: [id], onDelete: Cascade)
-  authorId       String
-  author         User                      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  id              String                     @id @default(uuid())
+  postId          String
+  authorId        String
   parentCommentId String?
-  parentComment  CommunityComment?         @relation("CommunityCommentReplies", fields: [parentCommentId], references: [id], onDelete: Cascade)
-  replies        CommunityComment[]        @relation("CommunityCommentReplies")
-  content        String                    @db.Text
-  likesCount     Int                       @default(0)
-  dislikesCount  Int                       @default(0)
-  repliesCount   Int                       @default(0)
-  createdAt      DateTime                  @default(now())
-  updatedAt      DateTime                  @updatedAt
-  reactions      CommunityCommentReaction[]
-  @@map("community_comments")
+  content         String
+  likesCount      Int                        @default(0)
+  dislikesCount   Int                        @default(0)
+  repliesCount    Int                        @default(0)
+  createdAt       DateTime                   @default(now())
+  updatedAt       DateTime                   @updatedAt
+  reactions       CommunityCommentReaction[]
+  author          User                       @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  parentComment   CommunityComment?          @relation("CommunityCommentReplies", fields: [parentCommentId], references: [id], onDelete: Cascade)
+  replies         CommunityComment[]         @relation("CommunityCommentReplies")
+  post            CommunityPost              @relation(fields: [postId], references: [id], onDelete: Cascade)
+
   @@index([postId])
   @@index([authorId])
   @@index([parentCommentId])
   @@index([createdAt])
+  @@map("community_comments")
 }
 
 model CommunityCommentReaction {
-  id         String                @id @default(uuid())
-  commentId  String
-  comment    CommunityComment      @relation(fields: [commentId], references: [id], onDelete: Cascade)
-  userId     String
-  user       User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type       CommunityReactionType
-  createdAt  DateTime              @default(now())
-  @@map("community_comment_reactions")
+  id        String                @id @default(uuid())
+  commentId String
+  userId    String
+  type      CommunityReactionType
+  createdAt DateTime              @default(now())
+  comment   CommunityComment      @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user      User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([commentId, userId])
   @@index([userId])
+  @@map("community_comment_reactions")
 }
 
 model CommunityPollOption {
-  id          String               @id @default(uuid())
-  postId      String
-  post        CommunityPost        @relation(fields: [postId], references: [id], onDelete: Cascade)
-  text        String
-  votesCount  Int                  @default(0)
-  position    Int
-  createdAt   DateTime             @default(now())
-  votes       CommunityPollVote[]
-  @@map("community_poll_options")
-  @@index([postId])
+  id         String              @id @default(uuid())
+  postId     String
+  text       String
+  votesCount Int                 @default(0)
+  position   Int
+  createdAt  DateTime            @default(now())
+  post       CommunityPost       @relation(fields: [postId], references: [id], onDelete: Cascade)
+  votes      CommunityPollVote[]
+
   @@unique([postId, position])
+  @@index([postId])
+  @@map("community_poll_options")
 }
 
 model CommunityPollVote {
-  id          String               @id @default(uuid())
-  postId      String
-  post        CommunityPost        @relation(fields: [postId], references: [id], onDelete: Cascade)
-  optionId    String
-  option      CommunityPollOption  @relation(fields: [optionId], references: [id], onDelete: Cascade)
-  userId      String
-  user        User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt   DateTime             @default(now())
-  @@map("community_poll_votes")
+  id        String              @id @default(uuid())
+  postId    String
+  optionId  String
+  userId    String
+  createdAt DateTime            @default(now())
+  option    CommunityPollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  post      CommunityPost       @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([postId, userId])
   @@index([optionId])
   @@index([userId])
+  @@map("community_poll_votes")
 }
 
 enum AnimalType {

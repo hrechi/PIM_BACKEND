@@ -29,10 +29,9 @@ export class AeroTwinController {
   constructor(private readonly aerotwinService: AeroTwinService) {}
 
   @Get('ndvi')
-  async getNDVI(@Query('fieldId') fieldId: string, @Query('date') date: string) {
+  async getNDVI(@Query('fieldId') fieldId: string) {
     if (!fieldId) throw new BadRequestException("fieldId is required");
-    const targetDate = date ? date : new Date().toISOString();
-    return this.aerotwinService.getOrComputeNDVI(fieldId, targetDate);
+    return this.aerotwinService.getNDVI(fieldId);
   }
 
   @Get('history')
