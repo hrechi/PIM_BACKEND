@@ -42,7 +42,7 @@ import { AeroTwinModule } from './aerotwin/aerotwin.module';
 
 import { SoilIntelligenceModule } from './soil-intelligence/soil-intelligence.module';
  
- 
+  
 @Module({
   imports: [ 
     ConfigModule.forRoot({ isGlobal: true }),
