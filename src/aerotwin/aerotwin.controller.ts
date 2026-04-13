@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Query, Body, BadRequestException } from '@nestjs/common';
 import { AeroTwinService } from './aerotwin.service';
-import { IsString, IsNumber, ValidateNested, IsObject } from 'class-validator';
+import { IsString, IsNumber, ValidateNested, IsObject, IsOptional } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class SimulationParamsDto {
@@ -12,6 +12,14 @@ export class SimulationParamsDto {
 
   @IsNumber()
   nitrogenLevel: number;
+
+  @IsOptional()
+  @IsNumber()
+  pestRisk?: number;
+
+  @IsOptional()
+  @IsNumber()
+  sunlightHours?: number;
 }
 
 export class SimulateDto {

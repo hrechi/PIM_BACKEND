@@ -6,6 +6,8 @@ export interface SimulationParams {
   irrigationChange: number; // -50 to +50
   temperature: number;      // 0 to 50
   nitrogenLevel: number;    // 0 to 1
+  pestRisk?: number;        // 0 to 100% (defaults to 0)
+  sunlightHours?: number;   // 0 to 24 (defaults to 12)
 }
 
 @Injectable()
@@ -35,6 +37,20 @@ export class AeroTwinService {
   }
 
   /**
+   * Validates if a given object is a proper 10x10 numeric grid.
+   */
+  private isValidGrid(grid: any): boolean {
+    if (!Array.isArray(grid) || grid.length !== 10) return false;
+    for (const row of grid) {
+      if (!Array.isArray(row) || row.length !== 10) return false;
+      for (const cell of row) {
+        if (typeof cell !== 'number' || isNaN(cell)) return false;
+      }
+    }
+    return true;
+  }
+
+  /**
    * Fetches the current NDVI grid for a field or generates a new one.
    */
   async getOrComputeNDVI(fieldId: string, dateStr?: string) {
@@ -60,7 +76,22 @@ export class AeroTwinService {
       }
     });
 
-    if (record) return record;
+    if (record) {
+      if (!this.isValidGrid(record.gridData)) {
+        this.logger.warn(`Invalid gridData detected for field ${fieldId}. Regenerating grid.`);
+        const newGrid = this.generateSimpleGrid();
+        const newAvg = newGrid.flat().reduce((a, b) => a + b, 0) / 100;
+        
+        record = await this.prisma.nDVIRecord.update({
+          where: { id: record.id },
+          data: {
+            gridData: newGrid as any,
+            avgNDVI: newAvg
+          }
+        });
+      }
+      return record;
+    }
 
     // Generate fresh grid
     const grid = this.generateSimpleGrid();
@@ -92,9 +123,15 @@ export class AeroTwinService {
   async simulateNDVI(fieldId: string, params: SimulationParams) {
     // 1. Get current baseline (usually latest record)
     const latest = await this.getOrComputeNDVI(fieldId);
-    const baseGrid = latest.gridData as number[][];
+    let baseGrid = latest.gridData as number[][];
 
-    const { irrigationChange, temperature, nitrogenLevel } = params;
+    // Extreme fallback in case of simultaneous failure
+    if (!this.isValidGrid(baseGrid)) {
+      this.logger.error(`Fallback grid generation triggered during simulation for field ${fieldId}`);
+      baseGrid = this.generateSimpleGrid();
+    }
+
+    const { irrigationChange, temperature, nitrogenLevel, pestRisk = 0, sunlightHours = 12 } = params;
 
     const simulatedGrid: number[][] = [];
     let sum = 0;
@@ -105,10 +142,13 @@ export class AeroTwinService {
         const baseVal = baseGrid[i][j];
         
         // Formula: newNDVI = baseNDVI + (irrigation * 0.001) + (nitrogen * 0.1) - (temperature > 35 ? 0.1 : 0)
+        // new additions: - (pestRisk% * 0.002) + ((sunlight - 12) * 0.01)
         let newVal = baseVal 
           + (irrigationChange * 0.001) 
           + (nitrogenLevel * 0.1) 
-          - (temperature > 35 ? 0.1 : 0);
+          - (temperature > 35 ? 0.1 : 0)
+          - (pestRisk * 0.002)
+          + ((sunlightHours - 12) * 0.01);
 
         // Add 5% random noise for realism
         newVal += (Math.random() - 0.5) * 0.05;
