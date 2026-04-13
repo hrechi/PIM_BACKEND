@@ -96,8 +96,9 @@ model Field {
   regionId        String?
   user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   missions         Mission[]
-  ndviRecords     NDVIRecord[]
   soilMeasurements SoilMeasurement[]
+  ndviRecords      NDVIRecord[]
+  ndviData         Json?              // Current 10x10 matrix
   country      Country?     @relation(fields: [countryId], references: [id])
   region       FieldRegion? @relation(fields: [regionId], references: [id])
   animals      Animal[]
@@ -186,24 +187,20 @@ model SoilMeasurement {
   longitude            Float
   createdAt           DateTime @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt           DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
-  id                  String   @id(map: "PK_26b4f52c4005e567602987343a6") @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  fieldId             String?  @map("field_id") @db.Uuid
+  id                  String   @id @default(uuid())
+  fieldId             String?  @map("field_id")
   imagePath           String?  @map("image_path") @db.VarChar
   soilType            String?  @map("soil_type") @db.VarChar
   detectionConfidence  Float?   @map("detection_confidence")
   field                Field?   @relation(fields: [fieldId], references: [id], onDelete: SetNull)
   parcelId             String?  @map("parcel_id")
   parcel               Parcel?  @relation(fields: [parcelId], references: [id], onDelete: Cascade)
-  @@index([soilType], map: "IDX_0a742379a0b58d214968308ae8")
-  @@index([createdAt], map: "IDX_1b5048dedf4b0c67b0e3d69028")
-  @@index([fieldId], map: "IDX_b1d30f7933303444ba94550db7")
-  @@index([latitude, longitude], map: "IDX_db34dddb4edfd4e726c70f52b0")
-  @@map("soil_measurements")
-  @@index([createdAt])
-  @@index([latitude, longitude])
-  @@index([fieldId])
-  @@index([parcelId])
   @@index([soilType])
+  @@index([createdAt])
+  @@index([fieldId])
+  @@index([latitude, longitude])
+  @@index([parcelId])
+  @@map("soil_measurements")
 }
 
 model Animal {
@@ -267,9 +264,9 @@ model Animal {
   racePerformances     RacePerformance[]
   sensorReadings       SensorReading[]
   vaccineRecords       VaccineRecord[]
+  vaccineSchedules     VaccineSchedule[]
   weightRecords        WeightRecord[]
-  field        Field        @relation(fields: [fieldId], references: [id], onDelete: Cascade)
-  vaccineSchedules VaccineSchedule[]
+  field                Field             @relation(fields: [fieldId], references: [id], onDelete: Cascade)
   @@map("animals")
 }
 
@@ -420,6 +417,7 @@ model Parcel {
   farmer                 User              @relation(fields: [farmerId], references: [id])
   pests                  PestDisease[]
   soilMeasurements       SoilMeasurement[]
+  polygon                Json?             // GeoJSON Parcel boundary
   @@map("parcels")
 }
 
@@ -531,7 +529,7 @@ model Country {
   oieRegion       OIERegion
   fmdZoneStatus   FMDZoneStatus @default(ENDEMIC_WITH_VAX)
   timezone        String        @default("UTC")
-  createdAt       DateTime      @default(now())
+  createdAt           DateTime      @default(now())
   regions         FieldRegion[]
   campaigns       VaccineCampaignPeriod[]
   regulations     VaccineRegulation[]

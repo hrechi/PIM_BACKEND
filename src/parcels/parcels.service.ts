@@ -16,6 +16,37 @@ export class ParcelsService {
     private config: ConfigService,
   ) { }
 
+  private async ensurePolygon(parcel: any) {
+    if (parcel && !parcel.polygon) {
+      const defaultPolygon = {
+        type: "Feature",
+        properties: {},
+        geometry: {
+          type: "Polygon",
+          coordinates: [[
+            [10.1880, 36.8990],
+            [10.1895, 36.8990],
+            [10.1895, 36.9005],
+            [10.1880, 36.9005],
+            [10.1880, 36.8990]
+          ]]
+        }
+      };
+      
+      return this.prisma.parcel.update({
+        where: { id: parcel.id },
+        data: { polygon: defaultPolygon as any },
+        include: {
+          crops: true,
+          fertilizations: true,
+          pests: true,
+          harvests: true,
+        }
+      });
+    }
+    return parcel;
+  }
+
   async create(farmerId: string, dto: CreateParcelDto) {
     return this.prisma.parcel.create({
       data: {
@@ -26,7 +57,7 @@ export class ParcelsService {
   }
 
   async findAll(farmerId: string) {
-    return this.prisma.parcel.findMany({
+    const parcels = await this.prisma.parcel.findMany({
       where: { farmerId },
       include: {
         crops: true,
@@ -35,6 +66,9 @@ export class ParcelsService {
         harvests: true,
       },
     });
+
+    // Ensure all parcels have boundaries for Aero-Twin
+    return Promise.all(parcels.map(p => this.ensurePolygon(p)));
   }
 
   async findOne(id: string, farmerId: string) {
@@ -52,7 +86,7 @@ export class ParcelsService {
       throw new NotFoundException(`Parcel not found or you don't have access`);
     }
 
-    return parcel;
+    return this.ensurePolygon(parcel);
   }
 
   async update(id: string, farmerId: string, dto: UpdateParcelDto) {
