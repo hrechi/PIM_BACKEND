@@ -74,4 +74,18 @@ export class GeoService {
 
         return code;
     }
+
+    /**
+     * Suggest currency based on country code
+     */
+    suggestCurrency(countryCode: string): string {
+        const currencyMap: { [key: string]: string } = {
+            'TN': 'TND', 'MA': 'MAD', 'DZ': 'DZD', // Maghreb
+            'FR': 'EUR', 'BE': 'EUR', 'DE': 'EUR', 'IT': 'EUR', 'ES': 'EUR', 'NL': 'EUR', 'LU': 'EUR', 'AT': 'EUR', 'PT': 'EUR', 'FI': 'EUR', 'IE': 'EUR', 'GR': 'EUR', 'SI': 'EUR', 'MT': 'EUR', 'CY': 'EUR', 'SK': 'EUR', 'EE': 'EUR', 'LV': 'EUR', 'LT': 'EUR', // Europe EUR
+            'GB': 'GBP', 'CH': 'CHF', // Europe others
+            'US': 'USD', 'CA': 'CAD', 'BR': 'BRL', 'AR': 'ARS', // Americas
+            'AU': 'AUD', 'IN': 'INR', 'CN': 'CNY', 'TR': 'TRY', // Asia-Pacific & Middle East
+        };
+        return currencyMap[countryCode] || 'USD';
+    }
 }

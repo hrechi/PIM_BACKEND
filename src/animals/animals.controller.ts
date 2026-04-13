@@ -54,6 +54,11 @@ export class AnimalsController {
         return this.animalsService.sell(nodeId, data, req.user.id);
     }
 
+    @Patch(':nodeId/cancel-sale')
+    cancelSale(@Param('nodeId') nodeId: string, @Req() req: any) {
+        return this.animalsService.cancelSale(nodeId, req.user.id);
+    }
+
     @Delete(':nodeId')
     remove(@Param('nodeId') nodeId: string, @Req() req: any) {
         return this.animalsService.remove(nodeId, req.user.id);

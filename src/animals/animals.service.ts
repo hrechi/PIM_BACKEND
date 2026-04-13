@@ -188,6 +188,14 @@ export class AnimalsService {
 
         const { salePrice, saleDate, buyerName, saleWeightKg, notes } = data;
 
+        console.log('💰 SELL ANIMAL');
+        console.log('  nodeId:', nodeId);
+        console.log('  farmerId:', farmerId);
+        console.log('  fieldId:', animal.fieldId);
+        console.log('  salePrice:', salePrice);
+        console.log('  saleDate:', saleDate);
+        console.log('  saleDate as Date:', new Date(saleDate).toISOString());
+
         return this.prisma.animal.update({
             where: { nodeId },
             data: {
@@ -197,6 +205,33 @@ export class AnimalsService {
                 buyerName,
                 saleWeightKg,
                 notes: notes ? (animal.notes ? animal.notes + '\n\nSale Note: ' + notes : 'Sale Note: ' + notes) : animal.notes,
+            },
+        });
+    }
+
+    async cancelSale(nodeId: string, farmerId: string) {
+        const animal = await this.prisma.animal.findFirst({
+            where: { nodeId, farmerId },
+        });
+
+        if (!animal) {
+            throw new NotFoundException(`Animal with NodeID ${nodeId} not found or access denied`);
+        }
+
+        if (animal.status !== 'sold') {
+            throw new NotFoundException(`Animal with NodeID ${nodeId} is not sold`);
+        }
+
+        // Clear sale information and revert to active
+        return this.prisma.animal.update({
+            where: { nodeId },
+            data: {
+                status: 'active',
+                salePrice: null,
+                saleDate: null,
+                buyerName: null,
+                saleWeightKg: null,
+                notes: animal.notes ? animal.notes + '\n\nSale cancelled' : 'Sale cancelled',
             },
         });
     }

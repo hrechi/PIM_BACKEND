@@ -33,6 +33,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { ReportsModule } from './reports/reports.module';
 import { ShortsModule } from './shorts/shorts.module';
 import { ExpensesModule } from './expenses/expenses.module';
+import { FinanceModule } from './finance/finance.module';
 
 
 @Module({
@@ -77,6 +78,7 @@ import { ExpensesModule } from './expenses/expenses.module';
     ScheduleModule.forRoot(),
     ShortsModule,
     ExpensesModule,
+    FinanceModule,
   ],
   controllers: [AppController],
   providers: [AppService],
