@@ -16,7 +16,7 @@ export class IrrigationService {
   ) {
     this.weatherServiceUrl =
       this.configService.get<string>('WEATHER_SERVICE_URL') ||
-      'http://localhost:5000';
+      'http://192.168.100.9:5000';
   }
 
   /**

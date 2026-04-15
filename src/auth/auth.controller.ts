@@ -50,6 +50,12 @@ export class AuthController {
     return this.authService.refreshTokens(
       req.user.id,
       req.user.currentRefreshToken,
+      {
+        role: req.user.role,
+        workerId: req.user.workerId,
+        ownerId: req.user.ownerId,
+        assignedFieldId: req.user.assignedFieldId,
+      },
     );
   }
 

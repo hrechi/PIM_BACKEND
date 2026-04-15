@@ -22,7 +22,16 @@ export class JwtRefreshStrategy extends PassportStrategy(
     } as any);
   }
 
-  async validate(req: Request, payload: { sub: string }) {
+  async validate(
+    req: Request,
+    payload: {
+      sub: string;
+      role?: string;
+      workerId?: string;
+      ownerId?: string;
+      assignedFieldId?: string | null;
+    },
+  ) {
     const refreshToken = req.get('Authorization')?.replace('Bearer ', '').trim();
 
     if (!refreshToken) {
@@ -30,13 +39,37 @@ export class JwtRefreshStrategy extends PassportStrategy(
     }
 
     const user = await this.prisma.user.findUnique({
-      where: { id: payload.sub },
+      where: { id: payload.ownerId || payload.sub },
     });
 
     if (!user || !user.refreshToken) {
       throw new UnauthorizedException('Access denied');
     }
 
-    return { ...user, currentRefreshToken: refreshToken };
+    if (payload.role === 'WORKER' || payload.role === 'FARMER') {
+      const workerId = payload.workerId || payload.sub;
+      const worker = await (this.prisma as any).whitelistStaff.findFirst({
+        where: {
+          id: workerId,
+          role: { in: ['WORKER', 'FARMER'] },
+          ...(payload.ownerId ? { userId: payload.ownerId } : {}),
+        },
+      });
+
+      if (!worker) {
+        throw new UnauthorizedException('Worker account not found');
+      }
+    }
+
+    return {
+      ...user,
+      id: user.id,
+      ownerId: user.id,
+      currentRefreshToken: refreshToken,
+      role: payload.role || 'OWNER',
+      workerId: payload.workerId || null,
+      staffId: payload.workerId || null,
+      assignedFieldId: payload.assignedFieldId || null,
+    };
   }
 }

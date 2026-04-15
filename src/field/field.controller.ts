@@ -16,13 +16,16 @@ import { FieldService } from './field.service';
 import { CreateFieldDto } from './dto/create-field.dto';
 import { UpdateFieldDto } from './dto/update-field.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 
 @ApiTags('Field')
 @Controller('field')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('OWNER')
 export class FieldController {
   constructor(private fieldService: FieldService) {}
 
-  @UseGuards(JwtAuthGuard)
   @Post()
   @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Create a new field' })
@@ -32,7 +35,6 @@ export class FieldController {
     return this.fieldService.createField(req.user.id, dto);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Get()
   @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Get all fields for the current user' })
@@ -41,7 +43,6 @@ export class FieldController {
     return this.fieldService.getFieldsByUser(req.user.id);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Get(':id')
   @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Get a specific field by ID' })
@@ -51,7 +52,6 @@ export class FieldController {
     return this.fieldService.getFieldById(id, req.user.id);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Patch(':id')
   @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Update a field' })
@@ -65,7 +65,6 @@ export class FieldController {
     return this.fieldService.updateField(id, req.user.id, dto);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth('access-token')

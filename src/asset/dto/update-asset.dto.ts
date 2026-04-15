@@ -17,4 +17,26 @@ export class UpdateAssetDto {
   @IsOptional()
   @IsDateString()
   last_service_date?: string;
+
+  @ApiPropertyOptional({ example: 'John Deere' })
+  @IsOptional()
+  @IsString()
+  brand?: string;
+
+  @ApiPropertyOptional({ example: 'X350' })
+  @IsOptional()
+  @IsString()
+  model?: string;
+
+  @ApiPropertyOptional({ example: 2018 })
+  @IsOptional()
+  modelYear?: number;
+
+  @ApiPropertyOptional({ example: 31500 })
+  @IsOptional()
+  mileage?: number;
+
+  @ApiPropertyOptional({ example: 5200 })
+  @IsOptional()
+  operatingHours?: number;
 }

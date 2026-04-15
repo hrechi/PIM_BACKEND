@@ -211,6 +211,7 @@ model Field {
   missions         Mission[]
   soilMeasurements SoilMeasurement[]
   assets           Asset[]            // Assets assigned to this field
+  assignedWorkers  WhitelistStaff[]
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
 
@@ -281,10 +282,19 @@ model ChatMessage {
 model WhitelistStaff {
   id        String   @id @default(uuid())
   name      String
+  username  String   @unique
+  password  String
+  role      String   @default("WORKER")
+  email     String?  @unique
+  phone     String?  @unique
   imagePath String
+  fcmToken  String?
+  assignedFieldId String? @map("assigned_field_id")
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignedField Field? @relation(fields: [assignedFieldId], references: [id], onDelete: SetNull)
   assignedAssets Asset[]
+  usageLogs UsageLog[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -294,6 +304,11 @@ model WhitelistStaff {
 model Asset {
   id              String          @id @default(uuid())
   name            String
+  brand           String
+  model           String?
+  modelYear       Int?
+  mileage         Float?
+  operatingHours  Float?
   category        String
   status          AssetStatus     @default(AVAILABLE)
   imageUrl        String?         @map("image_url")
@@ -311,6 +326,7 @@ model Asset {
   // Staff member it's assigned to (optional)
   assignedToId    String?         @map("assigned_to_id")
   assignedTo      WhitelistStaff? @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
+  usageLogs       UsageLog[]
   
   createdAt       DateTime        @default(now()) @map("created_at")
   updatedAt       DateTime        @updatedAt @map("updated_at")
@@ -320,6 +336,31 @@ model Asset {
   @@index([fieldId])
   @@index([assignedToId])
   @@map("assets")
+}
+
+model UsageLog {
+  id            String   @id @default(uuid())
+  assetId       String   @map("asset_id")
+  asset         Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  farmerId      String   @map("farmer_id")
+  farmer        WhitelistStaff @relation(fields: [farmerId], references: [id], onDelete: Cascade)
+  startTime     DateTime  @map("start_time")
+  endTime       DateTime? @map("end_time")
+  startMileage  Float     @map("start_mileage")
+  startOperatingHours Float? @map("start_operating_hours")
+  endMileage    Float?    @map("end_mileage")
+  endOperatingHours Float? @map("end_operating_hours")
+  taskType      String?   @map("task_type")
+  fuelLevel     Float?    @map("fuel_level")
+  conditionNote String?   @db.Text @map("condition_note")
+  notes         String?   @db.Text
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  @@map("usage_logs")
+  @@index([assetId])
+  @@index([farmerId])
+  @@index([startTime])
 }
 
 model SecurityIncident {

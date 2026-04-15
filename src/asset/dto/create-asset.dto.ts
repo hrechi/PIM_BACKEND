@@ -15,6 +15,30 @@ export class CreateAssetDto {
   @MaxLength(80)
   category: string;
 
+  @ApiProperty({ example: 'John Deere', description: 'Machine brand' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(80)
+  brand: string;
+
+  @ApiPropertyOptional({ example: 'X350', description: 'Model name' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  model?: string;
+
+  @ApiPropertyOptional({ example: 2018, description: 'Model production year' })
+  @IsOptional()
+  modelYear?: number;
+
+  @ApiPropertyOptional({ example: 31500, description: 'Mileage in KM' })
+  @IsOptional()
+  mileage?: number;
+
+  @ApiPropertyOptional({ example: 5200, description: 'Operating hours' })
+  @IsOptional()
+  operatingHours?: number;
+
   @ApiPropertyOptional({ enum: AssetStatus, example: AssetStatus.AVAILABLE, description: 'Current asset status' })
   @IsOptional()
   @IsEnum(AssetStatus)
@@ -41,8 +65,8 @@ export class CreateAssetDto {
   @IsString()
   assignedTo?: string;
 
-  @ApiPropertyOptional({ example: '550e8400-e29b-41d4-a716-446655440000', description: 'Field ID to assign this asset to' })
+  @ApiProperty({ example: '550e8400-e29b-41d4-a716-446655440000', description: 'Field ID to assign this asset to' })
   @IsString()
-  @IsOptional()
-  field_id?: string;
+  @IsNotEmpty()
+  field_id: string;
 }

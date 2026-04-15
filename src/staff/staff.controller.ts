@@ -56,9 +56,16 @@ export class StaffController {
   @ApiBody({
     schema: {
       type: 'object',
-      required: ['name', 'image'],
+      required: ['name', 'username', 'password', 'image'],
       properties: {
         name: { type: 'string', description: 'Staff member name' },
+        username: { type: 'string', description: 'Unique worker username' },
+        password: { type: 'string', description: 'Worker login password' },
+        role: { type: 'string', description: 'Role (default WORKER)' },
+        assignedFieldId: {
+          type: 'string',
+          description: 'Optional field ID assigned to this worker',
+        },
         image: { type: 'string', format: 'binary', description: 'Face photo (jpg, png, webp — max 5 MB)' },
       },
     },
@@ -91,7 +98,14 @@ export class StaffController {
     file: Express.Multer.File,
   ) {
     const imagePath = `/uploads/whitelist/${file.filename}`;
-    return this.staffService.addStaff(req.user.id, dto.name, imagePath);
+    return this.staffService.addStaff(req.user.id, {
+      name: dto.name,
+      username: dto.username,
+      password: dto.password,
+      role: dto.role,
+      assignedFieldId: dto.assignedFieldId,
+      imagePath,
+    });
   }
 
   @Get()
