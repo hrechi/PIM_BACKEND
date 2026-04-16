@@ -771,7 +771,6 @@ export class AssetService {
         cwd: process.cwd(),
         env: {
           ...process.env,
-          OPENAI_API_KEY: this.configService.get('OPENAI_API_KEY') || '',
           CLAUDE_API_KEY: this.configService.get('CLAUDE_API_KEY') || '',
           CUSTOM_AI_ENDPOINT: this.configService.get('CUSTOM_AI_ENDPOINT') || '',
           CUSTOM_AI_API_KEY: this.configService.get('CUSTOM_AI_API_KEY') || '',

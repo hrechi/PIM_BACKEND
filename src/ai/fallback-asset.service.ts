@@ -65,6 +65,30 @@ export class FallbackAssetService implements OnModuleInit {
     return [...new Set(items.filter(Boolean))];
   }
 
+  private getModelPrefix(model: string): string {
+    const match = model.trim().match(/^[A-Za-z]+/);
+    return match?.[0]?.toUpperCase() || model.trim().charAt(0).toUpperCase();
+  }
+
+  private sampleModels(models: string[], maxTotal = 12, perPrefix = 3): string[] {
+    const buckets = new Map<string, string[]>();
+
+    for (const model of models) {
+      const prefix = this.getModelPrefix(model);
+      const list = buckets.get(prefix) ?? [];
+      list.push(model);
+      buckets.set(prefix, list);
+    }
+
+    const sampled: string[] = [];
+    for (const bucket of buckets.values()) {
+      sampled.push(...bucket.slice(0, perPrefix));
+      if (sampled.length >= maxTotal) break;
+    }
+
+    return this.unique(sampled).slice(0, maxTotal);
+  }
+
   getAllBrands(): string[] {
     return Object.keys(this.dataset.brands);
   }
@@ -126,7 +150,7 @@ export class FallbackAssetService implements OnModuleInit {
 
       const brandModels = modelQuery
         ? this.searchModels(brand, modelQuery)
-        : Object.keys(info.models || {}).slice(0, 8);
+        : this.sampleModels(Object.keys(info.models || {}), 12, 3);
 
       for (const model of brandModels) {
         models.push(model);
@@ -146,21 +170,43 @@ export class FallbackAssetService implements OnModuleInit {
   }
 
   validateAgainstDataset(input: {
+    name?: string;
     brand?: string;
     model?: string;
     category?: string;
     operatingHours?: number;
+    horsepower?: number;
     mileage?: number;
   }) {
     const issues: string[] = [];
     const warnings: string[] = [];
     const suggestions: string[] = [];
 
+    const name = input.name?.trim() ?? '';
     const brand = input.brand?.trim() ?? '';
     const model = input.model?.trim() ?? '';
     const category = input.category?.trim() ?? '';
     const operatingHours = Number(input.operatingHours);
+    const horsepower = Number(input.horsepower);
     const mileage = Number(input.mileage);
+
+    if (name) {
+      const normalizedName = name;
+      const allowedChars = /^[A-Za-z0-9][A-Za-z0-9\s\-_/\.]{1,79}$/;
+      const tokens = normalizedName.split(/\s+/).filter(Boolean);
+      const hasDigit = /\d/.test(normalizedName);
+      const hasMeaningfulToken = tokens.some((token) => token.length >= 2);
+      if (
+        !allowedChars.test(normalizedName) ||
+        !/[A-Za-z]/.test(normalizedName) ||
+        normalizedName.length < 4 ||
+        (!hasDigit && tokens.length < 2 && !normalizedName.toLowerCase().includes('tractor')) ||
+        !hasMeaningfulToken
+      ) {
+        issues.push('Asset name looks invalid or incoherent.');
+        suggestions.push('Use a readable asset name like "New Holland T6.175 Tractor".');
+      }
+    }
 
     const canonicalBrand = this.normalizedBrandLookup.get(this.normalize(brand));
     if (!brand || !canonicalBrand) {
@@ -182,15 +228,24 @@ export class FallbackAssetService implements OnModuleInit {
       suggestions.push(`Try one of: ${this.getModelsByBrand(canonicalBrand).slice(0, 5).join(', ')}`);
     }
 
-    if (category && this.normalize(category) !== this.normalize(brandInfo.category)) {
-      warnings.push(`Category ${category} does not match ${canonicalBrand} catalog category ${brandInfo.category}.`);
+    // Check if model exists in the selected category (instead of checking brand's default category)
+    if (category && model && modelDetails) {
+      // modelDetails comes from brandInfo.models[model] which has the correct category
+      // No warning needed - the model lookup already validates it exists
+    } else if (category && !model && this.normalize(category) !== this.normalize(brandInfo.category)) {
+      // Only warn about category mismatch if no specific model was selected
+      // This is just guidance, not an error
     }
 
-    if (modelDetails?.hpRange && !Number.isNaN(operatingHours)) {
+    if (modelDetails?.hpRange && !Number.isNaN(horsepower)) {
       const [minHp, maxHp] = modelDetails.hpRange;
-      if (operatingHours < minHp || operatingHours > maxHp * 150) {
-        warnings.push('Operating hours/hp-like value is outside the expected range for this model.');
+      if (horsepower < minHp || horsepower > maxHp) {
+        warnings.push('Horsepower is outside the expected range for this model.');
       }
+    }
+
+    if (!Number.isNaN(operatingHours) && operatingHours < 0) {
+      issues.push('Operating hours cannot be negative.');
     }
 
     if (!Number.isNaN(mileage) && mileage < 0) {

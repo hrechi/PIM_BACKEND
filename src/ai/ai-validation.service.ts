@@ -7,7 +7,7 @@ import { FallbackAssetService } from './fallback-asset.service';
 export class AiValidationService {
   private readonly logger = new Logger(AiValidationService.name);
   private readonly pythonApiUrl =
-    process.env.PYTHON_AI_API_URL || 'http://192.168.100.9:8000';
+    process.env.PYTHON_AI_API_URL || 'http://192.168.1.144:8000';
 
   constructor(
     private readonly httpService: HttpService,
@@ -42,10 +42,12 @@ export class AiValidationService {
 
   async validateAsset(assetData: any): Promise<any> {
     const base = this.fallbackAssetService.validateAgainstDataset({
+      name: assetData.name,
       brand: assetData.brand,
       model: assetData.model,
       category: assetData.category ?? assetData.type,
-      operatingHours: assetData.operatingHours ?? assetData.horsepower,
+      operatingHours: assetData.operatingHours,
+      horsepower: assetData.horsepower,
       mileage: assetData.mileage ?? assetData.usage,
     });
 
@@ -59,7 +61,7 @@ export class AiValidationService {
       );
       return this.mergeValidation(base, response.data);
     } catch (error) {
-      this.logger.warn('OpenAI validation failed, dataset validation used.');
+      this.logger.warn('AI validation failed, dataset validation used.');
       return base;
     }
   }
