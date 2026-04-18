@@ -1,318 +1,249 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 
-interface SimulationParams {
-  irrigationChange: number; // percentage change (e.g., -10 for 10% decrease)
-  temperature: number; // absolute temperature in C
-  nitrogenLevel: number; // nitrogen available (0 to 1)
+export interface SimulationParams {
+  irrigationChange: number; // -50 to +50
+  temperature: number;      // 0 to 50
+  nitrogenLevel: number;    // 0 to 1
+  pestRisk?: number;        // 0 to 100% (defaults to 0)
+  sunlightHours?: number;   // 0 to 24 (defaults to 12)
 }
 
 @Injectable()
 export class AeroTwinService {
+  private readonly logger = new Logger(AeroTwinService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
   ) {}
 
   /**
-   * 1. Fetches mock multispectral satellite data (B4 Red + B8 NIR).
+   * Generates a simple 10x10 matrix of NDVI values.
+   * Logic: Stable, no Turf.js, random numbers between 0.3 and 0.8.
    */
-  async fetchSatelliteData(fieldId: string, date: string): Promise<{ b4: number[][]; b8: number[][] }> {
-    // Generate a 10x10 mock grid for B4 and B8
-    const size = 10;
-    const b4: number[][] = [];
-    const b8: number[][] = [];
-
-    for (let i = 0; i < size; i++) {
-      const b4Row: number[] = [];
-      const b8Row: number[] = [];
-      for (let j = 0; j < size; j++) {
-        // Red usually lower in vegetation, NIR higher
-        // Create some pseudo-random spatial pattern mimicking plants
-        const baseRed = 0.05 + Math.random() * 0.1; 
-        const baseNIR = 0.4 + Math.random() * 0.4; 
-        b4Row.push(baseRed);
-        b8Row.push(baseNIR);
-      }
-      b4.push(b4Row);
-      b8.push(b8Row);
-    }
-
-    return { b4, b8 };
-  }
-
-  /**
-   * 2. Computes NDVI for each pixel
-   * NDVI = (NIR - Red) / (NIR + Red)
-   */
-  computeNDVI(b8Grid: number[][], b4Grid: number[][]): { avgNDVI: number, ndviGrid: number[][] } {
-    const size = b8Grid.length;
-    const ndviGrid: number[][] = [];
-    let sum = 0;
-    let count = 0;
-
-    for (let i = 0; i < size; i++) {
+  private generateSimpleGrid(): number[][] {
+    const grid: number[][] = [];
+    for (let i = 0; i < 10; i++) {
       const row: number[] = [];
-      for (let j = 0; j < b8Grid[i].length; j++) {
-        const nir = b8Grid[i][j];
-        const red = b4Grid[i][j];
-        const denom = (nir + red) === 0 ? 0.0001 : (nir + red); // prevent division by zero
-        const ndvi = (nir - red) / denom;
-        row.push(ndvi);
-        sum += ndvi;
-        count++;
+      for (let j = 0; j < 10; j++) {
+        // Random between 0.3 and 0.8
+        row.push(Number((0.3 + Math.random() * 0.5).toFixed(3)));
       }
-      ndviGrid.push(row);
+      grid.push(row);
     }
-
-    return {
-      avgNDVI: sum / count,
-      ndviGrid
-    };
+    return grid;
   }
 
   /**
-   * Retrieve NDVI or compute and store it if not cached for the day
+   * Validates if a given object is a proper 10x10 numeric grid.
    */
-  async getOrComputeNDVI(fieldId: string, dateStr: string) {
-    const targetDate = new Date(dateStr);
+  private isValidGrid(grid: any): boolean {
+    if (!Array.isArray(grid) || grid.length !== 10) return false;
+    for (const row of grid) {
+      if (!Array.isArray(row) || row.length !== 10) return false;
+      for (const cell of row) {
+        if (typeof cell !== 'number' || isNaN(cell)) return false;
+      }
+    }
+    return true;
+  }
+
+  /**
+   * Fetches the current NDVI grid for a field or generates a new one.
+   */
+  async getOrComputeNDVI(fieldId: string, dateStr?: string) {
+    const targetDate = dateStr ? new Date(dateStr) : new Date();
     
-    // Check if field exists first
-    let field = await this.prisma.field.findUnique({ where: { id: fieldId } });
+    // Check if field exists
+    const field = await this.prisma.field.findUnique({
+      where: { id: fieldId }
+    });
+
     if (!field) {
-        // Fallback: If the user passed a Parcel ID instead, create a mapping Field
-        const parcel = await this.prisma.parcel.findUnique({ where: { id: fieldId } });
-        if (!parcel) {
-            throw new BadRequestException(`Field with ID ${fieldId} not found`);
-        }
-        
-        field = await this.prisma.field.create({
-            data: {
-                id: parcel.id,
-                userId: parcel.farmerId,
-                name: `Field for ${parcel.location}`,
-                areaSize: parcel.areaSize,
-                areaCoordinates: {},
-            }
-        });
+      throw new NotFoundException(`Field ${fieldId} not found.`);
     }
 
-    // Check if we already have it
+    // Attempt to find existing record for today
     let record = await this.prisma.nDVIRecord.findFirst({
       where: {
         fieldId,
         date: {
-          gte: new Date(targetDate.setHours(0, 0, 0, 0)),
-          lte: new Date(targetDate.setHours(23, 59, 59, 999))
+          gte: new Date(new Date(targetDate).setHours(0, 0, 0, 0)),
+          lte: new Date(new Date(targetDate).setHours(23, 59, 59, 999))
         }
       }
     });
 
     if (record) {
+      if (!this.isValidGrid(record.gridData)) {
+        this.logger.warn(`Invalid gridData detected for field ${fieldId}. Regenerating grid.`);
+        const newGrid = this.generateSimpleGrid();
+        const newAvg = newGrid.flat().reduce((a, b) => a + b, 0) / 100;
+        
+        record = await this.prisma.nDVIRecord.update({
+          where: { id: record.id },
+          data: {
+            gridData: newGrid as any,
+            avgNDVI: newAvg
+          }
+        });
+      }
       return record;
     }
 
-    // Mock fetch satellite data
-    const { b4, b8 } = await this.fetchSatelliteData(fieldId, dateStr);
-    
-    // Compute NDVI
-    const { avgNDVI, ndviGrid } = this.computeNDVI(b8, b4);
+    // Generate fresh grid
+    const grid = this.generateSimpleGrid();
+    const avgNDVI = grid.flat().reduce((a, b) => a + b, 0) / 100;
 
-    // Save to database
     record = await this.prisma.nDVIRecord.create({
       data: {
         fieldId,
-        date: new Date(dateStr),
+        date: targetDate,
         avgNDVI,
-        gridData: ndviGrid
+        gridData: grid as any,
       }
     });
 
     return record;
   }
 
-  /**
-   * Get historical NDVI data
-   */
   async getHistory(fieldId: string) {
     return this.prisma.nDVIRecord.findMany({
       where: { fieldId },
-      orderBy: { date: 'asc' }
+      orderBy: { date: 'desc' },
+      take: 10,
     });
   }
 
   /**
-   * Groq AI based Stress Detection
+   * Runs the core simulation formula requested by the USER.
    */
-  async getAlerts(fieldId: string) {
-    const history = await this.getHistory(fieldId);
+  async simulateNDVI(fieldId: string, params: SimulationParams) {
+    // 1. Get current baseline (usually latest record)
+    const latest = await this.getOrComputeNDVI(fieldId);
+    let baseGrid = latest.gridData as number[][];
 
-    if (history.length === 0) {
+    // Extreme fallback in case of simultaneous failure
+    if (!this.isValidGrid(baseGrid)) {
+      this.logger.error(`Fallback grid generation triggered during simulation for field ${fieldId}`);
+      baseGrid = this.generateSimpleGrid();
+    }
+
+    const { irrigationChange, temperature, nitrogenLevel, pestRisk = 0, sunlightHours = 12 } = params;
+
+    const simulatedGrid: number[][] = [];
+    let sum = 0;
+
+    for (let i = 0; i < 10; i++) {
+      const row: number[] = [];
+      for (let j = 0; j < 10; j++) {
+        const baseVal = baseGrid[i][j];
+        
+        // Formula: newNDVI = baseNDVI + (irrigation * 0.001) + (nitrogen * 0.1) - (temperature > 35 ? 0.1 : 0)
+        // new additions: - (pestRisk% * 0.002) + ((sunlight - 12) * 0.01)
+        let newVal = baseVal 
+          + (irrigationChange * 0.001) 
+          + (nitrogenLevel * 0.1) 
+          - (temperature > 35 ? 0.1 : 0)
+          - (pestRisk * 0.002)
+          + ((sunlightHours - 12) * 0.01);
+
+        // Add 5% random noise for realism
+        newVal += (Math.random() - 0.5) * 0.05;
+
+        // Clamp between 0 and 1
+        newVal = Math.max(0, Math.min(1, newVal));
+        
+        row.push(Number(newVal.toFixed(3)));
+        sum += newVal;
+      }
+      simulatedGrid.push(row);
+    }
+
+    const predictedAvgNDVI = sum / 100;
+
+    return {
+      predictedAvgNDVI,
+      predictedGrid: simulatedGrid,
+      params // Echo back params
+    };
+  }
+
+  /**
+   * Fetches AI insights using the Groq API.
+   * Returns strict JSON format.
+   */
+  async getAlerts(fieldId: string, simParams?: SimulationParams) {
+    const history = await this.getHistory(fieldId);
+    const latest = history[0];
+
+    if (!latest) {
       return { 
-        zone: "General", 
-        severity: "low", 
-        message: "No NDVI history available to detect stress. Generate latest NDVI data." 
+        issue: "initializing", 
+        confidence: 0, 
+        recommendation: "System is collecting initial data." 
       };
     }
 
-    const latest = history[history.length - 1];
-    
-    // Simple rule-based validation
-    if (history.length === 1 && latest.avgNDVI < 0.3) {
-       return {
-         zone: "Entire Field",
-         severity: "high",
-         message: `Immediate attention required: Average NDVI is ${latest.avgNDVI.toFixed(2)}, indicating severe stress.`
-       };
-    } else if (history.length === 1 && latest.avgNDVI >= 0.3) {
-      return {
-         zone: "Entire Field",
-         severity: "low",
-         message: `Field health is stable. Average NDVI is ${latest.avgNDVI.toFixed(2)}.`
-       };
-    }
-
-    // Trend analysis over time
-    const prev = history[history.length - 2];
-    const trend = latest.avgNDVI - prev.avgNDVI;
-
-    let preEvaluatedSeverity = "low";
-    let preEvaluatedMessage = "Field is healthy.";
-
-    if (latest.avgNDVI < 0.3) {
-      preEvaluatedSeverity = "high";
-      preEvaluatedMessage = "Severe stress detected. Avg NDVI is critically low (< 0.3).";
-    } else if (trend < -0.1) {
-      preEvaluatedSeverity = "medium";
-      preEvaluatedMessage = "Warning: NDVI is decreasing over time. Potential emerging stress.";
-    } else if (latest.avgNDVI >= 0.3 && latest.avgNDVI < 0.5) {
-        preEvaluatedSeverity = "medium";
-        preEvaluatedMessage = "Warning: Vegetation health is sub-optimal (NDVI < 0.5). Monitor nutrients."; 
-    }
-
-    // Ask Groq to interpret the trend and explain
     const apiKey = this.configService.get<string>('GROQ_API_KEY');
-    const apiUrl = this.configService.get<string>('GROQ_URL') ?? 'https://api.groq.com/openai/v1/chat/completions';
-    const model = this.configService.get<string>('GROQ_MODEL') ?? 'llama-3.1-8b-instant';
+    const apiUrl = 'https://api.groq.com/openai/v1/chat/completions';
 
     if (!apiKey) {
-      // Fallback if no Groq API KEY
+      // Return realistic mock alerts if API key is missing
       return {
-         zone: "Entire Field",
-         severity: preEvaluatedSeverity,
-         message: preEvaluatedMessage,
-       };
+        issue: latest.avgNDVI < 0.4 ? "low_biomass" : "nominal",
+        confidence: 0.9,
+        recommendation: latest.avgNDVI < 0.4 
+          ? "Increase nitrogen fertilization and check irrigation pumps." 
+          : "Conditions are optimal. Continue current schedule."
+      };
     }
 
     try {
+      const prompt = `Analyze crop health for a field based on historical data and user simulation.
+        Current Avg NDVI: ${latest.avgNDVI.toFixed(2)}.
+        Recent Trend: ${history.map(h => h.avgNDVI.toFixed(2)).join(' -> ')}.
+        Simulated Parameters: ${simParams ? JSON.stringify(simParams) : 'Baseline (no changes)'}.
+        
+        Provide a detailed analysis. Your "recommendation" must include:
+        1. How to treat any detected stress or "bad effects" from the simulation.
+        2. Prevention steps to avoid these problems in the future.
+        
+        Respond ONLY with a JSON object:
+        { "issue": "string", "confidence": number, "recommendation": "string" }`;
+
       const response = await fetch(apiUrl, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
-        },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
         body: JSON.stringify({
-          model,
-          messages: [
-            { 
-              role: 'system', 
-              content: 'You are Fieldly AI, an expert agricultural analyst predicting crop stress from NDVI metrics. Be concise.' 
-            },
-            {
-              role: 'user',
-              content: `Given historical NDVI data (Oldest to newest avg): ${history.map(h => h.avgNDVI.toFixed(2)).join(', ')}. Analyze the trend and suggest if there is water stress, disease risk, or if it is healthy. Give me a maximum 2 sentence summary.`
-            }
-          ],
-          temperature: 0.3,
+          model: 'llama-3.3-70b-versatile',
+          messages: [{ role: 'user', content: prompt }],
+          response_format: { type: 'json_object' }
         })
       });
 
       if (!response.ok) {
-         throw new Error("Failed to fetch Groq");
+        const errText = await response.text();
+        throw new Error(`AI API error (${response.status}): ${errText.substring(0, 100)}`);
       }
 
       const data = await response.json();
-      const content = data.choices?.[0]?.message?.content;
-
-      return {
-        zone: "Entire Field",
-        severity: preEvaluatedSeverity,
-        message: content ? content.trim() : preEvaluatedMessage
-      };
-    } catch(err) {
-      return {
-        zone: "Entire Field",
-        severity: preEvaluatedSeverity,
-        message: `${preEvaluatedMessage} (AI analysis temporarily unavailable)`
-      };
-    }
-  }
-
-  /**
-   * Digital Twin Simulation
-   * futureNDVI = currentNDVI + (waterEffect + nitrogenEffect - stressFactor)
-   */
-  async simulateNDVI(fieldId: string, params: SimulationParams) {
-    // Get current state
-    const todayStr = new Date().toISOString();
-    const currentRecord = await this.getOrComputeNDVI(fieldId, todayStr);
-    
-    const { irrigationChange, temperature, nitrogenLevel } = params;
-
-    // Simulate simple model effects
-    // irrigationChange: -10% => -0.05 effect. +10% => 0.05
-    const waterEffect = (irrigationChange / 100) * 0.5;
-    
-    // nitrogenLevel: 0 to 1 => max effect 0.2
-    const nitrogenEffect = (nitrogenLevel - 0.5) * 0.4;
-    
-    // temperature: ideal is 25C. 
-    // If temp > 35C => severe stress. If temp < 10 => slow growth.
-    let stressFactor = 0;
-    if (temperature > 35) {
-      stressFactor = ((temperature - 35) / 10) * 0.3; 
-    } else if (temperature < 15) {
-      stressFactor = ((15 - temperature) / 10) * 0.1;
-    }
-
-    const currentGrid = currentRecord.gridData as number[][];
-    const size = currentGrid.length;
-    
-    const futureGrid: number[][] = [];
-    let futureSum = 0;
-    let count = 0;
-
-    let riskZones = 0;
-
-    for (let i = 0; i < size; i++) {
-      const row: number[] = [];
-      for (let j = 0; j < currentGrid[i].length; j++) {
-        let currentNDVI = currentGrid[i][j];
-        
-        let futurePixel = currentNDVI + (waterEffect + nitrogenEffect - stressFactor);
-        
-        // Clamp to -1 to 1
-        futurePixel = Math.max(-1, Math.min(1, futurePixel));
-        row.push(futurePixel);
-        futureSum += futurePixel;
-        count++;
-
-        if (futurePixel < 0.3) {
-          riskZones++;
-        }
+      
+      if (!data.choices || !data.choices[0]?.message?.content) {
+        throw new Error('Invalid response from AI service');
       }
-      futureGrid.push(row);
-    }
 
-    return {
-      predictedAvgNDVI: futureSum / count,
-      predictedGrid: futureGrid,
-      riskZonesCount: riskZones,
-      totalZones: count,
-      stressFactor,
-      waterEffect,
-      nitrogenEffect
-    };
+      const content = JSON.parse(data.choices[0].message.content);
+      return content;
+    } catch (err) {
+      this.logger.error(`Groq AI Error: ${err.message}`);
+      return { 
+        issue: "analysis_error", 
+        confidence: 0.5, 
+        recommendation: "Manual inspection recommended. AI service returned unexpected data." 
+      };
+    }
   }
 }

@@ -40,6 +40,7 @@
     "@nestjs/websockets": "^11.1.14",
     "@prisma/adapter-pg": "^7.3.0",
     "@prisma/client": "^7.3.0",
+    "@turf/turf": "^7.3.4",
     "axios": "^1.13.5",
     "bcrypt": "^6.0.0",
     "class-transformer": "^0.5.1",

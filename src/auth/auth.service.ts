@@ -71,42 +71,116 @@ export class AuthService {
     await this.updateRefreshToken(user.id, tokens.refreshToken);
 
     return {
-      user: this.sanitizeUser(user),
+      user: {
+        ...this.sanitizeUser(user),
+        role: 'OWNER',
+        assignedFieldId: null,
+        ownerId: user.id,
+      },
       ...tokens,
     };
   }
 
   async signIn(dto: SignInDto) {
-    // Find user by email or phone
+    const identifier = dto.identifier.trim();
+
+    // First, try the owner account table.
     const user = await this.prisma.user.findFirst({
       where: {
-        OR: [{ email: dto.identifier }, { phone: dto.identifier }],
+        OR: [{ email: identifier }, { phone: identifier }],
       },
     });
 
-    if (!user) {
+    if (user) {
+      const passwordValid = await bcrypt.compare(dto.password, user.password);
+      if (!passwordValid) {
+        throw new UnauthorizedException('Invalid credentials');
+      }
+
+      const tokens = await this.generateTokens(user.id, user.email, {
+        role: 'OWNER',
+        ownerId: user.id,
+        assignedFieldId: null,
+      });
+
+      await this.updateRefreshToken(user.id, tokens.refreshToken);
+
+      return {
+        user: {
+          ...this.sanitizeUser(user),
+          role: 'OWNER',
+          assignedFieldId: null,
+          ownerId: user.id,
+        },
+        ...tokens,
+      };
+    }
+
+    const worker = await (this.prisma as any).whitelistStaff.findFirst({
+      where: {
+        username: identifier.toLowerCase(),
+        role: { in: ['WORKER', 'FARMER'] },
+      },
+    });
+
+    if (!worker) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    // Verify password
-    const passwordValid = await bcrypt.compare(dto.password, user.password);
-    if (!passwordValid) {
+    const workerPasswordValid = await bcrypt.compare(dto.password, worker.password);
+    if (!workerPasswordValid) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    // Generate tokens
-    const tokens = await this.generateTokens(user.id, user.email);
+    const owner = await this.prisma.user.findUnique({
+      where: { id: worker.userId },
+    });
 
-    // Store hashed refresh token
-    await this.updateRefreshToken(user.id, tokens.refreshToken);
+    if (!owner) {
+      throw new UnauthorizedException('Worker owner account not found');
+    }
+
+    const tokens = await this.generateTokens(owner.id, owner.email, {
+      role: 'WORKER',
+      workerId: worker.id,
+      ownerId: owner.id,
+      assignedFieldId: worker.assignedFieldId,
+    });
+
+    await this.updateRefreshToken(owner.id, tokens.refreshToken);
 
     return {
-      user: this.sanitizeUser(user),
+      user: {
+        ...this.sanitizeUser(owner),
+        id: owner.id,      // Ensure it's the owner's ID
+        name: worker.name, // Override with the worker's name!
+        email: worker.email ?? null,
+        phone: worker.phone ?? null,
+        profilePicture: worker.imagePath,
+        role: 'WORKER',
+        workerId: worker.id,
+        staffId: worker.id,
+        workerName: worker.name,
+        username: worker.username,
+        assignedFieldId: worker.assignedFieldId,
+        ownerId: owner.id,
+        createdAt: worker.createdAt,
+        updatedAt: worker.updatedAt,
+      },
       ...tokens,
     };
   }
 
-  async refreshTokens(userId: string, currentRefreshToken: string) {
+  async refreshTokens(
+    userId: string,
+    currentRefreshToken: string,
+    claims?: {
+      role?: string;
+      workerId?: string;
+      ownerId?: string;
+      assignedFieldId?: string | null;
+    },
+  ) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
     });
@@ -125,7 +199,12 @@ export class AuthService {
     }
 
     // Generate new tokens (rotation)
-    const tokens = await this.generateTokens(user.id, user.email);
+    const tokens = await this.generateTokens(user.id, user.email, {
+      role: claims?.role || 'OWNER',
+      workerId: claims?.workerId,
+      ownerId: claims?.ownerId || user.id,
+      assignedFieldId: claims?.assignedFieldId,
+    });
     await this.updateRefreshToken(user.id, tokens.refreshToken);
 
     return tokens;
@@ -233,8 +312,27 @@ export class AuthService {
 
   // ─── Private Helpers ──────────────────────────────────────────
 
-  private async generateTokens(userId: string, email?: string | null) {
-    const payload = { sub: userId, email };
+  private async generateTokens(
+    userId: string,
+    email?: string | null,
+    extraClaims?: {
+      role?: string;
+      workerId?: string;
+      ownerId?: string;
+      assignedFieldId?: string | null;
+    },
+  ) {
+    const payload: Record<string, any> = {
+      sub: userId,
+      email,
+      role: extraClaims?.role || 'OWNER',
+      ownerId: extraClaims?.ownerId || userId,
+      assignedFieldId: extraClaims?.assignedFieldId || null,
+    };
+
+    if (extraClaims?.workerId) {
+      payload.workerId = extraClaims.workerId;
+    }
 
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(payload, {
