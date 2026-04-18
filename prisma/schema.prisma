@@ -263,20 +263,11 @@ model Field {
   // Relations
   missions         Mission[]
   soilMeasurements SoilMeasurement[]
-<<<<<<< HEAD
-  ndviRecords      NDVIRecord[]
-  ndviData         Json?              // Current 10x10 matrix
-  country      Country?     @relation(fields: [countryId], references: [id])
-  region       FieldRegion? @relation(fields: [regionId], references: [id])
-  animals      Animal[]
-  @@index([userId])
-=======
   ndviRecords      NDVIRecord[]       // from schema 1
   animals          Animal[]
   assets           Asset[]            // from schema 2
   assignedWorkers  WhitelistStaff[]   // from schema 2
 
->>>>>>> 762f86d050df0c643db0acf1345f8cb256446498
   @@map("fields")
   @@index([userId])
 }
@@ -447,335 +438,6 @@ model SecurityIncident {
   @@map("security_incidents")
 }
 
-<<<<<<< HEAD
-model SoilMeasurement {
-  ph                   Float
-  soilMoisture         Float    @map("soil_moisture")
-  sunlight             Float
-  nutrients            Json
-  temperature          Float
-  latitude             Float
-  longitude            Float
-  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamp(6)
-  updatedAt           DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
-  id                  String   @id @default(uuid())
-  fieldId             String?  @map("field_id")
-  imagePath           String?  @map("image_path") @db.VarChar
-  soilType            String?  @map("soil_type") @db.VarChar
-  detectionConfidence  Float?   @map("detection_confidence")
-  field                Field?   @relation(fields: [fieldId], references: [id], onDelete: SetNull)
-  parcelId             String?  @map("parcel_id")
-  parcel               Parcel?  @relation(fields: [parcelId], references: [id], onDelete: Cascade)
-  @@index([soilType])
-  @@index([createdAt])
-  @@index([fieldId])
-  @@index([latitude, longitude])
-  @@index([parcelId])
-  @@map("soil_measurements")
-}
-
-model Animal {
-  id                   String            @id @default(uuid())
-  nodeId               String            @unique
-  farmerId             String
-  name                 String
-  animalType           AnimalType
-  breed                String?
-  sex                  Sex
-  tagNumber            String?
-  profileImage         String?
-  notes                String?
-  age                  Int       // months
-  ageYears             Int               @default(0)
-  isPregnant           Boolean?
-  lastInseminationDate DateTime?
-  lastBirthDate        DateTime?
-  expectedBirthDate    DateTime? // Calculated: lastInsemination + gestation duration
-  birthCount           Int               @default(0)
-  status               AnimalStatus      @default(active)
-  healthStatus        String       @default("OPTIMAL") // OPTIMAL, WARNING, CRITICAL
-  vitalityScore        Int               @default(100)
-  bodyTemp             Float?
-  activityLevel       String       @default("MODERATE") // LOW, MODERATE, HIGH
-  lastVetCheck         DateTime?
-  vaccination          Boolean           @default(false)
-  healthRiskScore     Float?       // Calculated by AI model (sprint suivant)
-  diseaseHistoryCount Int          @default(0) // Calculated from medical_events
-  weight               Float?
-  milkYield            Float?
-  woolYield            Float?
-  fatContent           Float?
-  protein              Float?
-  productionHabit     String?  // ACTIVE, NORMAL, LESS
-  feedIntakeRecorded   DateTime?
-  dewormingScheduled   DateTime?
-  birthHistory        Json?    // List of { date, weight, health }
-  dailyMilkAvgL        Decimal?          @db.Decimal(5, 2)
-  milkPeakDate         DateTime?
-  lactationNumber      Int?
-  raceCategory         RaceCategory?
-  bestRaceTime         Decimal?          @db.Decimal(8, 3)
-  trainingLevel        TrainingLevel?
-  woolLastShearDate    DateTime?
-  meatGrade            MeatGrade?
-  dogRole              DogRole?
-  purchasePrice        Decimal?          @db.Decimal(10, 2)
-  purchaseDate         DateTime?
-  estimatedValue       Decimal?          @db.Decimal(10, 2)
-  salePrice            Decimal?          @db.Decimal(10, 2)
-  saleDate             DateTime?
-  createdAt            DateTime          @default(now())
-  updatedAt            DateTime          @updatedAt
-  fieldId              String
-  farmer               User              @relation(fields: [farmerId], references: [id])
-  expenses             Expense[]
-  healthAlerts         HealthAlert[]
-  medicalEvents        MedicalEvent[]
-  milkProductions      MilkProduction[]
-  racePerformances     RacePerformance[]
-  sensorReadings       SensorReading[]
-  vaccineRecords       VaccineRecord[]
-  vaccineSchedules     VaccineSchedule[]
-  weightRecords        WeightRecord[]
-  field                Field             @relation(fields: [fieldId], references: [id], onDelete: Cascade)
-  @@map("animals")
-}
-
-model VaccineRecord {
-  id             String           @id @default(uuid())
-  animalId       String
-  vaccineName String
-  vaccineDate DateTime
-  nextDueDate    DateTime?        // calculé = administeredAt + regulation.intervalDays
-  vetName     String?
-  lotNumber      String?
-  createdAt      DateTime         @default(now())
-  animal         Animal           @relation(fields: [animalId], references: [id], onDelete: Cascade)
-  scheduleId     String?
-  schedule       VaccineSchedule? @relation(fields: [scheduleId], references: [id])
-  vaccineId      String
-  vaccine        Vaccine          @relation(fields: [vaccineId], references: [id])
-  administeredBy String           // nom du vétérinaire (texte libre — cohérent avec MedicalEvent.vetName)
-  administeredAt DateTime
-  doseGiven      Float
-  doseUnit       String           @default("ml")
-  route          VaccineRoute     @default(SUBCUTANEOUS)
-  bodyWeight     Float?
-  dateEstimated  Boolean          @default(false)  // true si date estimée (non connue)
-  observations   String?
-  @@map("vaccine_records")
-}
-
-model MedicalEvent {
-  id        String           @id @default(uuid())
-  animalId  String
-  eventDate DateTime
-  eventType MedicalEventType
-  diagnosis String?
-  treatment String?
-  vetName   String?          // Nom du vétérinaire (texte libre)
-  cost      Decimal?         @db.Decimal(10, 2)
-  notes     String?
-  createdAt DateTime         @default(now())
-  animal    Animal           @relation(fields: [animalId], references: [id], onDelete: Cascade)
-  @@map("medical_events")
-}
-
-model SensorReading {
-  id            String   @id @default(uuid())
-  animalId      String
-  collarId      String?
-  timestamp     DateTime
-  temperature   Float?
-  heartRate     Float?
-  accX          Float?
-  accY          Float?
-  accZ          Float?
-  activityScore Float?
-  createdAt     DateTime @default(now())
-  animal        Animal   @relation(fields: [animalId], references: [id], onDelete: Cascade)
-  @@index([animalId, timestamp])
-  @@map("sensor_readings")
-}
-
-model HealthAlert {
-  id               String     @id @default(uuid())
-  animalId         String
-  alertTime        DateTime
-  alertLevel       AlertLevel
-  predictedDisease String?
-  confidence       Float?
-  anomalyScore     Float?
-  vetConfirmed     Boolean?
-  notes            String?
-  createdAt        DateTime   @default(now())
-  animal           Animal     @relation(fields: [animalId], references: [id], onDelete: Cascade)
-  @@map("health_alerts")
-}
-
-model MilkProduction {
-  id        String   @id @default(uuid())
-  animalId  String
-  date      DateTime
-  morningL  Decimal? @db.Decimal(6, 2)
-  eveningL  Decimal? @db.Decimal(6, 2)
-  totalL    Decimal? @db.Decimal(6, 2)
-  notes     String?
-  createdAt DateTime @default(now())
-  animal    Animal   @relation(fields: [animalId], references: [id], onDelete: Cascade)
-  @@map("milk_productions")
-}
-
-model RacePerformance {
-  id             String   @id @default(uuid())
-  animalId       String
-  raceDate       DateTime
-  raceName       String?
-  position       Int?
-  timeSeconds    Decimal? @db.Decimal(8, 3)
-  distanceM      Int?
-  trackCondition String?
-  createdAt      DateTime @default(now())
-  animal         Animal   @relation(fields: [animalId], references: [id], onDelete: Cascade)
-  @@map("race_performances")
-}
-
-model WeightRecord {
-  id           String   @id @default(uuid())
-  animalId     String
-  measuredDate DateTime
-  weightKg     Decimal  @db.Decimal(7, 2)
-  measuredBy   String?
-  createdAt    DateTime @default(now())
-  animal       Animal   @relation(fields: [animalId], references: [id], onDelete: Cascade)
-  @@map("weight_records")
-}
-
-model Expense {
-  id          String   @id @default(uuid())
-  animalId    String?
-  farmId      String?  // farmId = userId for now
-  date        DateTime
-  category    String   // alimentation, veterinaire, medicaments, equipements, autre
-  amount      Decimal  @db.Decimal(10, 2)
-  description String?
-  receiptUrl  String?
-  createdAt   DateTime @default(now())
-  animal      Animal?  @relation(fields: [animalId], references: [id], onDelete: SetNull)
-  farmer      User?    @relation(fields: [farmId], references: [id], onDelete: SetNull)
-  @@map("expenses")
-}
-
-model Parcel {
-  id                     String            @id @default(uuid())
-  location               String
-  areaSize               Float
-  boundariesDescription  String
-  soilType               String
-  soilPh                 Float?
-  nitrogenLevel          Float?
-  phosphorusLevel        Float?
-  potassiumLevel         Float?
-  waterSource            String
-  irrigationMethod       String
-  irrigationFrequency    String
-  farmerId               String
-  createdAt              DateTime          @default(now())
-  updatedAt              DateTime          @updatedAt
-  crops                  Crop[]
-  fertilizations         Fertilization[]
-  harvests               Harvest[]
-  farmer                 User              @relation(fields: [farmerId], references: [id])
-  pests                  PestDisease[]
-  soilMeasurements       SoilMeasurement[]
-  polygon                Json?             // GeoJSON Parcel boundary
-  @@map("parcels")
-}
-
-model Crop {
-  id                  String   @id @default(uuid())
-  cropName            String
-  variety             String
-  plantingDate        DateTime
-  expectedHarvestDate DateTime
-  parcelId            String
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-  parcel              Parcel   @relation(fields: [parcelId], references: [id])
-  @@map("crops")
-}
-
-model Fertilization {
-  id              String   @id @default(uuid())
-  fertilizerType  String
-  quantityUsed    Float
-  applicationDate DateTime
-  parcelId        String
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  parcel          Parcel   @relation(fields: [parcelId], references: [id])
-  @@map("fertilizations")
-}
-
-model PestDisease {
-  id            String    @id @default(uuid())
-  issueType      String?
-  treatmentUsed  String?
-  treatmentDate  DateTime?
-  parcelId       String
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  parcel        Parcel    @relation(fields: [parcelId], references: [id])
-  @@map("pest_diseases")
-}
-
-model Harvest {
-  id              String    @id @default(uuid())
-  harvestDate      DateTime?
-  totalYield       Float?
-  yieldPerHectare  Float?
-  parcelId         String
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  parcel          Parcel    @relation(fields: [parcelId], references: [id])
-  @@map("harvests")
-}
-
-model CropRequirement {
-  id               String  @id @default(uuid())
-  cropName         String  @map("crop_name")
-  minPH            Float   @map("min_ph")
-  maxPH            Float   @map("max_ph")
-  minMoisture      Float   @map("min_moisture")
-  maxMoisture      Float   @map("max_moisture")
-  nitrogenRequired Float   @map("nitrogen_required")
-  @@index([cropName])
-  @@map("crop_requirements")
-}
-
-model CropRegion {
-  id       String @id @default(uuid())
-  cropName String @map("crop_name")
-  country  String
-  @@index([cropName])
-  @@index([country])
-  @@map("crop_regions")
-}
-
-model NDVIRecord {
-  id        String   @id @default(uuid())
-  fieldId   String
-  date      DateTime
-  avgNDVI   Float
-  gridData  Json
-  createdAt DateTime @default(now())
-  field     Field    @relation(fields: [fieldId], references: [id], onDelete: Cascade)
-  @@index([fieldId])
-  @@map("ndvi_records")
-}
-
-=======
->>>>>>> 762f86d050df0c643db0acf1345f8cb256446498
 model DailyReport {
   id                 String   @id @default(uuid())
   summary            String   @db.Text
@@ -950,13 +612,6 @@ model Country {
   oieRegion       OIERegion
   fmdZoneStatus   FMDZoneStatus @default(ENDEMIC_WITH_VAX)
   timezone        String        @default("UTC")
-<<<<<<< HEAD
-  createdAt           DateTime      @default(now())
-  regions         FieldRegion[]
-  campaigns       VaccineCampaignPeriod[]
-  regulations     VaccineRegulation[]
-  fields          Field[]
-=======
   createdAt       DateTime      @default(now())
 
   regions     FieldRegion[]
@@ -964,7 +619,6 @@ model Country {
   regulations VaccineRegulation[]
   fields      Field[]
 
->>>>>>> 762f86d050df0c643db0acf1345f8cb256446498
   @@map("countries")
 }
 
@@ -1271,6 +925,7 @@ model Parcel {
   id                    String          @id @default(uuid())
   location              String
   areaSize              Float
+  polygon               Json?
   boundariesDescription String
   soilType              String
   soilPh                Float?
