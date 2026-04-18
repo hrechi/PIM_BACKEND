@@ -39,6 +39,8 @@ import { CommunityModule } from './community/community.module';
 import { HarvestOptimizationModule } from './harvest-optimization/harvest-optimization.module';
 import { QuizModule } from './quiz/quiz.module';
 import { AeroTwinModule } from './aerotwin/aerotwin.module';
+import { AssetModule } from './asset/asset.module';
+import { AiModule } from './ai/ai.module';
 
 import { SoilIntelligenceModule } from './soil-intelligence/soil-intelligence.module';
  
@@ -162,6 +164,8 @@ import { SoilIntelligenceModule } from './soil-intelligence/soil-intelligence.mo
     AeroTwinModule,
     CommunityModule,
     SoilIntelligenceModule,
+    AssetModule,
+    AiModule,
   ],
 
   controllers: [AppController],

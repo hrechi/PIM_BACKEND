@@ -73,12 +73,20 @@ export class AnimalsService {
         });
     }
 
-    async findAllByFarmer(farmerId: string, animalType?: string, fieldId?: string) {
+    async findAllByFarmer(
+        farmerId: string,
+        animalType?: string,
+        fieldId?: string,
+        role: string = 'OWNER',
+        assignedFieldId?: string | null,
+    ) {
         const where: any = { farmerId };
         if (animalType) {
             where.animalType = animalType.toLowerCase();
         }
-        if (fieldId) {
+        if (role === 'WORKER' || role === 'FARMER') {
+            where.fieldId = assignedFieldId || '__NO_FIELD__';
+        } else if (fieldId) {
             where.fieldId = fieldId;
         }
 
@@ -191,9 +199,16 @@ export class AnimalsService {
         });
     }
 
-    async getStatistics(farmerId: string, fieldId?: string) {
+    async getStatistics(
+        farmerId: string,
+        fieldId?: string,
+        role: string = 'OWNER',
+        assignedFieldId?: string | null,
+    ) {
         const baseWhere: any = { farmerId, status: 'active' };
-        if (fieldId) {
+        if (role === 'WORKER' || role === 'FARMER') {
+            baseWhere.fieldId = assignedFieldId || '__NO_FIELD__';
+        } else if (fieldId) {
             baseWhere.fieldId = fieldId;
         }
 
@@ -246,15 +261,17 @@ export class AnimalsService {
                 },
                 _sum: { totalL: true },
             }),
-            this.prisma.expense.aggregate({
-                where: {
-                    farmId: farmerId,
-                    date: {
-                        gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+            role === 'WORKER' || role === 'FARMER'
+                ? Promise.resolve({ _sum: { amount: null } })
+                : this.prisma.expense.aggregate({
+                    where: {
+                        farmId: farmerId,
+                        date: {
+                            gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+                        },
                     },
-                },
-                _sum: { amount: true },
-            }),
+                    _sum: { amount: true },
+                }),
         ]);
 
         const speciesDistribution = speciesCounts.reduce((acc, curr) => {
@@ -266,7 +283,9 @@ export class AnimalsService {
             totalAnimals: totalCount,
             healthAlerts: lowHealthCount,
             vaccinesDue: vaccinesDueCount,
-            monthlySpend: monthlyExpenseAggregate?._sum?.amount ? Number(monthlyExpenseAggregate._sum.amount) : 0,
+            monthlySpend: role === 'WORKER' || role === 'FARMER'
+                ? 0
+                : monthlyExpenseAggregate?._sum?.amount ? Number(monthlyExpenseAggregate._sum.amount) : 0,
             speciesDistribution,
             needingAttention: attentionList,
             todayMilk: todayMilk._sum.totalL ? Number(todayMilk._sum.totalL) : 0,

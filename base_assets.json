@@ -1,0 +1,24 @@
+{
+  "brands": [
+    "John Deere",
+    "Massey Ferguson",
+    "New Holland",
+    "Kubota",
+    "Case IH",
+    "Valtra",
+    "Claas",
+    "Fendt",
+    "Deutz-Fahr",
+    "Mahindra"
+  ],
+  "categories": ["TRACTOR", "HARVESTER", "DRONE", "SPRAYER", "SEEDER"],
+  "usages": [
+    "Plowing",
+    "Tillage",
+    "Harvesting",
+    "Spraying",
+    "Seeding",
+    "Transport",
+    "Crop Monitoring"
+  ]
+}
