@@ -32,7 +32,7 @@ export class UserController {
   @ApiOperation({ summary: 'Get current user profile' })
   @ApiResponse({ status: 200, description: 'Returns the user profile' })
   async getProfile(@Req() req: any) {
-    return this.userService.getProfile(req.user.id);
+    return this.userService.getProfile(req.user.id, req.user);
   }
 
   @Patch('profile')
@@ -40,7 +40,7 @@ export class UserController {
   @ApiResponse({ status: 200, description: 'Profile updated successfully' })
   @ApiResponse({ status: 409, description: 'Email or phone already in use' })
   async updateProfile(@Req() req: any, @Body() dto: UpdateProfileDto) {
-    return this.userService.updateProfile(req.user.id, dto);
+    return this.userService.updateProfile(req.user.id, dto, req.user);
   }
 
   @Post('profile/picture')
@@ -81,14 +81,14 @@ export class UserController {
     file: Express.Multer.File,
   ) {
     const filePath = `/uploads/${file.filename}`;
-    return this.userService.updateProfilePicture(req.user.id, filePath);
+    return this.userService.updateProfilePicture(req.user.id, filePath, req.user);
   }
 
   @Post('fcm-token')
   @ApiOperation({ summary: 'Save device FCM token for push notifications' })
   @ApiResponse({ status: 201, description: 'FCM token saved' })
   async saveFcmToken(@Req() req: any, @Body() body: { token: string }) {
-    return this.userService.saveFcmToken(req.user.id, body.token);
+    return this.userService.saveFcmToken(req.user.id, body.token, req.user);
   }
 
   @Delete('profile')
