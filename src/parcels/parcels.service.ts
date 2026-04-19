@@ -3,7 +3,12 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateParcelDto } from './dto/create-parcel.dto';
 import { UpdateParcelDto } from './dto/update-parcel.dto';
-import { CreateCropDto, CreateFertilizationDto, CreatePestDiseaseDto, CreateHarvestDto } from './dto/nested.dto';
+import {
+  CreateCropDto,
+  CreateFertilizationDto,
+  CreatePestDiseaseDto,
+  CreateHarvestDto,
+} from './dto/nested.dto';
 
 interface GroqResponse {
   choices?: Array<{ message?: { content?: string } }>;
@@ -14,7 +19,7 @@ export class ParcelsService {
   constructor(
     private prisma: PrismaService,
     private config: ConfigService,
-  ) { }
+  ) {}
 
   async create(farmerId: string, dto: CreateParcelDto) {
     return this.prisma.parcel.create({
@@ -83,7 +88,11 @@ export class ParcelsService {
     });
   }
 
-  async addFertilization(parcelId: string, farmerId: string, dto: CreateFertilizationDto) {
+  async addFertilization(
+    parcelId: string,
+    farmerId: string,
+    dto: CreateFertilizationDto,
+  ) {
     await this.findOne(parcelId, farmerId);
     return this.prisma.fertilization.create({
       data: {
@@ -101,7 +110,9 @@ export class ParcelsService {
       data: {
         issueType: dto.issueType,
         treatmentUsed: dto.treatmentUsed,
-        treatmentDate: dto.treatmentDate ? new Date(dto.treatmentDate) : undefined,
+        treatmentDate: dto.treatmentDate
+          ? new Date(dto.treatmentDate)
+          : undefined,
         parcelId,
       },
     });
@@ -119,15 +130,24 @@ export class ParcelsService {
     });
   }
 
-  async getAiAdvice(parcelId: string, farmerId: string): Promise<{ advice: string }> {
+  async getAiAdvice(
+    parcelId: string,
+    farmerId: string,
+  ): Promise<{ advice: string }> {
     const parcel = await this.findOne(parcelId, farmerId);
 
     const apiKey = this.config.get<string>('GROQ_API_KEY');
-    const apiUrl = this.config.get<string>('GROQ_URL') ?? 'https://api.groq.com/openai/v1/chat/completions';
-    const model = this.config.get<string>('GROQ_MODEL') ?? 'llama-3.1-8b-instant';
+    const apiUrl =
+      this.config.get<string>('GROQ_URL') ??
+      'https://api.groq.com/openai/v1/chat/completions';
+    const model =
+      this.config.get<string>('GROQ_MODEL') ?? 'llama-3.1-8b-instant';
 
     if (!apiKey) {
-      return { advice: 'AI service is not configured. Please set GROQ_API_KEY in your environment variables.' };
+      return {
+        advice:
+          'AI service is not configured. Please set GROQ_API_KEY in your environment variables.',
+      };
     }
 
     const context = `
@@ -145,24 +165,52 @@ PARCEL DETAILS:
 - Irrigation Frequency: ${parcel.irrigationFrequency}
 
 CROPS (${parcel.crops.length}):
-${parcel.crops.length > 0
-        ? parcel.crops.map(c => `  - ${c.cropName} (${c.variety}): planted ${new Date(c.plantingDate).toLocaleDateString()}, expected harvest ${new Date(c.expectedHarvestDate).toLocaleDateString()}`).join('\n')
-        : '  None recorded'}
+${
+  parcel.crops.length > 0
+    ? parcel.crops
+        .map(
+          (c) =>
+            `  - ${c.cropName} (${c.variety}): planted ${new Date(c.plantingDate).toLocaleDateString()}, expected harvest ${new Date(c.expectedHarvestDate).toLocaleDateString()}`,
+        )
+        .join('\n')
+    : '  None recorded'
+}
 
 FERTILIZATION HISTORY (${parcel.fertilizations.length}):
-${parcel.fertilizations.length > 0
-        ? parcel.fertilizations.map(f => `  - ${f.fertilizerType}: ${f.quantityUsed} units on ${new Date(f.applicationDate).toLocaleDateString()}`).join('\n')
-        : '  None recorded'}
+${
+  parcel.fertilizations.length > 0
+    ? parcel.fertilizations
+        .map(
+          (f) =>
+            `  - ${f.fertilizerType}: ${f.quantityUsed} units on ${new Date(f.applicationDate).toLocaleDateString()}`,
+        )
+        .join('\n')
+    : '  None recorded'
+}
 
 PEST & DISEASE RECORDS (${parcel.pests.length}):
-${parcel.pests.length > 0
-        ? parcel.pests.map(p => `  - Issue: ${p.issueType ?? 'Unknown'}, Treatment: ${p.treatmentUsed ?? 'None'}, Date: ${p.treatmentDate ? new Date(p.treatmentDate).toLocaleDateString() : 'Unknown'}`).join('\n')
-        : '  None recorded'}
+${
+  parcel.pests.length > 0
+    ? parcel.pests
+        .map(
+          (p) =>
+            `  - Issue: ${p.issueType ?? 'Unknown'}, Treatment: ${p.treatmentUsed ?? 'None'}, Date: ${p.treatmentDate ? new Date(p.treatmentDate).toLocaleDateString() : 'Unknown'}`,
+        )
+        .join('\n')
+    : '  None recorded'
+}
 
 HARVEST HISTORY (${parcel.harvests.length}):
-${parcel.harvests.length > 0
-        ? parcel.harvests.map(h => `  - Date: ${h.harvestDate ? new Date(h.harvestDate).toLocaleDateString() : 'Unknown'}, Total Yield: ${h.totalYield ?? '?'}, Per Hectare: ${h.yieldPerHectare ?? '?'}`).join('\n')
-        : '  None recorded'}
+${
+  parcel.harvests.length > 0
+    ? parcel.harvests
+        .map(
+          (h) =>
+            `  - Date: ${h.harvestDate ? new Date(h.harvestDate).toLocaleDateString() : 'Unknown'}, Total Yield: ${h.totalYield ?? '?'}, Per Hectare: ${h.yieldPerHectare ?? '?'}`,
+        )
+        .join('\n')
+    : '  None recorded'
+}
     `.trim();
 
     const systemPrompt = `You are an expert agronomist and agricultural advisor.
@@ -187,7 +235,10 @@ Be specific, practical, and concise. Use bullet points within each section.`;
           model,
           messages: [
             { role: 'system', content: systemPrompt },
-            { role: 'user', content: `Analyze my parcel and give me the best agricultural recommendations:\n\n${context}` },
+            {
+              role: 'user',
+              content: `Analyze my parcel and give me the best agricultural recommendations:\n\n${context}`,
+            },
           ],
           temperature: 0.3,
           max_tokens: 1200,
@@ -198,11 +249,16 @@ Be specific, practical, and concise. Use bullet points within each section.`;
         return { advice: 'AI service error. Please try again later.' };
       }
 
-      const data = await response.json() as GroqResponse;
-      const advice = data.choices?.[0]?.message?.content?.trim() ?? 'No recommendations available.';
+      const data = (await response.json()) as GroqResponse;
+      const advice =
+        data.choices?.[0]?.message?.content?.trim() ??
+        'No recommendations available.';
       return { advice };
     } catch {
-      return { advice: 'Unable to reach AI service. Please check your connection and try again.' };
+      return {
+        advice:
+          'Unable to reach AI service. Please check your connection and try again.',
+      };
     }
   }
 }

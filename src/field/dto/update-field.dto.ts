@@ -21,17 +21,4 @@ export class UpdateFieldDto {
   @IsOptional()
   @IsNumber()
   areaSize?: number;
-
-  //Ajouter pour le module finance : la monnaie utilisée pour ce champ
-
-
-  @ApiPropertyOptional({ 
-    example: 'TND', 
-    description: 'Currency code (ISO 4217)',
-    enum: ['TND', 'MAD', 'DZD', 'EUR', 'GBP', 'CHF', 'USD', 'CAD', 'BRL', 'ARS', 'AUD', 'INR', 'CNY', 'TRY']
-  })
-  @IsOptional()
-  @IsString()
-  @IsIn(['TND', 'MAD', 'DZD', 'EUR', 'GBP', 'CHF', 'USD', 'CAD', 'BRL', 'ARS', 'AUD', 'INR', 'CNY', 'TRY'])
-  currency?: string;
 }

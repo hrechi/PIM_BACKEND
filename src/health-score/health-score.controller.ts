@@ -10,6 +10,9 @@ export class HealthScoreController {
   @Get(':id/health-score')
   async getParcelHealthScore(@Param('id') id: string, @Request() req) {
     // req.user.userId is set by JwtAuthGuard
-    return this.healthScoreService.calculateParcelHealthScore(id, req.user.userId);
+    return this.healthScoreService.calculateParcelHealthScore(
+      id,
+      req.user.userId,
+    );
   }
 }

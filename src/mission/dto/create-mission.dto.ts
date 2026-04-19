@@ -69,7 +69,10 @@ export class CreateMissionDto {
   @IsDateString()
   dueDate?: string;
 
-  @ApiPropertyOptional({ example: 480, description: 'Estimated duration in minutes' })
+  @ApiPropertyOptional({
+    example: 480,
+    description: 'Estimated duration in minutes',
+  })
   @IsOptional()
   @IsNumber()
   estimatedDuration?: number;

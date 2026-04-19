@@ -15,7 +15,10 @@ import {
 } from '@nestjs/swagger';
 import { ShortsService } from './shorts.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { ShortsResponseDto, ShortsCategoriesDto } from './dto/shorts-response.dto';
+import {
+  ShortsResponseDto,
+  ShortsCategoriesDto,
+} from './dto/shorts-response.dto';
 
 @ApiTags('Shorts')
 @Controller('shorts')
@@ -42,7 +45,11 @@ export class ShortsController {
     required: false,
     description: 'YouTube page token for pagination',
   })
-  @ApiResponse({ status: 200, description: 'List of shorts', type: ShortsResponseDto })
+  @ApiResponse({
+    status: 200,
+    description: 'List of shorts',
+    type: ShortsResponseDto,
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 429, description: 'YouTube API quota exceeded' })
   @ApiResponse({ status: 502, description: 'YouTube API error' })
@@ -57,10 +64,7 @@ export class ShortsController {
       );
     } catch (error) {
       if (error instanceof HttpException) throw error;
-      throw new HttpException(
-        'Failed to fetch shorts',
-        HttpStatus.BAD_GATEWAY,
-      );
+      throw new HttpException('Failed to fetch shorts', HttpStatus.BAD_GATEWAY);
     }
   }
 
@@ -84,8 +88,16 @@ export class ShortsController {
     summary: 'Get comments for a YouTube Short',
     description: 'Returns top-level comments for a specific video',
   })
-  @ApiQuery({ name: 'videoId', required: true, description: 'YouTube video ID' })
-  @ApiQuery({ name: 'pageToken', required: false, description: 'Page token for pagination' })
+  @ApiQuery({
+    name: 'videoId',
+    required: true,
+    description: 'YouTube video ID',
+  })
+  @ApiQuery({
+    name: 'pageToken',
+    required: false,
+    description: 'Page token for pagination',
+  })
   @ApiResponse({ status: 200, description: 'List of comments' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getComments(
@@ -99,7 +111,10 @@ export class ShortsController {
       return await this.shortsService.getComments(videoId, pageToken);
     } catch (error) {
       if (error instanceof HttpException) throw error;
-      throw new HttpException('Failed to fetch comments', HttpStatus.BAD_GATEWAY);
+      throw new HttpException(
+        'Failed to fetch comments',
+        HttpStatus.BAD_GATEWAY,
+      );
     }
   }
 }

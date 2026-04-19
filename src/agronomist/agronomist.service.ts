@@ -13,7 +13,7 @@ export class AgronomistService {
     });
 
     if (!parcel || parcel.crops.length === 0) {
-      return "No crop data found for this parcel.";
+      return 'No crop data found for this parcel.';
     }
 
     const currentCrop = parcel.crops[0];
@@ -34,15 +34,15 @@ export class AgronomistService {
         body: JSON.stringify({
           model: 'llama3', // Must match the model you pulled in Step 1
           prompt: prompt,
-          stream: false,   // Set to false to get the whole response at once
+          stream: false, // Set to false to get the whole response at once
         }),
       });
 
       const data = await response.json();
       return data.response; // This contains the AI's text
     } catch (error) {
-      console.error("Ollama Error:", error);
-      return "Sorry, the AI agronomist is currently unavailable.";
+      console.error('Ollama Error:', error);
+      return 'Sorry, the AI agronomist is currently unavailable.';
     }
   }
 }

@@ -6,13 +6,25 @@ export class FinanceService {
   constructor(private prisma: PrismaService) {}
 
   async getDashboard(fieldId: string, userId: string, period: 'month' | 'quarter' | 'year') {
-    // Verify field ownership
+    // Verify field ownership and get user currency
     const field = await this.prisma.field.findFirst({
       where: { id: fieldId, userId },
     });
 
     if (!field) {
-      throw new NotFoundException('Field not found');
+      throw new NotFoundException('Field not found or access denied');
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        currency: true,
+        currencySymbol: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
     }
 
     // Calculate date range
@@ -231,8 +243,8 @@ export class FinanceService {
 
     return {
       period,
-      currency: field.currency,
-      currencySymbol: field.currencySymbol,
+      currency: user.currency,
+      currencySymbol: user.currencySymbol,
       totalRevenue,
       totalExpenses,
       netBalance,

@@ -23,10 +23,7 @@ export class AnalyticsController {
    * Monthly yield trend for one specific parcel.
    */
   @Get('yield/parcel/:parcelId')
-  async getYieldByParcel(
-    @Req() req,
-    @Param('parcelId') parcelId: string,
-  ) {
+  async getYieldByParcel(@Req() req, @Param('parcelId') parcelId: string) {
     const data = await this.analyticsService.getYieldByParcel(
       parcelId,
       req.user.id,
@@ -39,10 +36,7 @@ export class AnalyticsController {
    * Total yield comparison across all parcels that grew a given crop.
    */
   @Get('yield/crop/:cropName')
-  async getYieldByCrop(
-    @Req() req,
-    @Param('cropName') cropName: string,
-  ) {
+  async getYieldByCrop(@Req() req, @Param('cropName') cropName: string) {
     const data = await this.analyticsService.getYieldByCrop(
       cropName,
       req.user.id,

@@ -7,10 +7,7 @@ import { SoilAiService } from './soil-ai.service';
 import { SoilMeasurement } from './soil.entity';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([SoilMeasurement]),
-    HttpModule,
-  ],
+  imports: [TypeOrmModule.forFeature([SoilMeasurement]), HttpModule],
   controllers: [SoilController],
   providers: [SoilService, SoilAiService],
   exports: [SoilService, SoilAiService],

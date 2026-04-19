@@ -19,7 +19,11 @@ export class CalendarService {
       throw new NotFoundException('Parcel not found');
     }
 
-    return this.mapCropsToCalendar(parcel.crops, parcel.harvests, parcel.location);
+    return this.mapCropsToCalendar(
+      parcel.crops,
+      parcel.harvests,
+      parcel.location,
+    );
   }
 
   async getAllCalendar(farmerId: string) {
@@ -33,22 +37,31 @@ export class CalendarService {
 
     const allCalendarItems: any[] = [];
     for (const parcel of parcels) {
-      const items = this.mapCropsToCalendar(parcel.crops, parcel.harvests, parcel.location);
+      const items = this.mapCropsToCalendar(
+        parcel.crops,
+        parcel.harvests,
+        parcel.location,
+      );
       allCalendarItems.push(...items);
     }
 
     // Sort all by planting date across all parcels
-    return allCalendarItems.sort((a, b) => 
-      new Date(a.plantingDate).getTime() - new Date(b.plantingDate).getTime()
+    return allCalendarItems.sort(
+      (a, b) =>
+        new Date(a.plantingDate).getTime() - new Date(b.plantingDate).getTime(),
     );
   }
 
-  private mapCropsToCalendar(crops: any[], harvests: any[], parcelName: string) {
+  private mapCropsToCalendar(
+    crops: any[],
+    harvests: any[],
+    parcelName: string,
+  ) {
     const now = new Date();
     return crops.map((crop) => {
       const plantingDate = new Date(crop.plantingDate);
       const expectedHarvestDate = new Date(crop.expectedHarvestDate);
-      
+
       let status = 'GROWING';
       if (now < plantingDate) {
         status = 'PLANTED';

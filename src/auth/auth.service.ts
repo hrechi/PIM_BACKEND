@@ -181,7 +181,9 @@ export class AuthService {
         where: { id: user.id },
         data: { otp: null, otpExpiresAt: null },
       });
-      throw new BadRequestException('OTP has expired. Please request a new one.');
+      throw new BadRequestException(
+        'OTP has expired. Please request a new one.',
+      );
     }
 
     // Verify OTP
@@ -208,7 +210,9 @@ export class AuthService {
         where: { id: user.id },
         data: { otp: null, otpExpiresAt: null },
       });
-      throw new BadRequestException('OTP has expired. Please request a new one.');
+      throw new BadRequestException(
+        'OTP has expired. Please request a new one.',
+      );
     }
 
     // Verify OTP

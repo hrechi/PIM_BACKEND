@@ -38,8 +38,6 @@ import { CommunityModule } from './community/community.module';
 import { ExpensesModule } from './expenses/expenses.module';
 import { FinanceModule } from './finance/finance.module';
 
-
- 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -85,9 +83,9 @@ import { FinanceModule } from './finance/finance.module';
     ShortsModule,
     CommunityModule,
     ExpensesModule,
-    FinanceModule
+    FinanceModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule { }
+export class AppModule {}

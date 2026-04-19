@@ -161,9 +161,10 @@ export class SoilController {
       ph: parseFloat(body.ph),
       soilMoisture: parseFloat(body.soilMoisture),
       sunlight: parseFloat(body.sunlight),
-      nutrients: typeof body.nutrients === 'string' 
-        ? JSON.parse(body.nutrients) 
-        : body.nutrients,
+      nutrients:
+        typeof body.nutrients === 'string'
+          ? JSON.parse(body.nutrients)
+          : body.nutrients,
       temperature: parseFloat(body.temperature),
       latitude: parseFloat(body.latitude),
       longitude: parseFloat(body.longitude),
@@ -173,7 +174,11 @@ export class SoilController {
     const imagePath = `uploads/soil/${file.filename}`;
 
     // Call service method to handle AI classification and creation
-    return this.soilService.createWithImage(createSoilDto, imagePath, file.path);
+    return this.soilService.createWithImage(
+      createSoilDto,
+      imagePath,
+      file.path,
+    );
   }
 
   @Get()
@@ -421,7 +426,8 @@ export class SoilController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: '🏥 Check AI service health',
-    description: 'Checks if the AI microservice is available and ready to process predictions.',
+    description:
+      'Checks if the AI microservice is available and ready to process predictions.',
   })
   @ApiResponse({
     status: 200,

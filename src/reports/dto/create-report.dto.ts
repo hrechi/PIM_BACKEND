@@ -1,11 +1,4 @@
-import {
-  IsNotEmpty,
-  IsString,
-  IsInt,
-  Min,
-  Max,
-  IsIn,
-} from 'class-validator';
+import { IsNotEmpty, IsString, IsInt, Min, Max, IsIn } from 'class-validator';
 
 export class CreateReportDto {
   @IsString()

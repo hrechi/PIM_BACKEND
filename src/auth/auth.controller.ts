@@ -7,7 +7,12 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { SignUpDto } from './dto/signup.dto';
 import { SignInDto } from './dto/signin.dto';
@@ -24,7 +29,10 @@ export class AuthController {
 
   @Post('signup')
   @ApiOperation({ summary: 'Register a new user' })
-  @ApiResponse({ status: 201, description: 'User registered successfully, returns tokens' })
+  @ApiResponse({
+    status: 201,
+    description: 'User registered successfully, returns tokens',
+  })
   @ApiResponse({ status: 409, description: 'Email or phone already in use' })
   async signUp(@Body() dto: SignUpDto) {
     return this.authService.signUp(dto);
@@ -33,7 +41,10 @@ export class AuthController {
   @Post('signin')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Sign in with email/phone and password' })
-  @ApiResponse({ status: 200, description: 'Returns access and refresh tokens' })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns access and refresh tokens',
+  })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
   async signIn(@Body() dto: SignInDto) {
     return this.authService.signIn(dto);
@@ -44,7 +55,10 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth('refresh-token')
   @ApiOperation({ summary: 'Refresh access and refresh tokens' })
-  @ApiResponse({ status: 200, description: 'Returns new access and refresh tokens' })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns new access and refresh tokens',
+  })
   @ApiResponse({ status: 401, description: 'Invalid or expired refresh token' })
   async refresh(@Req() req: any) {
     return this.authService.refreshTokens(

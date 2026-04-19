@@ -11,44 +11,18 @@ export class FieldService {
     private geoService: GeoService,
   ) {}
 
-  private getCurrencySymbol(currency: string): string {
-    const symbols = {
-      'TND': 'TND', 'MAD': 'DH', 'DZD': 'DA',
-      'EUR': '€', 'GBP': '£', 'CHF': 'CHF',
-      'USD': '$', 'CAD': 'CA$', 'BRL': 'R$', 'ARS': '$',
-      'AUD': 'A$', 'INR': '₹', 'CNY': '¥', 'TRY': '₺'
-    };
-    return symbols[currency] || '$';
-  }
-
   async createField(userId: string, dto: CreateFieldDto) {
-    let currency = dto.currency;
-
-    // If no currency specified, try to detect from coordinates
-    if (!currency) {
-      const centroid = this.geoService.extractCentroid(dto.areaCoordinates);
-      if (centroid) {
-        const countryCode = await this.geoService.resolveCountryCode(centroid.lat, centroid.lng);
-        if (countryCode) {
-          currency = this.geoService.suggestCurrency(countryCode);
-        }
-      }
-    }
-
-    currency = currency || 'USD';
-    const currencySymbol = this.getCurrencySymbol(currency);
-
-    return this.prisma.field.create({
+    const field = await this.prisma.field.create({
       data: {
         userId,
         name: dto.name,
         cropType: dto.cropType || null,
         areaCoordinates: dto.areaCoordinates,
         areaSize: dto.areaSize || null,
-        currency,
-        currencySymbol,
       },
     });
+
+    return field;
   }
 
   async getFieldsByUser(userId: string) {
@@ -94,11 +68,6 @@ export class FieldService {
 
     if (dto.areaCoordinates) {
       updateData.areaCoordinates = dto.areaCoordinates;
-    }
-
-    if (dto.currency) {
-      updateData.currency = dto.currency;
-      updateData.currencySymbol = this.getCurrencySymbol(dto.currency);
     }
 
     return this.prisma.field.update({

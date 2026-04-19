@@ -8,7 +8,8 @@ export class ChatRequestDto {
   message: string;
 
   @ApiProperty({
-    description: 'Conversation ID (optional, creates new conversation if not provided)',
+    description:
+      'Conversation ID (optional, creates new conversation if not provided)',
     required: false,
   })
   @IsString()

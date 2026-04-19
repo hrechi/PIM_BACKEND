@@ -73,7 +73,10 @@ export class UpdateMissionDto {
   @IsNumber()
   actualDuration?: number;
 
-  @ApiPropertyOptional({ example: 50, description: 'Progress percentage 0-100' })
+  @ApiPropertyOptional({
+    example: 50,
+    description: 'Progress percentage 0-100',
+  })
   @IsOptional()
   @IsNumber()
   @Min(0)

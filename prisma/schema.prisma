@@ -169,6 +169,10 @@ model User {
   // Daily AI-generated farm reports
   dailyReports DailyReport[]
 
+  // Currency settings for the entire farm
+  currency         String             @default("USD") // TND, EUR, USD, etc.
+  currencySymbol   String             @default("$")
+
   // Community module
   communityPosts            CommunityPost[]
   communityPostReactions    CommunityPostReaction[]
@@ -206,9 +210,6 @@ model Field {
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
   
-  // Ajouts pour le module finance
-  currency         String             @default("USD") // TND, EUR, USD, etc.
-  currencySymbol   String             @default("$")
   expenses     Expense[]
 
   // Ajouts pour le module vaccin

@@ -4,9 +4,9 @@ import { MilkProductionService } from './milk-production.service';
 import { PrismaModule } from '../prisma/prisma.module';
 
 @Module({
-    imports: [PrismaModule],
-    controllers: [MilkProductionController],
-    providers: [MilkProductionService],
-    exports: [MilkProductionService],
+  imports: [PrismaModule],
+  controllers: [MilkProductionController],
+  providers: [MilkProductionService],
+  exports: [MilkProductionService],
 })
-export class MilkProductionModule { }
+export class MilkProductionModule {}

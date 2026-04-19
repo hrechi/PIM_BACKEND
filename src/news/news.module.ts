@@ -7,8 +7,8 @@ import { BookmarksController } from './bookmarks.controller';
 import { BookmarksService } from './bookmarks.service';
 
 @Module({
-    imports: [HttpModule, PrismaModule],
-    controllers: [NewsController, BookmarksController],
-    providers: [NewsService, BookmarksService],
+  imports: [HttpModule, PrismaModule],
+  controllers: [NewsController, BookmarksController],
+  providers: [NewsService, BookmarksService],
 })
-export class NewsModule { }
+export class NewsModule {}

@@ -1,5 +1,4 @@
 import {
-  
   Controller,
   Post,
   Get,
@@ -33,7 +32,8 @@ export class IncidentController {
       storage: diskStorage({
         destination: './uploads/incidents',
         filename: (req, file, cb) => {
-          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+          const uniqueSuffix =
+            Date.now() + '-' + Math.round(Math.random() * 1e9);
           cb(null, `incident-${uniqueSuffix}${extname(file.originalname)}`);
         },
       }),
@@ -50,13 +50,17 @@ export class IncidentController {
 
     // Validate file size
     if (file.size > MAX_FILE_SIZE) {
-      throw new BadRequestException(`File too large. Maximum size is ${MAX_FILE_SIZE / 1024 / 1024}MB`);
+      throw new BadRequestException(
+        `File too large. Maximum size is ${MAX_FILE_SIZE / 1024 / 1024}MB`,
+      );
     }
 
     // Validate file extension (case-insensitive, includes iOS HEIC)
     const ext = extname(file.originalname).toLowerCase();
     if (!ALLOWED_EXTENSIONS.includes(ext)) {
-      throw new BadRequestException(`Invalid file type "${ext}". Allowed: ${ALLOWED_EXTENSIONS.join(', ')}`);
+      throw new BadRequestException(
+        `Invalid file type "${ext}". Allowed: ${ALLOWED_EXTENSIONS.join(', ')}`,
+      );
     }
 
     const userId = req.user.id;

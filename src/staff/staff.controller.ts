@@ -59,7 +59,11 @@ export class StaffController {
       required: ['name', 'image'],
       properties: {
         name: { type: 'string', description: 'Staff member name' },
-        image: { type: 'string', format: 'binary', description: 'Face photo (jpg, png, webp — max 5 MB)' },
+        image: {
+          type: 'string',
+          format: 'binary',
+          description: 'Face photo (jpg, png, webp — max 5 MB)',
+        },
       },
     },
   })

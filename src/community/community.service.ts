@@ -30,7 +30,9 @@ export class CommunityService {
     const isVote = pollOptions.length >= 2;
 
     if (dto.pollOptions && dto.pollOptions.length > 0 && !isVote) {
-      throw new BadRequestException('Vote post requires at least 2 poll options');
+      throw new BadRequestException(
+        'Vote post requires at least 2 poll options',
+      );
     }
 
     if (isVote && !dto.pollQuestion?.trim()) {
@@ -46,7 +48,7 @@ export class CommunityService {
     }
 
     const effectiveContent = isVote
-      ? (normalizedContent || dto.pollQuestion!.trim())
+      ? normalizedContent || dto.pollQuestion!.trim()
       : normalizedContent;
 
     const created = await this.prisma.communityPost.create({
@@ -68,7 +70,12 @@ export class CommunityService {
       },
       include: {
         author: {
-          select: { id: true, name: true, profilePicture: true, farmName: true },
+          select: {
+            id: true,
+            name: true,
+            profilePicture: true,
+            farmName: true,
+          },
         },
         pollOptions: {
           orderBy: { position: 'asc' },
@@ -114,7 +121,12 @@ export class CommunityService {
       },
       include: {
         author: {
-          select: { id: true, name: true, profilePicture: true, farmName: true },
+          select: {
+            id: true,
+            name: true,
+            profilePicture: true,
+            farmName: true,
+          },
         },
         pollOptions: {
           orderBy: { position: 'asc' },
@@ -165,7 +177,10 @@ export class CommunityService {
       try {
         const fs = require('fs');
         const path = require('path');
-        const filePath = path.join(process.cwd(), post.imagePath.replace(/^\//, ''));
+        const filePath = path.join(
+          process.cwd(),
+          post.imagePath.replace(/^\//, ''),
+        );
         if (fs.existsSync(filePath)) {
           fs.unlinkSync(filePath);
         }
@@ -182,7 +197,12 @@ export class CommunityService {
     const posts = await this.prisma.communityPost.findMany({
       include: {
         author: {
-          select: { id: true, name: true, profilePicture: true, farmName: true },
+          select: {
+            id: true,
+            name: true,
+            profilePicture: true,
+            farmName: true,
+          },
         },
         pollOptions: {
           orderBy: { position: 'asc' },
@@ -212,8 +232,12 @@ export class CommunityService {
       }),
     ]);
 
-    const reactionMap = new Map(myReactions.map((reaction) => [reaction.postId, reaction.type]));
-    const voteMap = new Map(myVotes.map((vote) => [vote.postId, vote.optionId]));
+    const reactionMap = new Map(
+      myReactions.map((reaction) => [reaction.postId, reaction.type]),
+    );
+    const voteMap = new Map(
+      myVotes.map((vote) => [vote.postId, vote.optionId]),
+    );
 
     return posts.map((post) => ({
       ...this.mapPost(post),
@@ -236,13 +260,19 @@ export class CommunityService {
         });
         await tx.communityPost.update({
           where: { id: postId },
-          data: type === ReactionTypeDto.LIKE ? { likesCount: { increment: 1 } } : { dislikesCount: { increment: 1 } },
+          data:
+            type === ReactionTypeDto.LIKE
+              ? { likesCount: { increment: 1 } }
+              : { dislikesCount: { increment: 1 } },
         });
       } else if (existing.type === type) {
         await tx.communityPostReaction.delete({ where: { id: existing.id } });
         await tx.communityPost.update({
           where: { id: postId },
-          data: type === ReactionTypeDto.LIKE ? { likesCount: { decrement: 1 } } : { dislikesCount: { decrement: 1 } },
+          data:
+            type === ReactionTypeDto.LIKE
+              ? { likesCount: { decrement: 1 } }
+              : { dislikesCount: { decrement: 1 } },
         });
       } else {
         await tx.communityPostReaction.update({
@@ -253,8 +283,14 @@ export class CommunityService {
           where: { id: postId },
           data:
             type === ReactionTypeDto.LIKE
-              ? { likesCount: { increment: 1 }, dislikesCount: { decrement: 1 } }
-              : { likesCount: { decrement: 1 }, dislikesCount: { increment: 1 } },
+              ? {
+                  likesCount: { increment: 1 },
+                  dislikesCount: { decrement: 1 },
+                }
+              : {
+                  likesCount: { decrement: 1 },
+                  dislikesCount: { increment: 1 },
+                },
         });
       }
 
@@ -302,12 +338,22 @@ export class CommunityService {
         },
         include: {
           author: {
-            select: { id: true, name: true, profilePicture: true, farmName: true },
+            select: {
+              id: true,
+              name: true,
+              profilePicture: true,
+              farmName: true,
+            },
           },
           replies: {
             include: {
               author: {
-                select: { id: true, name: true, profilePicture: true, farmName: true },
+                select: {
+                  id: true,
+                  name: true,
+                  profilePicture: true,
+                  farmName: true,
+                },
               },
             },
           },
@@ -342,12 +388,22 @@ export class CommunityService {
       where: { postId, parentCommentId: null },
       include: {
         author: {
-          select: { id: true, name: true, profilePicture: true, farmName: true },
+          select: {
+            id: true,
+            name: true,
+            profilePicture: true,
+            farmName: true,
+          },
         },
         replies: {
           include: {
             author: {
-              select: { id: true, name: true, profilePicture: true, farmName: true },
+              select: {
+                id: true,
+                name: true,
+                profilePicture: true,
+                farmName: true,
+              },
             },
           },
           orderBy: { createdAt: 'asc' },
@@ -370,12 +426,18 @@ export class CommunityService {
       select: { commentId: true, type: true },
     });
 
-    const reactionMap = new Map(myReactions.map((reaction) => [reaction.commentId, reaction.type]));
+    const reactionMap = new Map(
+      myReactions.map((reaction) => [reaction.commentId, reaction.type]),
+    );
 
     return comments.map((comment) => this.mapCommentTree(comment, reactionMap));
   }
 
-  async updateComment(userId: string, commentId: string, dto: UpdateCommentDto) {
+  async updateComment(
+    userId: string,
+    commentId: string,
+    dto: UpdateCommentDto,
+  ) {
     const comment = await this.prisma.communityComment.findUnique({
       where: { id: commentId },
       select: { authorId: true },
@@ -401,7 +463,12 @@ export class CommunityService {
       },
       include: {
         author: {
-          select: { id: true, name: true, profilePicture: true, farmName: true },
+          select: {
+            id: true,
+            name: true,
+            profilePicture: true,
+            farmName: true,
+          },
         },
       },
     });
@@ -467,7 +534,11 @@ export class CommunityService {
     return { success: true, message: 'Comment deleted successfully' };
   }
 
-  async reactToComment(userId: string, commentId: string, type: ReactionTypeDto) {
+  async reactToComment(
+    userId: string,
+    commentId: string,
+    type: ReactionTypeDto,
+  ) {
     await this.ensureComment(commentId);
 
     return this.prisma.$transaction(async (tx) => {
@@ -481,13 +552,21 @@ export class CommunityService {
         });
         await tx.communityComment.update({
           where: { id: commentId },
-          data: type === ReactionTypeDto.LIKE ? { likesCount: { increment: 1 } } : { dislikesCount: { increment: 1 } },
+          data:
+            type === ReactionTypeDto.LIKE
+              ? { likesCount: { increment: 1 } }
+              : { dislikesCount: { increment: 1 } },
         });
       } else if (existing.type === type) {
-        await tx.communityCommentReaction.delete({ where: { id: existing.id } });
+        await tx.communityCommentReaction.delete({
+          where: { id: existing.id },
+        });
         await tx.communityComment.update({
           where: { id: commentId },
-          data: type === ReactionTypeDto.LIKE ? { likesCount: { decrement: 1 } } : { dislikesCount: { decrement: 1 } },
+          data:
+            type === ReactionTypeDto.LIKE
+              ? { likesCount: { decrement: 1 } }
+              : { dislikesCount: { decrement: 1 } },
         });
       } else {
         await tx.communityCommentReaction.update({
@@ -498,8 +577,14 @@ export class CommunityService {
           where: { id: commentId },
           data:
             type === ReactionTypeDto.LIKE
-              ? { likesCount: { increment: 1 }, dislikesCount: { decrement: 1 } }
-              : { likesCount: { decrement: 1 }, dislikesCount: { increment: 1 } },
+              ? {
+                  likesCount: { increment: 1 },
+                  dislikesCount: { decrement: 1 },
+                }
+              : {
+                  likesCount: { decrement: 1 },
+                  dislikesCount: { increment: 1 },
+                },
         });
       }
 
@@ -543,7 +628,9 @@ export class CommunityService {
       throw new BadRequestException('Poll has already ended');
     }
 
-    const targetOption = post.pollOptions.find((option) => option.id === optionId);
+    const targetOption = post.pollOptions.find(
+      (option) => option.id === optionId,
+    );
     if (!targetOption) {
       throw new BadRequestException('Invalid optionId');
     }
@@ -595,13 +682,18 @@ export class CommunityService {
     return {
       postId,
       myVoteOptionId: result.myVoteOptionId,
-      totalVotes: result.options.reduce((sum, option) => sum + option.votesCount, 0),
+      totalVotes: result.options.reduce(
+        (sum, option) => sum + option.votesCount,
+        0,
+      ),
       options: result.options,
     };
   }
 
   private async ensurePost(postId: string) {
-    const post = await this.prisma.communityPost.findUnique({ where: { id: postId } });
+    const post = await this.prisma.communityPost.findUnique({
+      where: { id: postId },
+    });
     if (!post) {
       throw new NotFoundException('Post not found');
     }
@@ -609,7 +701,9 @@ export class CommunityService {
   }
 
   private async ensureComment(commentId: string) {
-    const comment = await this.prisma.communityComment.findUnique({ where: { id: commentId } });
+    const comment = await this.prisma.communityComment.findUnique({
+      where: { id: commentId },
+    });
     if (!comment) {
       throw new NotFoundException('Comment not found');
     }
@@ -619,7 +713,14 @@ export class CommunityService {
   private mapPost(
     post: Prisma.CommunityPostGetPayload<{
       include: {
-        author: { select: { id: true; name: true; profilePicture: true; farmName: true } };
+        author: {
+          select: {
+            id: true;
+            name: true;
+            profilePicture: true;
+            farmName: true;
+          };
+        };
         pollOptions: true;
       };
     }>,
@@ -638,16 +739,35 @@ export class CommunityService {
       updatedAt: post.updatedAt,
       author: post.author,
       pollOptions: post.pollOptions,
-      totalVotes: post.pollOptions.reduce((sum, option) => sum + option.votesCount, 0),
+      totalVotes: post.pollOptions.reduce(
+        (sum, option) => sum + option.votesCount,
+        0,
+      ),
     };
   }
 
   private mapCommentTree(
     comment: Prisma.CommunityCommentGetPayload<{
       include: {
-        author: { select: { id: true; name: true; profilePicture: true; farmName: true } };
+        author: {
+          select: {
+            id: true;
+            name: true;
+            profilePicture: true;
+            farmName: true;
+          };
+        };
         replies: {
-          include: { author: { select: { id: true; name: true; profilePicture: true; farmName: true } } };
+          include: {
+            author: {
+              select: {
+                id: true;
+                name: true;
+                profilePicture: true;
+                farmName: true;
+              };
+            };
+          };
         };
       };
     }>,
@@ -666,7 +786,14 @@ export class CommunityService {
   private mapComment(
     comment: Prisma.CommunityCommentGetPayload<{
       include: {
-        author: { select: { id: true; name: true; profilePicture: true; farmName: true } };
+        author: {
+          select: {
+            id: true;
+            name: true;
+            profilePicture: true;
+            farmName: true;
+          };
+        };
       };
     }>,
   ) {

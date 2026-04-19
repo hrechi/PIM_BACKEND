@@ -1,5 +1,10 @@
 import { Controller, Get, Query, UseGuards, Req } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { FinanceService } from './finance.service';
 
@@ -30,9 +35,9 @@ export class FinanceController {
             type: 'object',
             properties: {
               amount: { type: 'number' },
-              percentage: { type: 'number' }
-            }
-          }
+              percentage: { type: 'number' },
+            },
+          },
         },
         revenueByType: {
           type: 'object',
@@ -41,10 +46,10 @@ export class FinanceController {
               type: 'object',
               properties: {
                 count: { type: 'number' },
-                totalAmount: { type: 'number' }
-              }
-            }
-          }
+                totalAmount: { type: 'number' },
+              },
+            },
+          },
         },
         topCostlyAnimals: {
           type: 'array',
@@ -53,9 +58,9 @@ export class FinanceController {
             properties: {
               animalId: { type: 'string' },
               name: { type: 'string' },
-              totalCost: { type: 'number' }
-            }
-          }
+              totalCost: { type: 'number' },
+            },
+          },
         },
         recentExpenses: {
           type: 'array',
@@ -66,12 +71,12 @@ export class FinanceController {
               category: { type: 'string' },
               amount: { type: 'number' },
               date: { type: 'string' },
-              animalName: { type: 'string', nullable: true }
-            }
-          }
-        }
-      }
-    }
+              animalName: { type: 'string', nullable: true },
+            },
+          },
+        },
+      },
+    },
   })
   async getDashboard(
     @Req() req,
@@ -94,7 +99,13 @@ export class FinanceController {
     @Query('skip') skip: number = 0,
     @Query('take') take: number = 20,
   ) {
-    return this.financeService.getRevenuesDetails(fieldId, req.user.id, period, skip, take);
+    return this.financeService.getRevenuesDetails(
+      fieldId,
+      req.user.id,
+      period,
+      skip,
+      take,
+    );
   }
 
   @Get('expenses')
@@ -110,6 +121,12 @@ export class FinanceController {
     @Query('skip') skip: number = 0,
     @Query('take') take: number = 20,
   ) {
-    return this.financeService.getExpensesDetails(fieldId, req.user.id, period, skip, take);
+    return this.financeService.getExpensesDetails(
+      fieldId,
+      req.user.id,
+      period,
+      skip,
+      take,
+    );
   }
 }
