@@ -14,6 +14,7 @@ import { EmailModule } from './email/email.module';
 import { FieldModule } from './field/field.module';
 import { MissionModule } from './mission/mission.module';
 import { ChatModule } from './chat/chat.module';
+import { MechanicChatModule } from './mechanic-chat/mechanic-chat.module';
 import { ConversationModule } from './conversation/conversation.module';
 import { SoilModule } from './soil/soil.module';
 import { SoilMeasurement } from './soil/soil.entity';
@@ -139,6 +140,7 @@ import { SoilIntelligenceModule } from './soil-intelligence/soil-intelligence.mo
     FieldModule,
     MissionModule,
     ChatModule,
+    MechanicChatModule,
     ConversationModule,
     SoilModule,
     StaffModule,

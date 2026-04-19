@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { spawn } from 'child_process';
@@ -87,6 +88,8 @@ const BRAND_CATALOG = [
 
 @Injectable()
 export class AssetService {
+  private readonly logger = new Logger(AssetService.name);
+
   constructor(
     private prisma: PrismaService,
     private configService: ConfigService,
@@ -123,6 +126,7 @@ export class AssetService {
         model: dto.model,
         modelYear: dto.modelYear,
       });
+
       if (aiValidationResult && aiValidationResult.valid === false) {
         throw new BadRequestException({
           message: 'Asset validation failed',
@@ -131,6 +135,10 @@ export class AssetService {
         });
       }
     } catch (err) {
+      if (err instanceof BadRequestException) {
+        throw err;
+      }
+
       // Fallback: rule-based validation (simple example)
       if (
         dto.operatingHours && (dto.operatingHours < 0 || dto.operatingHours > 100000) ||
@@ -251,7 +259,7 @@ export class AssetService {
 
     // AI validation step (if relevant fields are present)
     let aiValidationResult: any = null;
-    if (dto.brand || dto.model || dto.modelYear || dto.operatingHours || dto.mileage) {
+    if (dto.brand || dto.model || dto.modelYear || dto.operatingHours || dto.mileage || dto.image_url !== undefined) {
       try {
         aiValidationResult = await this.aiValidationService.validateAsset({
           name: asset.name,
@@ -262,6 +270,7 @@ export class AssetService {
           model: dto.model ?? asset.model,
           modelYear: dto.modelYear ?? asset.modelYear,
         });
+
         if (aiValidationResult && aiValidationResult.valid === false) {
           throw new BadRequestException({
             message: 'Asset validation failed',
@@ -270,6 +279,10 @@ export class AssetService {
           });
         }
       } catch (err) {
+        if (err instanceof BadRequestException) {
+          throw err;
+        }
+
         // Fallback: rule-based validation (simple example)
         const opHours = dto.operatingHours ?? asset.operatingHours;
         const mileage = dto.mileage ?? asset.mileage;
@@ -291,6 +304,7 @@ export class AssetService {
       modelYear?: number | null;
       mileage?: number | null;
       operatingHours?: number | null;
+      imageUrl?: string | null;
     } = {};
 
     if (dto.status) {
@@ -321,6 +335,10 @@ export class AssetService {
 
     if (dto.operatingHours !== undefined) {
       updateData.operatingHours = dto.operatingHours ?? null;
+    }
+
+    if (dto.image_url !== undefined) {
+      updateData.imageUrl = dto.image_url?.trim() || null;
     }
 
     if (dto.assignedTo !== undefined) {
