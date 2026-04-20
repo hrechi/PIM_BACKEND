@@ -7,6 +7,14 @@ import { PrismaService } from '../prisma/prisma.service';
 export class AnimalsService {
   constructor(private prisma: PrismaService) {}
 
+  private calculateAgeInMonths(birthDate: Date | null, createdAt: Date): number {
+    const referenceDate = birthDate || createdAt;
+    const now = new Date();
+    const diffTime = Math.abs(now.getTime() - referenceDate.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return Math.floor(diffDays / 30); // Approximate months
+  }
+
   private calculateExpectedBirthDate(
     animalType: string,
     lastInseminationDate: Date,
@@ -40,6 +48,12 @@ export class AnimalsService {
         new Date(transformedData.lastInseminationDate),
       );
     }
+
+    // Calculate age in months
+    const birthDate = transformedData.lastBirthDate ? new Date(transformedData.lastBirthDate) : null;
+    const createdAt = new Date();
+    transformedData.age = this.calculateAgeInMonths(birthDate, createdAt);
+    transformedData.ageYears = Math.floor(transformedData.age / 12);
 
     // Handle date fields to ensure they are actual Date objects if provided as strings
     const dateFields = [

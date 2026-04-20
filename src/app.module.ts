@@ -37,6 +37,7 @@ import { ShortsModule } from './shorts/shorts.module';
 import { CommunityModule } from './community/community.module';
 import { ExpensesModule } from './expenses/expenses.module';
 import { FinanceModule } from './finance/finance.module';
+import { CataloguesModule } from './catalogues/catalogues.module';
 
 @Module({
   imports: [
@@ -84,6 +85,7 @@ import { FinanceModule } from './finance/finance.module';
     CommunityModule,
     ExpensesModule,
     FinanceModule,
+    CataloguesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

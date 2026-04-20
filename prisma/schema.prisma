@@ -158,6 +158,7 @@ model User {
 
 
   animals        Animal[]
+  saleCatalogues SaleCatalogue[]
   expenses       Expense[]
   // Staff whitelist managed by this user
   whitelistStaff WhitelistStaff[]
@@ -456,8 +457,48 @@ model Animal {
   racePerformances RacePerformance[]
   weightRecords    WeightRecord[]
   expenses         Expense[]
+  catalogueAnimals CatalogueAnimal[]
 
   @@map("animals")
+}
+
+enum CatalogueStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+  ARCHIVED
+}
+
+model SaleCatalogue {
+  id             String             @id @default(cuid())
+  farmerId       String
+  farmer         User               @relation(fields: [farmerId], references: [id])
+  title          String
+  saleDate       DateTime?
+  location       String?
+  currency       String             @default("TND")
+  showPrices     Boolean            @default(false)
+  settings       Json
+  shareToken     String?            @unique
+  shareExpiresAt DateTime?
+  shareViewCount Int                @default(0)
+  status         CatalogueStatus    @default(DRAFT)
+  animals        CatalogueAnimal[]
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+}
+
+model CatalogueAnimal {
+  id          String        @id @default(cuid())
+  catalogueId String
+  catalogue   SaleCatalogue @relation(fields: [catalogueId], references: [id])
+  animalId    String
+  animal      Animal        @relation(fields: [animalId], references: [id])
+  sortOrder   Int           @default(0)
+  priceOverride Float?
+  notes       String?
+
+  @@unique([catalogueId, animalId])
 }
 
 // ─── Référentiel Pays / Régions (module vaccin) ──────────────────────────────────────────
