@@ -87,7 +87,7 @@ export class SoilIntelligenceService {
     private readonly configService: ConfigService,
     private readonly notificationService: NotificationService,
   ) {
-    const rawAiUrl = this.configService.get<string>('AI_SERVICE_URL') || 'http://192.168.1.18:8000';
+    const rawAiUrl = this.configService.get<string>('AI_SERVICE_URL') || 'http://192.168.1.182:8000';
     this.aiServiceUrl = rawAiUrl.endsWith('/') ? rawAiUrl.slice(0, -1) : rawAiUrl;
     this.openWeatherApiKey = this.configService.get<string>('OPENWEATHER_API_KEY') || null;
   }
