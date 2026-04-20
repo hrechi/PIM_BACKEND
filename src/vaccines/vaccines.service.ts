@@ -146,6 +146,8 @@ export class VaccinesService {
                 bodyWeight: dto.bodyWeight ?? null,
                 nextDueDate,
                 observations: dto.notes ?? null,
+                vaccineName: vaccine.nameEn,
+                vaccineDate: administeredAt,
             },
             include: { vaccine: true },
         });
@@ -254,6 +256,8 @@ export class VaccinesService {
                     nextDueDate: schedule?.isRecurring && schedule?.recurrenceDays
                         ? new Date(administeredAt.getTime() + schedule.recurrenceDays * 86400000)
                         : null,
+                    vaccineName: vaccine.nameEn,
+                    vaccineDate: administeredAt,
                 },
             });
 
@@ -308,6 +312,8 @@ export class VaccinesService {
                 nextDueDate: schedule.isRecurring && schedule.recurrenceDays
                     ? new Date(now.getTime() + schedule.recurrenceDays * 86400000)
                     : null,
+                vaccineName: schedule.vaccine.nameEn,
+                vaccineDate: now,
             },
         });
 

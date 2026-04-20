@@ -1,13 +1,12 @@
 import {
   Injectable,
   NotFoundException,
-  BadRequestException,
   HttpException,
   HttpStatus,
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between, MoreThanOrEqual, LessThanOrEqual } from 'typeorm';
+import { Repository, Between, IsNull, MoreThanOrEqual, LessThanOrEqual } from 'typeorm';
 import { SoilMeasurement } from './soil.entity';
 import { CreateSoilDto } from './dto/create-soil.dto';
 import { UpdateSoilDto } from './dto/update-soil.dto';
@@ -31,7 +30,7 @@ export class SoilService {
     private readonly soilRepository: Repository<SoilMeasurement>,
   ) {
     // Ensure URL doesn't end with slash to avoid double slashes
-    const baseUrl = process.env.AI_SERVICE_URL || 'http://localhost:8000';
+    const baseUrl = process.env.AI_SERVICE_URL || 'http://192.168.1.18:8000';
     this.aiServiceUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
     this.logger.log(`🤖 AI Service URL configured: ${this.aiServiceUrl}`);
   }
@@ -103,14 +102,19 @@ export class SoilService {
             estimatedMoisture = aiResult.estimatedMoisture;
           }
         }
-      } catch (aiError) {
-        this.logger.error(`❌ AI service classification failed: ${aiError.message}`);
-        if (aiError.response) {
-          this.logger.error(`Response status: ${aiError.response.status}`);
-          this.logger.error(`Response data: ${JSON.stringify(aiError.response.data)}`);
-        }
-        if (aiError.code === 'ECONNREFUSED') {
-          this.logger.error(`⚠️ Cannot connect to AI service at ${this.aiServiceUrl}`);
+      } catch (aiError: unknown) {
+        if (axios.isAxiosError(aiError)) {
+          this.logger.error(`❌ AI service classification failed: ${aiError.message}`);
+          if (aiError.response) {
+            this.logger.error(`Response status: ${aiError.response.status}`);
+            this.logger.error(`Response data: ${JSON.stringify(aiError.response.data)}`);
+          }
+          if (aiError.code === 'ECONNREFUSED') {
+            this.logger.error(`⚠️ Cannot connect to AI service at ${this.aiServiceUrl}`);
+          }
+        } else {
+          const errorMessage = aiError instanceof Error ? aiError.message : String(aiError);
+          this.logger.error(`❌ AI service classification failed: ${errorMessage}`);
         }
         // Continue with Unknown soil type - don't fail the whole request
       }
@@ -165,6 +169,7 @@ export class SoilService {
 
     // Build dynamic where clause for filtering
     const whereClause: any = {};
+    whereClause.legacyCode = IsNull();
 
     // pH filtering
     if (query.minPh !== undefined && query.maxPh !== undefined) {
@@ -227,6 +232,7 @@ export class SoilService {
    */
   async findLatest(): Promise<SoilMeasurementWithStatus> {
     const [measurement] = await this.soilRepository.find({
+      where: { legacyCode: IsNull() },
       order: { createdAt: 'DESC' },
       take: 1,
     });
@@ -242,12 +248,7 @@ export class SoilService {
    * Find a single soil measurement by ID
    */
   async findOne(id: string): Promise<SoilMeasurementWithStatus> {
-    // Validate UUID format
-    if (!this.isValidUUID(id)) {
-      throw new BadRequestException('Invalid UUID format');
-    }
-
-    const measurement = await this.soilRepository.findOne({ where: { id } });
+    const measurement = await this.findMeasurementByIdentifier(id);
 
     if (!measurement) {
       throw new NotFoundException(`Soil measurement with ID ${id} not found`);
@@ -263,12 +264,7 @@ export class SoilService {
     id: string,
     updateSoilDto: UpdateSoilDto,
   ): Promise<SoilMeasurementWithStatus> {
-    // Validate UUID format
-    if (!this.isValidUUID(id)) {
-      throw new BadRequestException('Invalid UUID format');
-    }
-
-    const measurement = await this.soilRepository.findOne({ where: { id } });
+    const measurement = await this.findMeasurementByIdentifier(id);
 
     if (!measurement) {
       throw new NotFoundException(`Soil measurement with ID ${id} not found`);
@@ -291,12 +287,7 @@ export class SoilService {
    * Delete a soil measurement
    */
   async remove(id: string): Promise<void> {
-    // Validate UUID format
-    if (!this.isValidUUID(id)) {
-      throw new BadRequestException('Invalid UUID format');
-    }
-
-    const measurement = await this.soilRepository.findOne({ where: { id } });
+    const measurement = await this.findMeasurementByIdentifier(id);
 
     if (!measurement) {
       throw new NotFoundException(`Soil measurement with ID ${id} not found`);
@@ -364,5 +355,31 @@ export class SoilService {
     const uuidRegex =
       /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     return uuidRegex.test(id);
+  }
+
+  /**
+   * Resolve identifiers across mixed datasets:
+   * - primary UUID id
+   * - legacy_code values like hist-001
+   * - old text id rows from pre-UUID schemas
+   */
+  private async findMeasurementByIdentifier(identifier: string): Promise<SoilMeasurement | null> {
+    if (this.isValidUUID(identifier)) {
+      const byUuid = await this.soilRepository.findOne({ where: { id: identifier } });
+      if (byUuid) {
+        return byUuid;
+      }
+    }
+
+    const byLegacyCode = await this.soilRepository.findOne({ where: { legacyCode: identifier } });
+    if (byLegacyCode) {
+      return byLegacyCode;
+    }
+
+    return this.soilRepository
+      .createQueryBuilder('soil')
+      .where('CAST(soil.id AS TEXT) = :identifier', { identifier })
+      .orWhere('soil.legacyCode = :identifier', { identifier })
+      .getOne();
   }
 }

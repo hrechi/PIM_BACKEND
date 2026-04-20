@@ -2,13 +2,17 @@ import { Injectable, BadRequestException, NotFoundException } from '@nestjs/comm
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateFieldDto } from './dto/create-field.dto';
 import { UpdateFieldDto } from './dto/update-field.dto';
+import { GeoService } from '../geo/geo.service';
 
 @Injectable()
 export class FieldService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly geoService: GeoService,
+  ) {}
 
   async createField(userId: string, dto: CreateFieldDto) {
-    return this.prisma.field.create({
+    const created = await this.prisma.field.create({
       data: {
         userId,
         name: dto.name,
@@ -17,6 +21,16 @@ export class FieldService {
         areaSize: dto.areaSize || null,
       },
     });
+
+    await this.geoService.resolveAndCacheFieldLocation(created.id, {
+      forceRefresh: true,
+    });
+
+    const enriched = await this.prisma.field.findUnique({
+      where: { id: created.id },
+    });
+
+    return enriched ?? created;
   }
 
   async getFieldsByUser(userId: string) {
@@ -64,10 +78,24 @@ export class FieldService {
       updateData.areaCoordinates = dto.areaCoordinates;
     }
 
-    return this.prisma.field.update({
+    const updated = await this.prisma.field.update({
       where: { id },
       data: updateData,
     });
+
+    if (dto.areaCoordinates) {
+      await this.geoService.resolveAndCacheFieldLocation(updated.id, {
+        forceRefresh: true,
+      });
+
+      const enriched = await this.prisma.field.findUnique({
+        where: { id: updated.id },
+      });
+
+      return enriched ?? updated;
+    }
+
+    return updated;
   }
 
   async deleteField(id: string, userId: string) {

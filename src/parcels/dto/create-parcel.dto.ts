@@ -38,5 +38,8 @@ export class CreateParcelDto {
 
     @IsString()
     irrigationFrequency: string;
+
+    @IsOptional()
+    polygon?: any;
 }
 

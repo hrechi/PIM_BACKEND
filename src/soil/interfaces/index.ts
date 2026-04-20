@@ -10,6 +10,7 @@ export interface SoilMeasurementWithStatus {
   latitude: number;
   longitude: number;
   fieldId?: string;
+  parcelId?: string;
   imagePath?: string;
   soilType?: string;
   detectionConfidence?: number;

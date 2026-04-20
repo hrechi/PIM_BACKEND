@@ -92,6 +92,14 @@ export class UpdateSoilDto {
   fieldId?: string;
 
   @ApiPropertyOptional({
+    description: 'Parcel ID this measurement belongs to',
+    example: '550e8400-e29b-41d4-a716-446655440001',
+  })
+  @IsOptional()
+  @IsString({ message: 'Parcel ID must be a string' })
+  parcelId?: string;
+
+  @ApiPropertyOptional({
     description: 'Path to uploaded soil image',
     example: 'uploads/soil/soil-1234567890-xyz.jpg',
   })

@@ -55,7 +55,7 @@ export class NotificationService implements OnModuleInit {
       return;
     }
 
-    const apiBase = process.env.API_BASE_URL || 'http://192.168.1.25:3000';
+    const apiBase = process.env.API_BASE_URL || 'http://192.168.1.18:3000';
     const imageUrl = `${apiBase}${incident.imagePath}`;
 
     const { title, body } = this.getNotificationContent(incident.type);
@@ -139,6 +139,83 @@ export class NotificationService implements OnModuleInit {
       this.logger.log(`✅ Push sent → ${response}`);
     } catch (err) {
       this.logger.error('❌ Push failed:', err);
+    }
+  }
+
+  /**
+   * Send a Soil Weather Alert push notification.
+   */
+  async sendSoilWeatherAlert(
+    fcmToken: string,
+    alert: {
+      alertId: string;
+      parcelId: string;
+      severity: string;
+      alertType: string;
+      message: string;
+      action?: string | null;
+    },
+  ): Promise<void> {
+    if (!this.initialized) {
+      this.logger.warn('Firebase not initialized — skipping push notification');
+      return;
+    }
+
+    const normalizedSeverity = (alert.severity || 'LOW').toUpperCase();
+    const emoji =
+      normalizedSeverity === 'CRITICAL'
+        ? '🚨'
+        : normalizedSeverity === 'HIGH'
+          ? '⚠️'
+          : normalizedSeverity === 'MEDIUM'
+            ? '🟠'
+            : 'ℹ️';
+
+    const title = `${emoji} Soil Alert (${normalizedSeverity})`;
+    const body = alert.message;
+
+    const message: admin.messaging.Message = {
+      token: fcmToken,
+      notification: { title, body },
+      data: {
+        click_action: 'FLUTTER_NOTIFICATION_CLICK',
+        screen: 'SOIL_ALERTS',
+        type: 'SOIL_WEATHER_ALERT',
+        alertId: alert.alertId,
+        parcelId: alert.parcelId,
+        severity: normalizedSeverity,
+        alertType: alert.alertType,
+        message: alert.message,
+        action: alert.action || '',
+        title,
+        body,
+      },
+      android: {
+        priority: 'high',
+        notification: {
+          channelId: 'soil_alerts',
+          sound: 'default',
+          priority: 'max',
+          color: '#D32F2F',
+        },
+      },
+      apns: {
+        payload: {
+          aps: {
+            sound: 'default',
+            contentAvailable: true,
+            badge: 1,
+          },
+        },
+        headers: { 'apns-priority': '10' },
+      },
+    };
+
+    try {
+      const response = await admin.messaging().send(message);
+      this.logger.log(`✅ Soil alert push sent → ${response}`);
+    } catch (err) {
+      this.logger.error('❌ Soil alert push failed:', err);
     }
   }
 

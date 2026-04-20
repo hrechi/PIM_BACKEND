@@ -168,6 +168,7 @@ export class SoilController {
       latitude: parseFloat(body.latitude),
       longitude: parseFloat(body.longitude),
       fieldId: body.fieldId || undefined,
+      parcelId: body.parcelId || undefined,
     };
 
     const imagePath = `uploads/soil/${file.filename}`;
@@ -429,11 +430,41 @@ export class SoilController {
     schema: {
       example: {
         status: 'healthy',
-        service_url: 'http://localhost:8000',
+        service_url: 'http://192.168.1.18:8000',
       },
     },
   })
   checkAiHealth() {
     return this.soilAiService.checkAiServiceHealth();
+  }
+
+  @Post('crop-compatibility')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Check parcel crop compatibility with current soil data',
+    description: 'Proxies crop compatibility checks to AI service using farmer-entered soil parameters.',
+  })
+  checkCropCompatibility(@Body() payload: Record<string, any>) {
+    return this.soilAiService.checkCropCompatibility(payload);
+  }
+
+  @Post('fix-for-crops')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Get soil correction actions for failed crops',
+    description: 'Returns prioritized actions to improve soil conditions for crops that cannot be planted.',
+  })
+  getSoilCorrections(@Body() payload: Record<string, any>) {
+    return this.soilAiService.getSoilCorrections(payload);
+  }
+
+  @Post('seasonal-plan')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Get season-aware soil plan and crop advice',
+    description: 'Returns tasks, warnings, and season crop advice based on current soil metrics.',
+  })
+  getSeasonalPlan(@Body() payload: Record<string, any>) {
+    return this.soilAiService.getSeasonalPlan(payload);
   }
 }
