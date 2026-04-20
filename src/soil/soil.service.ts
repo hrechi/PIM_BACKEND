@@ -27,7 +27,7 @@ export class SoilService {
     private readonly soilRepository: Repository<SoilMeasurement>,
   ) {
     // Ensure URL doesn't end with slash to avoid double slashes
-    const baseUrl = process.env.AI_SERVICE_URL || 'http://192.168.1.18:8000';
+    const baseUrl = process.env.AI_SERVICE_URL || 'http://192.168.1.183:8000';
     this.aiServiceUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
     this.logger.log(`🤖 AI Service URL configured: ${this.aiServiceUrl}`);
   }

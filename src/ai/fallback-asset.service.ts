@@ -182,7 +182,6 @@ export class FallbackAssetService implements OnModuleInit {
     const warnings: string[] = [];
     const suggestions: string[] = [];
 
-    const name = input.name?.trim() ?? '';
     const brand = input.brand?.trim() ?? '';
     const model = input.model?.trim() ?? '';
     const category = input.category?.trim() ?? '';
@@ -190,23 +189,7 @@ export class FallbackAssetService implements OnModuleInit {
     const horsepower = Number(input.horsepower);
     const mileage = Number(input.mileage);
 
-    if (name) {
-      const normalizedName = name;
-      const allowedChars = /^[A-Za-z0-9][A-Za-z0-9\s\-_/\.]{1,79}$/;
-      const tokens = normalizedName.split(/\s+/).filter(Boolean);
-      const hasDigit = /\d/.test(normalizedName);
-      const hasMeaningfulToken = tokens.some((token) => token.length >= 2);
-      if (
-        !allowedChars.test(normalizedName) ||
-        !/[A-Za-z]/.test(normalizedName) ||
-        normalizedName.length < 4 ||
-        (!hasDigit && tokens.length < 2 && !normalizedName.toLowerCase().includes('tractor')) ||
-        !hasMeaningfulToken
-      ) {
-        issues.push('Asset name looks invalid or incoherent.');
-        suggestions.push('Use a readable asset name like "New Holland T6.175 Tractor".');
-      }
-    }
+    // Name-content validation intentionally disabled: users can choose any readable label.
 
     const canonicalBrand = this.normalizedBrandLookup.get(this.normalize(brand));
     if (!brand || !canonicalBrand) {

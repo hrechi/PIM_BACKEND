@@ -1,26 +1,51 @@
 import {
+  BadRequestException,
   Body,
   Controller,
+  FileValidator,
   Get,
+  MaxFileSizeValidator,
   Param,
+  ParseFilePipe,
   Patch,
   Post,
   Query,
   Req,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
+  ApiBody,
   ApiBearerAuth,
+  ApiConsumes,
   ApiOperation,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { existsSync, mkdirSync } from 'fs';
+import { diskStorage } from 'multer';
+import { extname, join } from 'path';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CreateAssetDto } from './dto/create-asset.dto';
 import { UpdateAssetDto } from './dto/update-asset.dto';
 import { AssetService } from './asset.service';
+
+class ImageFileValidator extends FileValidator {
+  private allowedExtensions = ['.jpg', '.jpeg', '.png', '.webp'];
+
+  isValid(file: Express.Multer.File): boolean {
+    const ext = extname(file.originalname).toLowerCase();
+    return this.allowedExtensions.includes(ext);
+  }
+
+  buildErrorMessage(): string {
+    return 'Only image files (jpg, jpeg, png, webp) are allowed';
+  }
+}
 
 @ApiTags('Assets')
 @ApiBearerAuth('access-token')
@@ -43,6 +68,61 @@ export class AssetController {
   @ApiResponse({ status: 409, description: 'Serial number already exists' })
   async create(@Req() req: any, @Body() dto: CreateAssetDto) {
     return this.assetService.create(req.user.id, dto);
+  }
+
+  @Post('upload')
+  @Roles('OWNER')
+  @ApiOperation({ summary: 'Upload an asset image' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['image'],
+      properties: {
+        xporimage: {
+          type: 'string',
+          format: 'binary',
+          description: 'Asset photo (jpg, jpeg, png, webp — max 5 MB)',
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 201, description: 'Asset image uploaded' })
+  @ApiResponse({ status: 422, description: 'Invalid file type or size' })
+  @UseInterceptors(
+    FileInterceptor('image', {
+      storage: diskStorage({
+        destination: (_req, _file, cb) => {
+          const targetDir = join(process.cwd(), 'uploads', 'assets');
+          if (!existsSync(targetDir)) {
+            mkdirSync(targetDir, { recursive: true });
+          }
+          cb(null, targetDir);
+        },
+        filename: (_req, file, cb) => {
+          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+          cb(null, `asset-${uniqueSuffix}${extname(file.originalname)}`);
+        },
+      }),
+    }),
+  )
+  uploadAssetImage(
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({ maxSize: 5 * 1024 * 1024 }),
+          new ImageFileValidator({}),
+        ],
+      }),
+    )
+    file: Express.Multer.File,
+  ) {
+    if (!file) {
+      throw new BadRequestException('Image file is required');
+    }
+
+    const imagePath = `/uploads/assets/${file.filename}`;
+    return { imagePath, image_url: imagePath };
   }
 
   @Get()

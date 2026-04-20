@@ -39,4 +39,12 @@ export class UpdateAssetDto {
   @ApiPropertyOptional({ example: 5200 })
   @IsOptional()
   operatingHours?: number;
+
+  @ApiPropertyOptional({
+    example: '/uploads/assets/asset-123456.jpg',
+    description: 'Optional asset image URL/path',
+  })
+  @IsOptional()
+  @IsString()
+  image_url?: string;
 }

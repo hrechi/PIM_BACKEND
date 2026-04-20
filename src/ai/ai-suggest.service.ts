@@ -60,7 +60,13 @@ export class AiSuggestService {
       );
       return this.merge(base, response.data as Partial<SuggestOutput>);
     } catch (error) {
-      this.logger.warn('AI suggest request failed, using dataset output only.');
+      const errorMessage =
+        (error as any)?.message ||
+        (error as any)?.response?.data?.message ||
+        'unknown error';
+      this.logger.warn(
+        `AI suggest request failed (${this.pythonApiUrl}/suggest-machine): ${errorMessage}. Using dataset output only.`,
+      );
       return base;
     }
   }
