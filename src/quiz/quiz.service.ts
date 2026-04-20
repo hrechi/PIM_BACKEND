@@ -745,7 +745,7 @@ Ensure the correctAnswer is exactly one of the options. Keep it educational and 
   }
 
   private async syncPathCompletion(userId: string, pathId: string) {
-    const [totalLessons, completedLessons] = await Promise.all([
+    const [totalLessons, completedLessons, perfectLessonCount] = await Promise.all([
       this.prisma.skillLesson.count({
         where: {
           pathId,
@@ -761,10 +761,26 @@ Ensure the correctAnswer is exactly one of the options. Keep it educational and 
           },
         },
       }),
+      this.prisma.skillLessonProgress.count({
+        where: {
+          userId,
+          bestScore: 100,
+          lesson: {
+            pathId,
+          },
+        },
+      }),
     ]);
 
-    const completionPercent =
+    const naturalCompletionPercent =
       totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
+    const unlockedByPerfectLesson = perfectLessonCount > 0;
+    const completionPercent = unlockedByPerfectLesson
+      ? 100
+      : naturalCompletionPercent;
+    const normalizedCompletedLessons = unlockedByPerfectLesson
+      ? totalLessons
+      : completedLessons;
     const status = completionPercent >= 100 ? 'COMPLETED' : 'IN_PROGRESS';
     const certificateIssued = status === 'COMPLETED';
 
@@ -779,7 +795,7 @@ Ensure the correctAnswer is exactly one of the options. Keep it educational and 
         userId,
         pathId,
         completionPercent,
-        completedLessons,
+        completedLessons: normalizedCompletedLessons,
         totalLessons,
         status,
         certificateIssued,
@@ -787,7 +803,7 @@ Ensure the correctAnswer is exactly one of the options. Keep it educational and 
       },
       update: {
         completionPercent,
-        completedLessons,
+        completedLessons: normalizedCompletedLessons,
         totalLessons,
         status,
         certificateIssued,
