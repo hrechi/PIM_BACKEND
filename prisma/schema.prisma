@@ -176,6 +176,10 @@ model User {
   quizResults QuizResult[]
   badges      Badge[]
 
+  // Skill certification
+  skillLessonProgress SkillLessonProgress[]
+  skillPathCompletions SkillPathCompletion[]
+
   // Community module
   communityPosts            CommunityPost[]
   communityPostReactions    CommunityPostReaction[]
@@ -215,6 +219,94 @@ model Badge {
 
   @@map("badges")
   @@unique([userId, type])
+}
+
+model SkillPath {
+  id               String   @id @default(uuid())
+  code             String   @unique
+  title            String
+  description      String   @db.Text
+  icon             String?
+  gradientStart    String?  @map("gradient_start")
+  gradientEnd      String?  @map("gradient_end")
+  difficulty       String   @default("INTERMEDIATE")
+  estimatedMinutes Int      @default(60) @map("estimated_minutes")
+  isActive         Boolean  @default(true) @map("is_active")
+  sortOrder        Int      @default(0) @map("sort_order")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  lessons     SkillLesson[]
+  completions SkillPathCompletion[]
+
+  @@map("skill_paths")
+  @@index([isActive, sortOrder])
+}
+
+model SkillLesson {
+  id               String   @id @default(uuid())
+  pathId           String   @map("path_id")
+  path             SkillPath @relation(fields: [pathId], references: [id], onDelete: Cascade)
+  code             String   @unique
+  title            String
+  summary          String
+  microContent     String   @db.Text @map("micro_content")
+  skillTag         String   @map("skill_tag")
+  estimatedMinutes Int      @default(10) @map("estimated_minutes")
+  sortOrder        Int      @default(0) @map("sort_order")
+  isActive         Boolean  @default(true) @map("is_active")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  progress SkillLessonProgress[]
+
+  @@map("skill_lessons")
+  @@index([pathId, sortOrder])
+  @@index([isActive])
+}
+
+model SkillLessonProgress {
+  id                String   @id @default(uuid())
+  userId            String   @map("user_id")
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lessonId          String   @map("lesson_id")
+  lesson            SkillLesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  status            String   @default("NOT_STARTED")
+  completionPercent Int      @default(0) @map("completion_percent")
+  lastScore         Int?     @map("last_score")
+  bestScore         Int?     @map("best_score")
+  attempts          Int      @default(0)
+  languageCode      String   @default("en-US") @map("language_code")
+  lastQuiz          Json?    @map("last_quiz")
+  completedAt       DateTime? @map("completed_at")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  @@map("skill_lesson_progress")
+  @@unique([userId, lessonId])
+  @@index([userId, status])
+  @@index([lessonId])
+}
+
+model SkillPathCompletion {
+  id                String   @id @default(uuid())
+  userId            String   @map("user_id")
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pathId            String   @map("path_id")
+  path              SkillPath @relation(fields: [pathId], references: [id], onDelete: Cascade)
+  completionPercent Int      @default(0) @map("completion_percent")
+  completedLessons  Int      @default(0) @map("completed_lessons")
+  totalLessons      Int      @default(0) @map("total_lessons")
+  status            String   @default("IN_PROGRESS")
+  certificateIssued Boolean  @default(false) @map("certificate_issued")
+  completedAt       DateTime? @map("completed_at")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  @@map("skill_path_completions")
+  @@unique([userId, pathId])
+  @@index([userId, status])
+  @@index([pathId])
 }
 
 // ─────────────────────────────────────────────

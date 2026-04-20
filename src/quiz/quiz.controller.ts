@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body, Query, UseGuards, Request } from '@nestjs/common';
+import { Controller, Post, Get, Body, UseGuards, Request, Param } from '@nestjs/common';
 import { QuizService } from './quiz.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
@@ -37,5 +37,55 @@ export class QuizController {
   @ApiOperation({ summary: 'Get user quiz statistics and badges' })
   async getStats(@Request() req) {
     return this.quizService.getStats(req.user.id);
+  }
+
+  @Get('skills/paths')
+  @ApiOperation({ summary: 'Get all skill certification paths with user progress' })
+  async getSkillPaths(@Request() req) {
+    return this.quizService.getSkillPaths(req.user.id);
+  }
+
+  @Get('skills/paths/:pathId')
+  @ApiOperation({ summary: 'Get one skill path with lesson-level progress' })
+  async getSkillPathDetails(@Request() req, @Param('pathId') pathId: string) {
+    return this.quizService.getSkillPathDetails(req.user.id, pathId);
+  }
+
+  @Post('skills/lessons/:lessonId/generate')
+  @ApiOperation({ summary: 'Generate multilingual competency quiz for a lesson' })
+  async generateSkillLessonQuiz(
+    @Request() req,
+    @Param('lessonId') lessonId: string,
+    @Body('languageCode') languageCode?: string,
+    @Body('questionCount') questionCount?: number,
+  ) {
+    return this.quizService.generateSkillLessonQuiz(
+      req.user.id,
+      lessonId,
+      languageCode,
+      questionCount,
+    );
+  }
+
+  @Post('skills/lessons/:lessonId/submit')
+  @ApiOperation({ summary: 'Submit lesson quiz answers and update competency progress' })
+  async submitSkillLessonQuiz(
+    @Request() req,
+    @Param('lessonId') lessonId: string,
+    @Body('languageCode') languageCode: string | undefined,
+    @Body('questions') questions: any[],
+    @Body('answers') answers: string[],
+  ) {
+    return this.quizService.submitSkillLessonQuiz(req.user.id, lessonId, {
+      languageCode,
+      questions,
+      answers,
+    });
+  }
+
+  @Get('skills/progress')
+  @ApiOperation({ summary: 'Get overall skill certification progress' })
+  async getSkillProgress(@Request() req) {
+    return this.quizService.getSkillProgressOverview(req.user.id);
   }
 }
