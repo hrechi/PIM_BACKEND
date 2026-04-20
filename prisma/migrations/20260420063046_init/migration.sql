@@ -1,53 +1,59 @@
 -- CreateEnum
-CREATE TYPE "AnimalType" AS ENUM ('horse', 'sheep', 'cow', 'dog');
+CREATE TYPE "AnimalType" AS ENUM ('cow', 'horse', 'sheep', 'dog');
 
 -- CreateEnum
 CREATE TYPE "Sex" AS ENUM ('male', 'female');
 
 -- CreateEnum
-CREATE TYPE "AnimalStatus" AS ENUM ('sold', 'deceased', 'active');
+CREATE TYPE "AnimalStatus" AS ENUM ('active', 'sold', 'deceased');
 
 -- CreateEnum
-CREATE TYPE "RaceCategory" AS ENUM ('sport', 'course', 'loisir');
+CREATE TYPE "RaceCategory" AS ENUM ('course', 'loisir', 'sport');
 
 -- CreateEnum
-CREATE TYPE "TrainingLevel" AS ENUM ('debutant', 'confirme', 'intermediaire', 'elite', 'avance');
+CREATE TYPE "TrainingLevel" AS ENUM ('debutant', 'intermediaire', 'avance', 'confirme', 'elite');
 
 -- CreateEnum
-CREATE TYPE "MeatGrade" AS ENUM ('B', 'A', 'C');
+CREATE TYPE "MeatGrade" AS ENUM ('A', 'B', 'C');
 
 -- CreateEnum
-CREATE TYPE "DogRole" AS ENUM ('berger', 'garde', 'compagnie');
+CREATE TYPE "DogRole" AS ENUM ('garde', 'berger', 'compagnie');
 
 -- CreateEnum
-CREATE TYPE "MedicalEventType" AS ENUM ('disease', 'visit', 'surgery', 'treatment', 'other', 'checkup');
+CREATE TYPE "MedicalEventType" AS ENUM ('visit', 'disease', 'surgery', 'treatment', 'checkup', 'other');
 
 -- CreateEnum
-CREATE TYPE "AlertLevel" AS ENUM ('medium', 'low', 'critical', 'high');
+CREATE TYPE "AlertLevel" AS ENUM ('low', 'medium', 'high', 'critical');
 
 -- CreateEnum
-CREATE TYPE "RegulationStatus" AS ENUM ('FORBIDDEN_ZONES', 'MANDATORY_ZONES', 'VOLUNTARY', 'RECOMMENDED', 'MANDATORY_CONDITIONAL', 'FORBIDDEN', 'UNDER_ERADICATION', 'NOT_APPLICABLE', 'MANDATORY');
+CREATE TYPE "RegulationStatus" AS ENUM ('MANDATORY', 'MANDATORY_ZONES', 'MANDATORY_CONDITIONAL', 'RECOMMENDED', 'VOLUNTARY', 'FORBIDDEN', 'FORBIDDEN_ZONES', 'NOT_APPLICABLE', 'UNDER_ERADICATION');
 
 -- CreateEnum
-CREATE TYPE "FMDZoneStatus" AS ENUM ('FREE_WITHOUT_VAX', 'SURVEILLANCE', 'ENDEMIC_WITH_VAX', 'FREE_WITH_VAX');
+CREATE TYPE "FMDZoneStatus" AS ENUM ('ENDEMIC_WITH_VAX', 'FREE_WITH_VAX', 'FREE_WITHOUT_VAX', 'SURVEILLANCE');
 
 -- CreateEnum
-CREATE TYPE "ScheduleStatus" AS ENUM ('DONE', 'NOTIFIED', 'OVERDUE', 'CANCELLED', 'PENDING');
+CREATE TYPE "ScheduleStatus" AS ENUM ('PENDING', 'NOTIFIED', 'DONE', 'OVERDUE', 'CANCELLED');
 
 -- CreateEnum
-CREATE TYPE "VaccineRoute" AS ENUM ('INTRANASAL', 'INTRAMUSCULAR', 'SUBCUTANEOUS', 'ORAL');
+CREATE TYPE "VaccineRoute" AS ENUM ('SUBCUTANEOUS', 'INTRAMUSCULAR', 'INTRANASAL', 'ORAL');
 
 -- CreateEnum
-CREATE TYPE "VaccinePriority" AS ENUM ('HIGH', 'LOW', 'MEDIUM');
+CREATE TYPE "VaccinePriority" AS ENUM ('HIGH', 'MEDIUM', 'LOW');
 
 -- CreateEnum
-CREATE TYPE "OIERegion" AS ENUM ('EUROPE_EAST', 'MIDDLE_EAST', 'AMERICAS_SOUTH', 'ASIA_PACIFIC', 'AMERICAS_CENTRAL', 'EUROPE_WEST', 'AFRICA_SUB_SAHARAN', 'AMERICAS_NORTH', 'AFRICA_NORTH');
+CREATE TYPE "OIERegion" AS ENUM ('AFRICA_NORTH', 'AFRICA_SUB_SAHARAN', 'EUROPE_WEST', 'EUROPE_EAST', 'AMERICAS_NORTH', 'AMERICAS_SOUTH', 'AMERICAS_CENTRAL', 'ASIA_PACIFIC', 'MIDDLE_EAST');
 
 -- CreateEnum
-CREATE TYPE "CommunityPostType" AS ENUM ('VOTE', 'STANDARD');
+CREATE TYPE "CommunityPostType" AS ENUM ('STANDARD', 'VOTE');
 
 -- CreateEnum
-CREATE TYPE "CommunityReactionType" AS ENUM ('DISLIKE', 'LIKE');
+CREATE TYPE "CommunityReactionType" AS ENUM ('LIKE', 'DISLIKE');
+
+-- CreateEnum
+CREATE TYPE "AssetStatus" AS ENUM ('AVAILABLE', 'IN_USE', 'MAINTENANCE');
+
+-- CreateEnum
+CREATE TYPE "CatalogueStatus" AS ENUM ('DRAFT', 'PUBLISHED', 'CLOSED', 'ARCHIVED');
 
 -- CreateTable
 CREATE TABLE "users" (
@@ -59,11 +65,13 @@ CREATE TABLE "users" (
     "farmName" TEXT NOT NULL,
     "profilePicture" TEXT,
     "refreshToken" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "fcmToken" TEXT,
     "otp" TEXT,
     "otpExpiresAt" TIMESTAMP(3),
-    "fcmToken" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "currency" TEXT NOT NULL DEFAULT 'USD',
+    "currencySymbol" TEXT NOT NULL DEFAULT '$',
 
     CONSTRAINT "users_pkey" PRIMARY KEY ("id")
 );
@@ -118,9 +126,9 @@ CREATE TABLE "fields" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "countryCode" TEXT,
-    "countryId" TEXT,
-    "fmdFreeZone" BOOLEAN NOT NULL DEFAULT false,
     "regionCode" TEXT,
+    "fmdFreeZone" BOOLEAN NOT NULL DEFAULT false,
+    "countryId" TEXT,
     "regionId" TEXT,
 
     CONSTRAINT "fields_pkey" PRIMARY KEY ("id")
@@ -133,6 +141,9 @@ CREATE TABLE "missions" (
     "fieldId" TEXT NOT NULL,
     "title" TEXT NOT NULL,
     "description" TEXT,
+    "missionType" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'PENDING',
+    "priority" TEXT NOT NULL DEFAULT 'MEDIUM',
     "dueDate" TIMESTAMP(3),
     "assignedDate" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "completedAt" TIMESTAMP(3),
@@ -142,9 +153,6 @@ CREATE TABLE "missions" (
     "notes" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "missionType" TEXT NOT NULL,
-    "status" TEXT NOT NULL DEFAULT 'PENDING',
-    "priority" TEXT NOT NULL DEFAULT 'MEDIUM',
 
     CONSTRAINT "missions_pkey" PRIMARY KEY ("id")
 );
@@ -175,7 +183,14 @@ CREATE TABLE "chat_messages" (
 CREATE TABLE "whitelist_staff" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
+    "username" TEXT NOT NULL,
+    "password" TEXT NOT NULL,
+    "role" TEXT NOT NULL DEFAULT 'WORKER',
+    "email" TEXT,
+    "phone" TEXT,
+    "fcmToken" TEXT,
     "imagePath" TEXT NOT NULL,
+    "assigned_field_id" TEXT,
     "userId" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -184,20 +199,79 @@ CREATE TABLE "whitelist_staff" (
 );
 
 -- CreateTable
+CREATE TABLE "assets" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "brand" TEXT NOT NULL,
+    "model" TEXT,
+    "modelYear" INTEGER,
+    "mileage" DOUBLE PRECISION,
+    "operatingHours" DOUBLE PRECISION,
+    "category" TEXT NOT NULL,
+    "status" "AssetStatus" NOT NULL DEFAULT 'AVAILABLE',
+    "image_url" TEXT,
+    "serial_number" TEXT NOT NULL,
+    "last_service_date" TIMESTAMP(3),
+    "field_id" TEXT NOT NULL,
+    "user_id" TEXT NOT NULL,
+    "assigned_to_id" TEXT,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "assets_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "usage_logs" (
+    "id" TEXT NOT NULL,
+    "asset_id" TEXT NOT NULL,
+    "farmer_id" TEXT NOT NULL,
+    "start_time" TIMESTAMP(3) NOT NULL,
+    "end_time" TIMESTAMP(3),
+    "start_mileage" DOUBLE PRECISION NOT NULL,
+    "start_operating_hours" DOUBLE PRECISION,
+    "end_mileage" DOUBLE PRECISION,
+    "end_operating_hours" DOUBLE PRECISION,
+    "task_type" TEXT,
+    "fuel_level" DOUBLE PRECISION,
+    "condition_note" TEXT,
+    "notes" TEXT,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "usage_logs_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "security_incidents" (
     "id" TEXT NOT NULL,
     "type" TEXT NOT NULL,
     "imagePath" TEXT NOT NULL,
     "timestamp" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "userId" TEXT NOT NULL,
     "latitude" DOUBLE PRECISION,
     "longitude" DOUBLE PRECISION,
+    "userId" TEXT NOT NULL,
 
     CONSTRAINT "security_incidents_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
+CREATE TABLE "daily_reports" (
+    "id" TEXT NOT NULL,
+    "summary" TEXT NOT NULL,
+    "totalIncidents" INTEGER NOT NULL,
+    "criticalAlerts" INTEGER NOT NULL,
+    "peakActivityHour" INTEGER NOT NULL,
+    "averageThreatLevel" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "daily_reports_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "soil_measurements" (
+    "id" UUID NOT NULL DEFAULT uuid_generate_v4(),
     "ph" DOUBLE PRECISION NOT NULL,
     "soil_moisture" DOUBLE PRECISION NOT NULL,
     "sunlight" DOUBLE PRECISION NOT NULL,
@@ -205,16 +279,27 @@ CREATE TABLE "soil_measurements" (
     "temperature" DOUBLE PRECISION NOT NULL,
     "latitude" DOUBLE PRECISION NOT NULL,
     "longitude" DOUBLE PRECISION NOT NULL,
-    "created_at" TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "id" TEXT NOT NULL,
-    "field_id" TEXT,
+    "field_id" UUID,
+    "parcel_id" TEXT,
     "image_path" VARCHAR,
     "soil_type" VARCHAR,
     "detection_confidence" DOUBLE PRECISION,
-    "parcel_id" TEXT,
+    "created_at" TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT "soil_measurements_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "PK_26b4f52c4005e567602987343a6" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ndvi_records" (
+    "id" TEXT NOT NULL,
+    "fieldId" TEXT NOT NULL,
+    "date" TIMESTAMP(3) NOT NULL,
+    "avgNDVI" DOUBLE PRECISION NOT NULL,
+    "gridData" JSONB NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ndvi_records_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -222,6 +307,7 @@ CREATE TABLE "animals" (
     "id" TEXT NOT NULL,
     "nodeId" TEXT NOT NULL,
     "farmerId" TEXT NOT NULL,
+    "fieldId" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "animalType" "AnimalType" NOT NULL,
     "breed" TEXT,
@@ -229,6 +315,7 @@ CREATE TABLE "animals" (
     "tagNumber" TEXT,
     "profileImage" TEXT,
     "notes" TEXT,
+    "origin" TEXT NOT NULL DEFAULT 'purchased',
     "age" INTEGER NOT NULL,
     "ageYears" INTEGER NOT NULL DEFAULT 0,
     "isPregnant" BOOLEAN,
@@ -236,6 +323,10 @@ CREATE TABLE "animals" (
     "lastBirthDate" TIMESTAMP(3),
     "expectedBirthDate" TIMESTAMP(3),
     "birthCount" INTEGER NOT NULL DEFAULT 0,
+    "motherId" TEXT,
+    "fatherId" TEXT,
+    "birthWeightKg" DOUBLE PRECISION,
+    "birthCost" DOUBLE PRECISION,
     "status" "AnimalStatus" NOT NULL DEFAULT 'active',
     "healthStatus" TEXT NOT NULL DEFAULT 'OPTIMAL',
     "vitalityScore" INTEGER NOT NULL DEFAULT 100,
@@ -243,6 +334,11 @@ CREATE TABLE "animals" (
     "activityLevel" TEXT NOT NULL DEFAULT 'MODERATE',
     "lastVetCheck" TIMESTAMP(3),
     "vaccination" BOOLEAN NOT NULL DEFAULT false,
+    "isFattening" BOOLEAN NOT NULL DEFAULT false,
+    "fatteningStartDate" TIMESTAMP(3),
+    "targetSaleDate" TIMESTAMP(3),
+    "buyerName" TEXT,
+    "saleWeightKg" DOUBLE PRECISION,
     "healthRiskScore" DOUBLE PRECISION,
     "diseaseHistoryCount" INTEGER NOT NULL DEFAULT 0,
     "weight" DOUBLE PRECISION,
@@ -270,261 +366,40 @@ CREATE TABLE "animals" (
     "saleDate" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "fieldId" TEXT NOT NULL,
 
     CONSTRAINT "animals_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
-CREATE TABLE "vaccine_records" (
+CREATE TABLE "SaleCatalogue" (
     "id" TEXT NOT NULL,
-    "animalId" TEXT NOT NULL,
-    "vaccineName" TEXT NOT NULL,
-    "vaccineDate" TIMESTAMP(3) NOT NULL,
-    "nextDueDate" TIMESTAMP(3),
-    "vetName" TEXT,
-    "lotNumber" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "scheduleId" TEXT,
-    "vaccineId" TEXT NOT NULL,
-    "administeredBy" TEXT NOT NULL,
-    "administeredAt" TIMESTAMP(3) NOT NULL,
-    "doseGiven" DOUBLE PRECISION NOT NULL,
-    "doseUnit" TEXT NOT NULL DEFAULT 'ml',
-    "route" "VaccineRoute" NOT NULL DEFAULT 'SUBCUTANEOUS',
-    "bodyWeight" DOUBLE PRECISION,
-    "dateEstimated" BOOLEAN NOT NULL DEFAULT false,
-    "observations" TEXT,
-
-    CONSTRAINT "vaccine_records_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "medical_events" (
-    "id" TEXT NOT NULL,
-    "animalId" TEXT NOT NULL,
-    "eventDate" TIMESTAMP(3) NOT NULL,
-    "eventType" "MedicalEventType" NOT NULL,
-    "diagnosis" TEXT,
-    "treatment" TEXT,
-    "vetName" TEXT,
-    "cost" DECIMAL(10,2),
-    "notes" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "medical_events_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "sensor_readings" (
-    "id" TEXT NOT NULL,
-    "animalId" TEXT NOT NULL,
-    "collarId" TEXT,
-    "timestamp" TIMESTAMP(3) NOT NULL,
-    "temperature" DOUBLE PRECISION,
-    "heartRate" DOUBLE PRECISION,
-    "accX" DOUBLE PRECISION,
-    "accY" DOUBLE PRECISION,
-    "accZ" DOUBLE PRECISION,
-    "activityScore" DOUBLE PRECISION,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "sensor_readings_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "health_alerts" (
-    "id" TEXT NOT NULL,
-    "animalId" TEXT NOT NULL,
-    "alertTime" TIMESTAMP(3) NOT NULL,
-    "alertLevel" "AlertLevel" NOT NULL,
-    "predictedDisease" TEXT,
-    "confidence" DOUBLE PRECISION,
-    "anomalyScore" DOUBLE PRECISION,
-    "vetConfirmed" BOOLEAN,
-    "notes" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "health_alerts_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "milk_productions" (
-    "id" TEXT NOT NULL,
-    "animalId" TEXT NOT NULL,
-    "date" TIMESTAMP(3) NOT NULL,
-    "morningL" DECIMAL(6,2),
-    "eveningL" DECIMAL(6,2),
-    "totalL" DECIMAL(6,2),
-    "notes" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "milk_productions_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "race_performances" (
-    "id" TEXT NOT NULL,
-    "animalId" TEXT NOT NULL,
-    "raceDate" TIMESTAMP(3) NOT NULL,
-    "raceName" TEXT,
-    "position" INTEGER,
-    "timeSeconds" DECIMAL(8,3),
-    "distanceM" INTEGER,
-    "trackCondition" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "race_performances_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "weight_records" (
-    "id" TEXT NOT NULL,
-    "animalId" TEXT NOT NULL,
-    "measuredDate" TIMESTAMP(3) NOT NULL,
-    "weightKg" DECIMAL(7,2) NOT NULL,
-    "measuredBy" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "weight_records_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "expenses" (
-    "id" TEXT NOT NULL,
-    "animalId" TEXT,
-    "farmId" TEXT,
-    "date" TIMESTAMP(3) NOT NULL,
-    "category" TEXT NOT NULL,
-    "amount" DECIMAL(10,2) NOT NULL,
-    "description" TEXT,
-    "receiptUrl" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "expenses_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "parcels" (
-    "id" TEXT NOT NULL,
-    "location" TEXT NOT NULL,
-    "areaSize" DOUBLE PRECISION NOT NULL,
-    "boundariesDescription" TEXT NOT NULL,
-    "soilType" TEXT NOT NULL,
-    "soilPh" DOUBLE PRECISION,
-    "nitrogenLevel" DOUBLE PRECISION,
-    "phosphorusLevel" DOUBLE PRECISION,
-    "potassiumLevel" DOUBLE PRECISION,
-    "waterSource" TEXT NOT NULL,
-    "irrigationMethod" TEXT NOT NULL,
-    "irrigationFrequency" TEXT NOT NULL,
     "farmerId" TEXT NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-    "polygon" JSONB,
-
-    CONSTRAINT "parcels_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "crops" (
-    "id" TEXT NOT NULL,
-    "cropName" TEXT NOT NULL,
-    "variety" TEXT NOT NULL,
-    "plantingDate" TIMESTAMP(3) NOT NULL,
-    "expectedHarvestDate" TIMESTAMP(3) NOT NULL,
-    "parcelId" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "saleDate" TIMESTAMP(3),
+    "location" TEXT,
+    "currency" TEXT NOT NULL DEFAULT 'TND',
+    "showPrices" BOOLEAN NOT NULL DEFAULT false,
+    "settings" JSONB NOT NULL,
+    "shareToken" TEXT,
+    "shareExpiresAt" TIMESTAMP(3),
+    "shareViewCount" INTEGER NOT NULL DEFAULT 0,
+    "status" "CatalogueStatus" NOT NULL DEFAULT 'DRAFT',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "crops_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "SaleCatalogue_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
-CREATE TABLE "fertilizations" (
+CREATE TABLE "CatalogueAnimal" (
     "id" TEXT NOT NULL,
-    "fertilizerType" TEXT NOT NULL,
-    "quantityUsed" DOUBLE PRECISION NOT NULL,
-    "applicationDate" TIMESTAMP(3) NOT NULL,
-    "parcelId" TEXT NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "catalogueId" TEXT NOT NULL,
+    "animalId" TEXT NOT NULL,
+    "sortOrder" INTEGER NOT NULL DEFAULT 0,
+    "priceOverride" DOUBLE PRECISION,
+    "notes" TEXT,
 
-    CONSTRAINT "fertilizations_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "pest_diseases" (
-    "id" TEXT NOT NULL,
-    "issueType" TEXT,
-    "treatmentUsed" TEXT,
-    "treatmentDate" TIMESTAMP(3),
-    "parcelId" TEXT NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "pest_diseases_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "harvests" (
-    "id" TEXT NOT NULL,
-    "harvestDate" TIMESTAMP(3),
-    "totalYield" DOUBLE PRECISION,
-    "yieldPerHectare" DOUBLE PRECISION,
-    "parcelId" TEXT NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "harvests_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "crop_requirements" (
-    "id" TEXT NOT NULL,
-    "crop_name" TEXT NOT NULL,
-    "min_ph" DOUBLE PRECISION NOT NULL,
-    "max_ph" DOUBLE PRECISION NOT NULL,
-    "min_moisture" DOUBLE PRECISION NOT NULL,
-    "max_moisture" DOUBLE PRECISION NOT NULL,
-    "nitrogen_required" DOUBLE PRECISION NOT NULL,
-
-    CONSTRAINT "crop_requirements_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "crop_regions" (
-    "id" TEXT NOT NULL,
-    "crop_name" TEXT NOT NULL,
-    "country" TEXT NOT NULL,
-
-    CONSTRAINT "crop_regions_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "ndvi_records" (
-    "id" TEXT NOT NULL,
-    "parcelId" TEXT NOT NULL,
-    "date" TIMESTAMP(3) NOT NULL,
-    "avgNDVI" DOUBLE PRECISION NOT NULL,
-    "gridData" JSONB NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "ndvi_records_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "daily_reports" (
-    "id" TEXT NOT NULL,
-    "summary" TEXT NOT NULL,
-    "totalIncidents" INTEGER NOT NULL,
-    "criticalAlerts" INTEGER NOT NULL,
-    "peakActivityHour" INTEGER NOT NULL,
-    "averageThreatLevel" TEXT NOT NULL,
-    "userId" TEXT NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "daily_reports_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "CatalogueAnimal_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -650,6 +525,233 @@ CREATE TABLE "vaccine_notification_logs" (
 );
 
 -- CreateTable
+CREATE TABLE "vaccine_records" (
+    "id" TEXT NOT NULL,
+    "scheduleId" TEXT,
+    "animalId" TEXT NOT NULL,
+    "vaccineId" TEXT NOT NULL,
+    "administeredBy" TEXT NOT NULL,
+    "administeredAt" TIMESTAMP(3) NOT NULL,
+    "vaccineName" TEXT,
+    "vaccineDate" TIMESTAMP(3),
+    "vetName" TEXT,
+    "lotNumber" TEXT,
+    "doseGiven" DOUBLE PRECISION NOT NULL,
+    "doseUnit" TEXT NOT NULL DEFAULT 'ml',
+    "route" "VaccineRoute" NOT NULL DEFAULT 'SUBCUTANEOUS',
+    "bodyWeight" DOUBLE PRECISION,
+    "nextDueDate" TIMESTAMP(3),
+    "dateEstimated" BOOLEAN NOT NULL DEFAULT false,
+    "observations" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "vaccine_records_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "medical_events" (
+    "id" TEXT NOT NULL,
+    "animalId" TEXT NOT NULL,
+    "eventDate" TIMESTAMP(3) NOT NULL,
+    "eventType" "MedicalEventType" NOT NULL,
+    "diagnosis" TEXT,
+    "treatment" TEXT,
+    "vetName" TEXT,
+    "cost" DECIMAL(10,2),
+    "notes" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "medical_events_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "sensor_readings" (
+    "id" TEXT NOT NULL,
+    "animalId" TEXT NOT NULL,
+    "collarId" TEXT,
+    "timestamp" TIMESTAMP(3) NOT NULL,
+    "temperature" DOUBLE PRECISION,
+    "heartRate" DOUBLE PRECISION,
+    "accX" DOUBLE PRECISION,
+    "accY" DOUBLE PRECISION,
+    "accZ" DOUBLE PRECISION,
+    "activityScore" DOUBLE PRECISION,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "sensor_readings_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "health_alerts" (
+    "id" TEXT NOT NULL,
+    "animalId" TEXT NOT NULL,
+    "alertTime" TIMESTAMP(3) NOT NULL,
+    "alertLevel" "AlertLevel" NOT NULL,
+    "predictedDisease" TEXT,
+    "confidence" DOUBLE PRECISION,
+    "anomalyScore" DOUBLE PRECISION,
+    "vetConfirmed" BOOLEAN,
+    "notes" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "health_alerts_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "milk_productions" (
+    "id" TEXT NOT NULL,
+    "animalId" TEXT NOT NULL,
+    "date" TIMESTAMP(3) NOT NULL,
+    "morningL" DECIMAL(6,2),
+    "eveningL" DECIMAL(6,2),
+    "totalL" DECIMAL(6,2),
+    "notes" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "milk_productions_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "race_performances" (
+    "id" TEXT NOT NULL,
+    "animalId" TEXT NOT NULL,
+    "raceDate" TIMESTAMP(3) NOT NULL,
+    "raceName" TEXT,
+    "position" INTEGER,
+    "timeSeconds" DECIMAL(8,3),
+    "distanceM" INTEGER,
+    "trackCondition" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "race_performances_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "weight_records" (
+    "id" TEXT NOT NULL,
+    "animalId" TEXT NOT NULL,
+    "measuredDate" TIMESTAMP(3) NOT NULL,
+    "weightKg" DECIMAL(7,2) NOT NULL,
+    "measuredBy" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "weight_records_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "expenses" (
+    "id" TEXT NOT NULL,
+    "animalId" TEXT,
+    "farmId" TEXT,
+    "fieldId" TEXT,
+    "date" TIMESTAMP(3) NOT NULL,
+    "category" TEXT NOT NULL,
+    "amount" DECIMAL(10,2) NOT NULL,
+    "description" TEXT,
+    "receiptUrl" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "expenses_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "parcels" (
+    "id" TEXT NOT NULL,
+    "location" TEXT NOT NULL,
+    "areaSize" DOUBLE PRECISION NOT NULL,
+    "polygon" JSONB,
+    "boundariesDescription" TEXT NOT NULL,
+    "soilType" TEXT NOT NULL,
+    "soilPh" DOUBLE PRECISION,
+    "nitrogenLevel" DOUBLE PRECISION,
+    "phosphorusLevel" DOUBLE PRECISION,
+    "potassiumLevel" DOUBLE PRECISION,
+    "waterSource" TEXT NOT NULL,
+    "irrigationMethod" TEXT NOT NULL,
+    "irrigationFrequency" TEXT NOT NULL,
+    "farmerId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "parcels_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "crops" (
+    "id" TEXT NOT NULL,
+    "cropName" TEXT NOT NULL,
+    "variety" TEXT NOT NULL,
+    "plantingDate" TIMESTAMP(3) NOT NULL,
+    "expectedHarvestDate" TIMESTAMP(3) NOT NULL,
+    "parcelId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "crops_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "fertilizations" (
+    "id" TEXT NOT NULL,
+    "fertilizerType" TEXT NOT NULL,
+    "quantityUsed" DOUBLE PRECISION NOT NULL,
+    "applicationDate" TIMESTAMP(3) NOT NULL,
+    "parcelId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "fertilizations_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "pest_diseases" (
+    "id" TEXT NOT NULL,
+    "issueType" TEXT,
+    "treatmentUsed" TEXT,
+    "treatmentDate" TIMESTAMP(3),
+    "parcelId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "pest_diseases_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "harvests" (
+    "id" TEXT NOT NULL,
+    "harvestDate" TIMESTAMP(3),
+    "totalYield" DOUBLE PRECISION,
+    "yieldPerHectare" DOUBLE PRECISION,
+    "parcelId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "harvests_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "crop_requirements" (
+    "id" TEXT NOT NULL,
+    "crop_name" TEXT NOT NULL,
+    "min_ph" DOUBLE PRECISION NOT NULL,
+    "max_ph" DOUBLE PRECISION NOT NULL,
+    "min_moisture" DOUBLE PRECISION NOT NULL,
+    "max_moisture" DOUBLE PRECISION NOT NULL,
+    "nitrogen_required" DOUBLE PRECISION NOT NULL,
+
+    CONSTRAINT "crop_requirements_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "crop_regions" (
+    "id" TEXT NOT NULL,
+    "crop_name" TEXT NOT NULL,
+    "country" TEXT NOT NULL,
+
+    CONSTRAINT "crop_regions_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "community_posts" (
     "id" TEXT NOT NULL,
     "authorId" TEXT NOT NULL,
@@ -759,43 +861,67 @@ CREATE INDEX "conversations_userId_idx" ON "conversations"("userId");
 CREATE INDEX "chat_messages_conversationId_idx" ON "chat_messages"("conversationId");
 
 -- CreateIndex
-CREATE INDEX "soil_measurements_soil_type_idx" ON "soil_measurements"("soil_type");
+CREATE UNIQUE INDEX "whitelist_staff_username_key" ON "whitelist_staff"("username");
 
 -- CreateIndex
-CREATE INDEX "soil_measurements_created_at_idx" ON "soil_measurements"("created_at");
+CREATE UNIQUE INDEX "whitelist_staff_email_key" ON "whitelist_staff"("email");
 
 -- CreateIndex
-CREATE INDEX "soil_measurements_field_id_idx" ON "soil_measurements"("field_id");
+CREATE UNIQUE INDEX "whitelist_staff_phone_key" ON "whitelist_staff"("phone");
 
 -- CreateIndex
-CREATE INDEX "soil_measurements_latitude_longitude_idx" ON "soil_measurements"("latitude", "longitude");
+CREATE INDEX "assets_user_id_idx" ON "assets"("user_id");
 
 -- CreateIndex
-CREATE INDEX "soil_measurements_parcel_id_idx" ON "soil_measurements"("parcel_id");
+CREATE INDEX "assets_field_id_idx" ON "assets"("field_id");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "animals_nodeId_key" ON "animals"("nodeId");
+CREATE INDEX "assets_assigned_to_id_idx" ON "assets"("assigned_to_id");
 
 -- CreateIndex
-CREATE INDEX "sensor_readings_animalId_timestamp_idx" ON "sensor_readings"("animalId", "timestamp");
+CREATE UNIQUE INDEX "assets_user_id_serial_number_key" ON "assets"("user_id", "serial_number");
 
 -- CreateIndex
-CREATE INDEX "crop_requirements_crop_name_idx" ON "crop_requirements"("crop_name");
+CREATE INDEX "usage_logs_asset_id_idx" ON "usage_logs"("asset_id");
 
 -- CreateIndex
-CREATE INDEX "crop_regions_crop_name_idx" ON "crop_regions"("crop_name");
+CREATE INDEX "usage_logs_farmer_id_idx" ON "usage_logs"("farmer_id");
 
 -- CreateIndex
-CREATE INDEX "crop_regions_country_idx" ON "crop_regions"("country");
-
--- CreateIndex
-CREATE INDEX "ndvi_records_parcelId_idx" ON "ndvi_records"("parcelId");
+CREATE INDEX "usage_logs_start_time_idx" ON "usage_logs"("start_time");
 
 -- CreateIndex
 CREATE INDEX "daily_reports_userId_idx" ON "daily_reports"("userId");
 
 -- CreateIndex
 CREATE INDEX "daily_reports_createdAt_idx" ON "daily_reports"("createdAt");
+
+-- CreateIndex
+CREATE INDEX "IDX_1b5048dedf4b0c67b0e3d69028" ON "soil_measurements"("created_at");
+
+-- CreateIndex
+CREATE INDEX "IDX_b1d30f7933303444ba94550db7" ON "soil_measurements"("field_id");
+
+-- CreateIndex
+CREATE INDEX "IDX_db34dddb4edfd4e726c70f52b0" ON "soil_measurements"("latitude", "longitude");
+
+-- CreateIndex
+CREATE INDEX "IDX_0a742379a0b58d214968308ae8" ON "soil_measurements"("soil_type");
+
+-- CreateIndex
+CREATE INDEX "soil_measurements_parcel_id_idx" ON "soil_measurements"("parcel_id");
+
+-- CreateIndex
+CREATE INDEX "ndvi_records_fieldId_idx" ON "ndvi_records"("fieldId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "animals_nodeId_key" ON "animals"("nodeId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "SaleCatalogue_shareToken_key" ON "SaleCatalogue"("shareToken");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "CatalogueAnimal_catalogueId_animalId_key" ON "CatalogueAnimal"("catalogueId", "animalId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "countries_code_key" ON "countries"("code");
@@ -808,6 +934,18 @@ CREATE UNIQUE INDEX "vaccines_code_key" ON "vaccines"("code");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "vaccine_regulations_countryId_regionId_vaccineId_species_key" ON "vaccine_regulations"("countryId", "regionId", "vaccineId", "species");
+
+-- CreateIndex
+CREATE INDEX "sensor_readings_animalId_timestamp_idx" ON "sensor_readings"("animalId", "timestamp");
+
+-- CreateIndex
+CREATE INDEX "crop_requirements_crop_name_idx" ON "crop_requirements"("crop_name");
+
+-- CreateIndex
+CREATE INDEX "crop_regions_crop_name_idx" ON "crop_regions"("crop_name");
+
+-- CreateIndex
+CREATE INDEX "crop_regions_country_idx" ON "crop_regions"("country");
 
 -- CreateIndex
 CREATE INDEX "community_posts_authorId_idx" ON "community_posts"("authorId");
@@ -873,10 +1011,10 @@ ALTER TABLE "fields" ADD CONSTRAINT "fields_countryId_fkey" FOREIGN KEY ("countr
 ALTER TABLE "fields" ADD CONSTRAINT "fields_regionId_fkey" FOREIGN KEY ("regionId") REFERENCES "field_regions"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "missions" ADD CONSTRAINT "missions_fieldId_fkey" FOREIGN KEY ("fieldId") REFERENCES "fields"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "missions" ADD CONSTRAINT "missions_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "missions" ADD CONSTRAINT "missions_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "missions" ADD CONSTRAINT "missions_fieldId_fkey" FOREIGN KEY ("fieldId") REFERENCES "fields"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "conversations" ADD CONSTRAINT "conversations_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -888,7 +1026,28 @@ ALTER TABLE "chat_messages" ADD CONSTRAINT "chat_messages_conversationId_fkey" F
 ALTER TABLE "whitelist_staff" ADD CONSTRAINT "whitelist_staff_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "whitelist_staff" ADD CONSTRAINT "whitelist_staff_assigned_field_id_fkey" FOREIGN KEY ("assigned_field_id") REFERENCES "fields"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "assets" ADD CONSTRAINT "assets_field_id_fkey" FOREIGN KEY ("field_id") REFERENCES "fields"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "assets" ADD CONSTRAINT "assets_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "assets" ADD CONSTRAINT "assets_assigned_to_id_fkey" FOREIGN KEY ("assigned_to_id") REFERENCES "whitelist_staff"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "usage_logs" ADD CONSTRAINT "usage_logs_asset_id_fkey" FOREIGN KEY ("asset_id") REFERENCES "assets"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "usage_logs" ADD CONSTRAINT "usage_logs_farmer_id_fkey" FOREIGN KEY ("farmer_id") REFERENCES "whitelist_staff"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "security_incidents" ADD CONSTRAINT "security_incidents_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "daily_reports" ADD CONSTRAINT "daily_reports_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "soil_measurements" ADD CONSTRAINT "soil_measurements_field_id_fkey" FOREIGN KEY ("field_id") REFERENCES "fields"("id") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -897,16 +1056,58 @@ ALTER TABLE "soil_measurements" ADD CONSTRAINT "soil_measurements_field_id_fkey"
 ALTER TABLE "soil_measurements" ADD CONSTRAINT "soil_measurements_parcel_id_fkey" FOREIGN KEY ("parcel_id") REFERENCES "parcels"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "ndvi_records" ADD CONSTRAINT "ndvi_records_fieldId_fkey" FOREIGN KEY ("fieldId") REFERENCES "fields"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "animals" ADD CONSTRAINT "animals_farmerId_fkey" FOREIGN KEY ("farmerId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "animals" ADD CONSTRAINT "animals_fieldId_fkey" FOREIGN KEY ("fieldId") REFERENCES "fields"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "vaccine_records" ADD CONSTRAINT "vaccine_records_animalId_fkey" FOREIGN KEY ("animalId") REFERENCES "animals"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "animals" ADD CONSTRAINT "animals_motherId_fkey" FOREIGN KEY ("motherId") REFERENCES "animals"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "animals" ADD CONSTRAINT "animals_fatherId_fkey" FOREIGN KEY ("fatherId") REFERENCES "animals"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "SaleCatalogue" ADD CONSTRAINT "SaleCatalogue_farmerId_fkey" FOREIGN KEY ("farmerId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CatalogueAnimal" ADD CONSTRAINT "CatalogueAnimal_catalogueId_fkey" FOREIGN KEY ("catalogueId") REFERENCES "SaleCatalogue"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CatalogueAnimal" ADD CONSTRAINT "CatalogueAnimal_animalId_fkey" FOREIGN KEY ("animalId") REFERENCES "animals"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "field_regions" ADD CONSTRAINT "field_regions_countryId_fkey" FOREIGN KEY ("countryId") REFERENCES "countries"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "vaccine_regulations" ADD CONSTRAINT "vaccine_regulations_countryId_fkey" FOREIGN KEY ("countryId") REFERENCES "countries"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "vaccine_regulations" ADD CONSTRAINT "vaccine_regulations_regionId_fkey" FOREIGN KEY ("regionId") REFERENCES "field_regions"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "vaccine_regulations" ADD CONSTRAINT "vaccine_regulations_vaccineId_fkey" FOREIGN KEY ("vaccineId") REFERENCES "vaccines"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "vaccine_campaign_periods" ADD CONSTRAINT "vaccine_campaign_periods_countryId_fkey" FOREIGN KEY ("countryId") REFERENCES "countries"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "vaccine_schedules" ADD CONSTRAINT "vaccine_schedules_animalId_fkey" FOREIGN KEY ("animalId") REFERENCES "animals"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "vaccine_schedules" ADD CONSTRAINT "vaccine_schedules_vaccineId_fkey" FOREIGN KEY ("vaccineId") REFERENCES "vaccines"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "vaccine_notification_logs" ADD CONSTRAINT "vaccine_notification_logs_scheduleId_fkey" FOREIGN KEY ("scheduleId") REFERENCES "vaccine_schedules"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "vaccine_records" ADD CONSTRAINT "vaccine_records_scheduleId_fkey" FOREIGN KEY ("scheduleId") REFERENCES "vaccine_schedules"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "vaccine_records" ADD CONSTRAINT "vaccine_records_animalId_fkey" FOREIGN KEY ("animalId") REFERENCES "animals"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "vaccine_records" ADD CONSTRAINT "vaccine_records_vaccineId_fkey" FOREIGN KEY ("vaccineId") REFERENCES "vaccines"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -936,6 +1137,9 @@ ALTER TABLE "expenses" ADD CONSTRAINT "expenses_animalId_fkey" FOREIGN KEY ("ani
 ALTER TABLE "expenses" ADD CONSTRAINT "expenses_farmId_fkey" FOREIGN KEY ("farmId") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "expenses" ADD CONSTRAINT "expenses_fieldId_fkey" FOREIGN KEY ("fieldId") REFERENCES "fields"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "parcels" ADD CONSTRAINT "parcels_farmerId_fkey" FOREIGN KEY ("farmerId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -949,36 +1153,6 @@ ALTER TABLE "pest_diseases" ADD CONSTRAINT "pest_diseases_parcelId_fkey" FOREIGN
 
 -- AddForeignKey
 ALTER TABLE "harvests" ADD CONSTRAINT "harvests_parcelId_fkey" FOREIGN KEY ("parcelId") REFERENCES "parcels"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "ndvi_records" ADD CONSTRAINT "ndvi_records_parcelId_fkey" FOREIGN KEY ("parcelId") REFERENCES "parcels"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "daily_reports" ADD CONSTRAINT "daily_reports_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "field_regions" ADD CONSTRAINT "field_regions_countryId_fkey" FOREIGN KEY ("countryId") REFERENCES "countries"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "vaccine_regulations" ADD CONSTRAINT "vaccine_regulations_countryId_fkey" FOREIGN KEY ("countryId") REFERENCES "countries"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "vaccine_regulations" ADD CONSTRAINT "vaccine_regulations_regionId_fkey" FOREIGN KEY ("regionId") REFERENCES "field_regions"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "vaccine_regulations" ADD CONSTRAINT "vaccine_regulations_vaccineId_fkey" FOREIGN KEY ("vaccineId") REFERENCES "vaccines"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "vaccine_campaign_periods" ADD CONSTRAINT "vaccine_campaign_periods_countryId_fkey" FOREIGN KEY ("countryId") REFERENCES "countries"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "vaccine_schedules" ADD CONSTRAINT "vaccine_schedules_animalId_fkey" FOREIGN KEY ("animalId") REFERENCES "animals"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "vaccine_schedules" ADD CONSTRAINT "vaccine_schedules_vaccineId_fkey" FOREIGN KEY ("vaccineId") REFERENCES "vaccines"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "vaccine_notification_logs" ADD CONSTRAINT "vaccine_notification_logs_scheduleId_fkey" FOREIGN KEY ("scheduleId") REFERENCES "vaccine_schedules"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "community_posts" ADD CONSTRAINT "community_posts_authorId_fkey" FOREIGN KEY ("authorId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;

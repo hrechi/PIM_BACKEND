@@ -3,7 +3,6 @@ import { PrismaService } from '../prisma/prisma.service';
 import { GeoService } from '../geo/geo.service';
 import { CreateFieldDto } from './dto/create-field.dto';
 import { UpdateFieldDto } from './dto/update-field.dto';
-import { GeoService } from '../geo/geo.service';
 
 @Injectable()
 export class FieldService {

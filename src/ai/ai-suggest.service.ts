@@ -23,7 +23,7 @@ type SuggestOutput = {
 export class AiSuggestService {
   private readonly logger = new Logger(AiSuggestService.name);
   private readonly pythonApiUrl =
-    process.env.PYTHON_AI_API_URL || 'http://192.168.1.18:8000';
+    process.env.PYTHON_AI_API_URL || 'http://172.20.10.10:8000';
 
   constructor(
     private readonly httpService: HttpService,

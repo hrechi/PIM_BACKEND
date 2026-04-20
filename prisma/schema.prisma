@@ -162,27 +162,19 @@ model User {
   fields         Field[]
   missions       Mission[]
   conversations  Conversation[]
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
   parcels        Parcel[]
-
-
   animals        Animal[]
   saleCatalogues SaleCatalogue[]
   expenses       Expense[]
   // Staff whitelist managed by this user
   whitelistStaff WhitelistStaff[]
-  assets            Asset[]   
+  assets         Asset[]
   
   // Security incidents logged by this user
   securityIncidents SecurityIncident[]
-  savedArticles     SavedArticle[]
-  dailyReports      DailyReport[]
-
-   securityIncidents SecurityIncident[]
-  savedArticles     SavedArticle[]
-  dailyReports      DailyReport[]
-   // Currency settings for the entire farm
+  savedArticles  SavedArticle[]
+  dailyReports   DailyReport[]
+  // Currency settings for the entire farm
   currency         String             @default("USD") // TND, EUR, USD, etc.
   currencySymbol   String             @default("$")
   // Gamification — from schema 1
@@ -277,26 +269,12 @@ model Field {
   // Relations
   missions         Mission[]
   soilMeasurements SoilMeasurement[]
-   ndviRecords      NDVIRecord[]       // from schema 1
+  ndviRecords      NDVIRecord[]       // from schema 1
   animals          Animal[]
   assets           Asset[]            // from schema 2
   assignedWorkers  WhitelistStaff[]   // from schema 2
+  expenses         Expense[]
 
-  createdAt        DateTime           @default(now())
-  updatedAt        DateTime           @updatedAt
-    expenses     Expense[]
-
-  // Ajouts pour le module vaccin
-  countryCode  String?      // ISO 3166 dérivé du GPS — ex: "TN", "FR", "US"
-  regionCode   String?      // sous-zone si applicable — ex: "AR-PATAGONIA"
-  fmdFreeZone  Boolean      @default(false)  // calculé à partir du countryCode + regionCode
-  countryId    String?
-  regionId     String?
-  country      Country?     @relation(fields: [countryId], references: [id])
-  region       FieldRegion? @relation(fields: [regionId], references: [id])
-  // fin ajout pour le module vaccin
-
-  animals      Animal[]
   @@map("fields")
   @@index([userId])
 }
@@ -488,7 +466,7 @@ model DailyReport {
 // ─────────────────────────────────────────────
 
 model SoilMeasurement {
-  id                  String   @id(map: "PK_26b4f52c4005e567602987343a6") @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id                  String   @id @default(uuid())
   ph                  Float
   soilMoisture        Float    @map("soil_moisture")
   sunlight            Float
@@ -496,7 +474,7 @@ model SoilMeasurement {
   temperature         Float
   latitude            Float
   longitude           Float
-  fieldId             String?  @map("field_id") @db.Uuid
+  fieldId             String?  @map("field_id")
   field               Field?   @relation(fields: [fieldId], references: [id], onDelete: SetNull)
   // schema 1: also linked to Parcel
   parcelId            String?  @map("parcel_id")
@@ -589,10 +567,8 @@ model Animal {
   targetSaleDate      DateTime?
   buyerName           String?
   saleWeightKg        Float?
-  
+
   // Ajouts pour le module vaccin
-  vaccineSchedules VaccineSchedule[]
-  vaccineRecords   VaccineRecord[]
   // fin ajout pour le module vaccin
 
   healthRiskScore     Float?       // Calculated by AI model (sprint suivant)
