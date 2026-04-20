@@ -20,18 +20,23 @@ export class ShortsService {
   // Agriculture-related search queries per category
   private readonly categoryQueries: Record<string, string> = {
     all: 'farming tips|agriculture tutorial|crop planting|livestock management',
-    crops: 'crop planting guide|seed sowing tips|vegetable farming|fruit growing',
-    livestock: 'livestock management|cattle farming|poultry tips|animal husbandry',
-    agritech: 'agritech innovation|smart farming|precision agriculture|farm technology',
+    crops:
+      'crop planting guide|seed sowing tips|vegetable farming|fruit growing',
+    livestock:
+      'livestock management|cattle farming|poultry tips|animal husbandry',
+    agritech:
+      'agritech innovation|smart farming|precision agriculture|farm technology',
     organic: 'organic farming tips|natural agriculture|composting|permaculture',
-    harvesting: 'harvest techniques|crop harvesting|post harvest|farm harvest tips',
+    harvesting:
+      'harvest techniques|crop harvesting|post harvest|farm harvest tips',
   };
 
   constructor(
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
   ) {
-    this.youtubeApiKey = this.configService.get<string>('YOUTUBE_API_KEY') || '';
+    this.youtubeApiKey =
+      this.configService.get<string>('YOUTUBE_API_KEY') || '';
     if (!this.youtubeApiKey) {
       this.logger.warn(
         'YOUTUBE_API_KEY is not set in .env — Shorts feature will not work',

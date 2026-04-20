@@ -1,9 +1,25 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+  Req,
+  Query,
+} from '@nestjs/common';
 import { ParcelsService } from './parcels.service';
 import { CreateParcelDto } from './dto/create-parcel.dto';
 import { UpdateParcelDto } from './dto/update-parcel.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { CreateCropDto, CreateFertilizationDto, CreateHarvestDto, CreatePestDiseaseDto } from './dto/nested.dto';
+import {
+  CreateCropDto,
+  CreateFertilizationDto,
+  CreateHarvestDto,
+  CreatePestDiseaseDto,
+} from './dto/nested.dto';
 import { CropSuitabilityService } from '../crop-suitability/crop-suitability.service';
 
 @UseGuards(JwtAuthGuard)
@@ -32,7 +48,11 @@ export class ParcelsController {
   }
 
   @Patch(':id')
-  update(@Req() req, @Param('id') id: string, @Body() updateParcelDto: UpdateParcelDto) {
+  update(
+    @Req() req,
+    @Param('id') id: string,
+    @Body() updateParcelDto: UpdateParcelDto,
+  ) {
     return this.parcelsService.update(id, req.user.id, updateParcelDto);
   }
 
@@ -47,17 +67,29 @@ export class ParcelsController {
   }
 
   @Post(':id/fertilizations')
-  addFertilization(@Req() req, @Param('id') id: string, @Body() dto: CreateFertilizationDto) {
+  addFertilization(
+    @Req() req,
+    @Param('id') id: string,
+    @Body() dto: CreateFertilizationDto,
+  ) {
     return this.parcelsService.addFertilization(id, req.user.id, dto);
   }
 
   @Post(':id/pests')
-  addPest(@Req() req, @Param('id') id: string, @Body() dto: CreatePestDiseaseDto) {
+  addPest(
+    @Req() req,
+    @Param('id') id: string,
+    @Body() dto: CreatePestDiseaseDto,
+  ) {
     return this.parcelsService.addPest(id, req.user.id, dto);
   }
 
   @Post(':id/harvests')
-  addHarvest(@Req() req, @Param('id') id: string, @Body() dto: CreateHarvestDto) {
+  addHarvest(
+    @Req() req,
+    @Param('id') id: string,
+    @Body() dto: CreateHarvestDto,
+  ) {
     return this.parcelsService.addHarvest(id, req.user.id, dto);
   }
 
@@ -78,11 +110,15 @@ export class ParcelsController {
     @Query('humidity') humidity?: number,
     @Query('rainfall') rainfall?: number,
   ) {
-    return this.cropSuitabilityService.analyzeExistingCrops(
-      id,
-      req.user.id,
-      { N, P, K, ph, temperature, humidity, rainfall },
-    );
+    return this.cropSuitabilityService.analyzeExistingCrops(id, req.user.id, {
+      N,
+      P,
+      K,
+      ph,
+      temperature,
+      humidity,
+      rainfall,
+    });
   }
 
   @Get(':id/recommend-crops')
@@ -97,10 +133,14 @@ export class ParcelsController {
     @Query('humidity') humidity?: number,
     @Query('rainfall') rainfall?: number,
   ) {
-    return this.cropSuitabilityService.recommendCrops(
-      id,
-      req.user.id,
-      { N, P, K, ph, temperature, humidity, rainfall },
-    );
+    return this.cropSuitabilityService.recommendCrops(id, req.user.id, {
+      N,
+      P,
+      K,
+      ph,
+      temperature,
+      humidity,
+      rainfall,
+    });
   }
 }

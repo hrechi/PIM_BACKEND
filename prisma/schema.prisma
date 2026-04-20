@@ -156,25 +156,39 @@ model User {
   fcmToken       String?
   otp            String?
   otpExpiresAt   DateTime?
-  createdAt      DateTime  @default(now())
+   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
-  // Core relations
-  fields            Field[]
-  missions          Mission[]
-  conversations     Conversation[]
-  parcels           Parcel[]
-  animals           Animal[]
-  expenses          Expense[]
-  whitelistStaff    WhitelistStaff[]
-  assets            Asset[]           // from schema 2
+  fields         Field[]
+  missions       Mission[]
+  conversations  Conversation[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  parcels        Parcel[]
+
+
+  animals        Animal[]
+  saleCatalogues SaleCatalogue[]
+  expenses       Expense[]
+  // Staff whitelist managed by this user
+  whitelistStaff WhitelistStaff[]
+  assets            Asset[]   
+  
+  // Security incidents logged by this user
   securityIncidents SecurityIncident[]
   savedArticles     SavedArticle[]
   dailyReports      DailyReport[]
 
+   securityIncidents SecurityIncident[]
+  savedArticles     SavedArticle[]
+  dailyReports      DailyReport[]
+   // Currency settings for the entire farm
+  currency         String             @default("USD") // TND, EUR, USD, etc.
+  currencySymbol   String             @default("$")
   // Gamification — from schema 1
   quizResults QuizResult[]
   badges      Badge[]
+
 
   // Community module
   communityPosts            CommunityPost[]
@@ -263,11 +277,26 @@ model Field {
   // Relations
   missions         Mission[]
   soilMeasurements SoilMeasurement[]
-  ndviRecords      NDVIRecord[]       // from schema 1
+   ndviRecords      NDVIRecord[]       // from schema 1
   animals          Animal[]
   assets           Asset[]            // from schema 2
   assignedWorkers  WhitelistStaff[]   // from schema 2
 
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+    expenses     Expense[]
+
+  // Ajouts pour le module vaccin
+  countryCode  String?      // ISO 3166 dérivé du GPS — ex: "TN", "FR", "US"
+  regionCode   String?      // sous-zone si applicable — ex: "AR-PATAGONIA"
+  fmdFreeZone  Boolean      @default(false)  // calculé à partir du countryCode + regionCode
+  countryId    String?
+  regionId     String?
+  country      Country?     @relation(fields: [countryId], references: [id])
+  region       FieldRegion? @relation(fields: [regionId], references: [id])
+  // fin ajout pour le module vaccin
+
+  animals      Animal[]
   @@map("fields")
   @@index([userId])
 }
@@ -523,6 +552,7 @@ model Animal {
   tagNumber    String?
   profileImage String?
   notes        String?
+  origin       String       @default("purchased") // purchased | born
 
   // Age & reproduction
   age                  Int       // months
@@ -533,6 +563,18 @@ model Animal {
   expectedBirthDate    DateTime?
   birthCount           Int       @default(0)
 
+  // Genealogy (Self-referential)
+  motherId             String?
+  fatherId             String?
+  mother               Animal?   @relation("MotherToChild", fields: [motherId], references: [id])
+  father               Animal?   @relation("FatherToChild", fields: [fatherId], references: [id])
+  childrenFromMother   Animal[]  @relation("MotherToChild")
+  childrenFromFather   Animal[]  @relation("FatherToChild")
+
+  // Birth & Growth
+  birthWeightKg        Float?
+  birthCost           Float?
+
   // Health & status
   status              AnimalStatus @default(active)
   healthStatus        String       @default("OPTIMAL") // OPTIMAL, WARNING, CRITICAL
@@ -541,8 +583,20 @@ model Animal {
   activityLevel       String       @default("MODERATE") // LOW, MODERATE, HIGH
   lastVetCheck        DateTime?
   vaccination         Boolean      @default(false)
-  healthRiskScore     Float?
-  diseaseHistoryCount Int          @default(0)
+  // Fattening & Target Sales
+  isFattening         Boolean      @default(false)
+  fatteningStartDate  DateTime?
+  targetSaleDate      DateTime?
+  buyerName           String?
+  saleWeightKg        Float?
+  
+  // Ajouts pour le module vaccin
+  vaccineSchedules VaccineSchedule[]
+  vaccineRecords   VaccineRecord[]
+  // fin ajout pour le module vaccin
+
+  healthRiskScore     Float?       // Calculated by AI model (sprint suivant)
+  diseaseHistoryCount Int          @default(0) // Calculated from medical_events
 
   // General production / physical
   weight             Float?
@@ -593,8 +647,48 @@ model Animal {
   racePerformances RacePerformance[]
   weightRecords    WeightRecord[]
   expenses         Expense[]
+  catalogueAnimals CatalogueAnimal[]
 
   @@map("animals")
+}
+
+enum CatalogueStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+  ARCHIVED
+}
+
+model SaleCatalogue {
+  id             String             @id @default(cuid())
+  farmerId       String
+  farmer         User               @relation(fields: [farmerId], references: [id])
+  title          String
+  saleDate       DateTime?
+  location       String?
+  currency       String             @default("TND")
+  showPrices     Boolean            @default(false)
+  settings       Json
+  shareToken     String?            @unique
+  shareExpiresAt DateTime?
+  shareViewCount Int                @default(0)
+  status         CatalogueStatus    @default(DRAFT)
+  animals        CatalogueAnimal[]
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+}
+
+model CatalogueAnimal {
+  id          String        @id @default(cuid())
+  catalogueId String
+  catalogue   SaleCatalogue @relation(fields: [catalogueId], references: [id])
+  animalId    String
+  animal      Animal        @relation(fields: [animalId], references: [id])
+  sortOrder   Int           @default(0)
+  priceOverride Float?
+  notes       String?
+
+  @@unique([catalogueId, animalId])
 }
 
 // ─────────────────────────────────────────────
@@ -907,6 +1001,8 @@ model Expense {
   animal      Animal?  @relation(fields: [animalId], references: [id], onDelete: SetNull)
   farmId      String?
   farmer      User?    @relation(fields: [farmId], references: [id], onDelete: SetNull)
+  fieldId     String?
+  field       Field?   @relation(fields: [fieldId], references: [id], onDelete: SetNull)
   date        DateTime
   category    String   // alimentation, veterinaire, medicaments, equipements, autre
   amount      Decimal  @db.Decimal(10, 2)

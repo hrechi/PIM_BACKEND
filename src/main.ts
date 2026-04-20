@@ -27,7 +27,9 @@ async function bootstrap() {
   // Swagger / OpenAPI setup
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Fieldly API')
-    .setDescription('API documentation for the Fieldly PIM user management system')
+    .setDescription(
+      'API documentation for the Fieldly PIM user management system',
+    )
     .setVersion('1.0')
     .addBearerAuth(
       { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
@@ -43,7 +45,7 @@ async function bootstrap() {
   SwaggerModule.setup('api/docs', app, document);
 
   const port = process.env.PORT ?? 3000;
-  await app.listen(port, '0.0.0.0');  // listen on all interfaces so phone can connect
+  await app.listen(port, '0.0.0.0'); // listen on all interfaces so phone can connect
   console.log(`🌱 Fieldly API running on http://localhost:${port}/api`);
   console.log(`📄 Swagger docs at http://localhost:${port}/api/docs`);
 }

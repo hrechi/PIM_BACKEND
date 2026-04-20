@@ -30,15 +30,9 @@ export class WeatherController {
   @ApiResponse({ status: 404, description: 'Field not found' })
   async getWeather(@Req() req: any, @Param('fieldId') fieldId: string) {
     try {
-      return await this.weatherService.getWeatherForField(
-        fieldId,
-        req.user.id,
-      );
+      return await this.weatherService.getWeatherForField(fieldId, req.user.id);
     } catch (error) {
-      if (
-        error.status === 404 ||
-        error.status === 403
-      ) {
+      if (error.status === 404 || error.status === 403) {
         throw error;
       }
       throw new HttpException(
@@ -59,20 +53,11 @@ export class WeatherController {
     description: 'Weather forecast + AI recommendations',
   })
   @ApiResponse({ status: 404, description: 'Field not found' })
-  async getRecommendations(
-    @Req() req: any,
-    @Param('fieldId') fieldId: string,
-  ) {
+  async getRecommendations(@Req() req: any, @Param('fieldId') fieldId: string) {
     try {
-      return await this.weatherService.getRecommendations(
-        fieldId,
-        req.user.id,
-      );
+      return await this.weatherService.getRecommendations(fieldId, req.user.id);
     } catch (error) {
-      if (
-        error.status === 404 ||
-        error.status === 403
-      ) {
+      if (error.status === 404 || error.status === 403) {
         throw error;
       }
       throw new HttpException(

@@ -7,9 +7,9 @@ import { VaccineReminderCron } from '../vaccine-reminders/vaccine-reminder.cron'
 import { PrismaService } from '../prisma/prisma.service';
 
 @Module({
-    imports: [VaccineRegionalModule, NotificationModule],
-    controllers: [VaccinesController],
-    providers: [VaccinesService, VaccineReminderCron, PrismaService],
-    exports: [VaccinesService],
+  imports: [VaccineRegionalModule, NotificationModule],
+  controllers: [VaccinesController],
+  providers: [VaccinesService, VaccineReminderCron, PrismaService],
+  exports: [VaccinesService],
 })
-export class VaccinesModule { }
+export class VaccinesModule {}

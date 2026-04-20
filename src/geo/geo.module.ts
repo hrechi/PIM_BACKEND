@@ -3,7 +3,7 @@ import { GeoService } from './geo.service';
 
 @Global()
 @Module({
-    providers: [GeoService],
-    exports: [GeoService],
+  providers: [GeoService],
+  exports: [GeoService],
 })
-export class GeoModule { }
+export class GeoModule {}

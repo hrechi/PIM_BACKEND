@@ -36,6 +36,8 @@ import { VaccinesModule } from './vaccines/vaccines.module';
 import { ReportsModule } from './reports/reports.module';
 import { ShortsModule } from './shorts/shorts.module';
 import { CommunityModule } from './community/community.module';
+import { ExpensesModule } from './expenses/expenses.module';
+import { FinanceModule } from './finance/finance.module';
 import { HarvestOptimizationModule } from './harvest-optimization/harvest-optimization.module';
 import { QuizModule } from './quiz/quiz.module';
 import { AeroTwinModule } from './aerotwin/aerotwin.module';
@@ -43,7 +45,8 @@ import { AssetModule } from './asset/asset.module';
 import { AiModule } from './ai/ai.module';
 
 import { SoilIntelligenceModule } from './soil-intelligence/soil-intelligence.module';
- 
+import { CataloguesModule } from './catalogues/catalogues.module';
+
  
 @Module({
   imports: [ 
@@ -52,7 +55,7 @@ import { SoilIntelligenceModule } from './soil-intelligence/soil-intelligence.mo
       // process.cwd() always points to the project root regardless of __dirname
       rootPath: join(process.cwd(), 'uploads'),
       serveRoot: '/uploads',
-    }), 
+    }),
     TypeOrmModule.forRootAsync({
       useFactory: () => ({
         type: 'postgres',
@@ -163,6 +166,9 @@ import { SoilIntelligenceModule } from './soil-intelligence/soil-intelligence.mo
     QuizModule,
     AeroTwinModule,
     CommunityModule,
+     ExpensesModule,
+    FinanceModule,
+    CataloguesModule,
     SoilIntelligenceModule,
     AssetModule,
     AiModule,
@@ -171,4 +177,4 @@ import { SoilIntelligenceModule } from './soil-intelligence/soil-intelligence.mo
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule { }
+export class AppModule {}

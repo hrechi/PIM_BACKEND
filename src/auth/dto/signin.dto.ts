@@ -7,7 +7,11 @@ export class SignInDto {
   @IsString()
   identifier: string;
 
-  @ApiProperty({ example: 'Pass1234', description: 'Account password', minLength: 6 })
+  @ApiProperty({
+    example: 'Pass1234',
+    description: 'Account password',
+    minLength: 6,
+  })
   @IsNotEmpty({ message: 'Password is required' })
   @MinLength(6)
   @IsString()

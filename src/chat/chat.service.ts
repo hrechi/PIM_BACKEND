@@ -157,22 +157,15 @@ export class ChatService {
   /**
    * Parse date references from user message
    * Handles: today, tomorrow, this week, next week, specific dates, day names, etc.
-   */ 
+   */
   private parseDateFromMessage(message: string): Date | null {
     const lowerMessage = message.toLowerCase();
     const today = new Date();
     const currentDayOfWeek = today.getDay();
 
     // Today reference
-    if (
-      lowerMessage.includes('today') ||
-      lowerMessage.includes("today's")
-    ) {
-      return new Date(
-        today.getFullYear(),
-        today.getMonth(),
-        today.getDate(),
-      );
+    if (lowerMessage.includes('today') || lowerMessage.includes("today's")) {
+      return new Date(today.getFullYear(), today.getMonth(), today.getDate());
     }
 
     // Tomorrow reference
@@ -225,11 +218,7 @@ export class ChatService {
 
     // This week reference
     if (lowerMessage.includes('this week')) {
-      return new Date(
-        today.getFullYear(),
-        today.getMonth(),
-        today.getDate(),
-      );
+      return new Date(today.getFullYear(), today.getMonth(), today.getDate());
     }
 
     // Specific date format: YYYY-MM-DD, DD/MM/YYYY, Feb 17, etc.
@@ -260,8 +249,7 @@ export class ChatService {
               'december',
             ];
             const day = parseInt(match[1]);
-            const month =
-              monthNames.indexOf(match[2].toLowerCase()) + 1;
+            const month = monthNames.indexOf(match[2].toLowerCase()) + 1;
             const year = match[3] ? parseInt(match[3]) : today.getFullYear();
             return new Date(year, month - 1, day);
           } else if (match[1].length === 4) {
@@ -293,10 +281,7 @@ export class ChatService {
   /**
    * Get missions for a specific date
    */
-  private getMissionsForDate(
-    missions: any[],
-    targetDate: Date,
-  ): any[] {
+  private getMissionsForDate(missions: any[], targetDate: Date): any[] {
     const startOfDay = new Date(
       targetDate.getFullYear(),
       targetDate.getMonth(),
@@ -537,10 +522,7 @@ export class ChatService {
     let requestedDateString = '';
 
     if (requestedDate) {
-      requestedDateMissions = this.getMissionsForDate(
-        missions,
-        requestedDate,
-      );
+      requestedDateMissions = this.getMissionsForDate(missions, requestedDate);
       requestedDateString = this.formatDateForDisplay(requestedDate);
     }
 
@@ -601,7 +583,8 @@ export class ChatService {
         conversationId: conversationId || '',
       };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
 
       // Network timeout or connection error
       if (
@@ -617,7 +600,10 @@ export class ChatService {
       }
 
       // API key or authentication error
-      if (errorMessage.includes('401') || errorMessage.includes('Unauthorized')) {
+      if (
+        errorMessage.includes('401') ||
+        errorMessage.includes('Unauthorized')
+      ) {
         return {
           reply:
             'Chat assistant authentication failed. Please contact support.',

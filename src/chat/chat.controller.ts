@@ -1,5 +1,18 @@
-import { Body, Controller, HttpCode, HttpStatus, Post, Req, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  Body,
+  Controller,
+  HttpCode,
+  HttpStatus,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ChatService } from './chat.service';
 import { ChatRequestDto } from './dto/chat-request.dto';
@@ -34,7 +47,10 @@ export class ChatController {
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Chat with Fieldly assistant' })
-  @ApiResponse({ status: 200, description: 'Chat response with conversation ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Chat response with conversation ID',
+  })
   async chat(@Req() req: any, @Body() dto: ChatRequestDto) {
     const conversationId = await this.ensureConversation(
       req.user.id,
@@ -100,5 +116,3 @@ export class ChatController {
     return { reply, conversationId, languageCode };
   }
 }
-
-

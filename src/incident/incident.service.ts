@@ -19,12 +19,18 @@ export class IncidentService {
   ) {
     this.logger.log(
       `Creating incident: type=${createIncidentDto.type}, ` +
-      `lat=${createIncidentDto.latitude}, lng=${createIncidentDto.longitude}, ` +
-      `latType=${typeof createIncidentDto.latitude}, lngType=${typeof createIncidentDto.longitude}`,
+        `lat=${createIncidentDto.latitude}, lng=${createIncidentDto.longitude}, ` +
+        `latType=${typeof createIncidentDto.latitude}, lngType=${typeof createIncidentDto.longitude}`,
     );
 
-    const lat = createIncidentDto.latitude != null ? Number(createIncidentDto.latitude) : null;
-    const lng = createIncidentDto.longitude != null ? Number(createIncidentDto.longitude) : null;
+    const lat =
+      createIncidentDto.latitude != null
+        ? Number(createIncidentDto.latitude)
+        : null;
+    const lng =
+      createIncidentDto.longitude != null
+        ? Number(createIncidentDto.longitude)
+        : null;
 
     const incident = await this.prisma.securityIncident.create({
       data: {

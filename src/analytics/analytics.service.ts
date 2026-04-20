@@ -162,8 +162,11 @@ export class AnalyticsService {
     let yieldPerHaSum = 0;
     let yieldPerHaCount = 0;
     let totalHarvests = 0;
-    let bestParcel: { id: string; location: string; totalYield: number } | null =
-      null;
+    let bestParcel: {
+      id: string;
+      location: string;
+      totalYield: number;
+    } | null = null;
 
     // Monthly trend map — last 12 months
     const trendMap = new Map<string, number>();

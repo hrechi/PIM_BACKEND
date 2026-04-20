@@ -16,7 +16,6 @@ import {
 import { IrrigationService } from './irrigation.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
-
 @ApiTags('Irrigation')
 @Controller('irrigation')
 export class IrrigationController {
@@ -25,13 +24,12 @@ export class IrrigationController {
   @UseGuards(JwtAuthGuard)
   @Post(':fieldId/schedule')
   @ApiBearerAuth('access-token')
-  @ApiOperation({ summary: 'Generate AI-powered 7-day irrigation schedule for a field' })
+  @ApiOperation({
+    summary: 'Generate AI-powered 7-day irrigation schedule for a field',
+  })
   @ApiResponse({ status: 201, description: 'Irrigation schedule generated' })
   @ApiResponse({ status: 404, description: 'Field not found' })
-  async generateSchedule(
-    @Req() req: any,
-    @Param('fieldId') fieldId: string,
-  ) {
+  async generateSchedule(@Req() req: any, @Param('fieldId') fieldId: string) {
     try {
       return await this.irrigationService.generateSchedule(
         fieldId,
