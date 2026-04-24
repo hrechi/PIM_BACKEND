@@ -366,6 +366,7 @@ Ensure the correctAnswer is exactly one of the options. Keep it educational and 
 
   async getSkillPaths(userId: string) {
     await this.ensureSkillCatalogSeeded();
+    await this.resyncUserPathCompletions(userId);
 
     const paths = await this.prisma.skillPath.findMany({
       where: { isActive: true },
@@ -410,6 +411,29 @@ Ensure the correctAnswer is exactly one of the options. Keep it educational and 
         certificateIssued: completion?.certificateIssued ?? false,
       };
     });
+  }
+
+  private async resyncUserPathCompletions(userId: string) {
+    const progressEntries = await this.prisma.skillLessonProgress.findMany({
+      where: { userId },
+      select: {
+        lesson: {
+          select: {
+            pathId: true,
+          },
+        },
+      },
+    });
+
+    const uniquePathIds = Array.from(
+      new Set(progressEntries.map((entry) => entry.lesson.pathId)),
+    );
+
+    if (uniquePathIds.length === 0) {
+      return;
+    }
+
+    await Promise.all(uniquePathIds.map((pathId) => this.syncPathCompletion(userId, pathId)));
   }
 
   async getSkillPathDetails(userId: string, pathId: string) {
@@ -775,13 +799,18 @@ Ensure the correctAnswer is exactly one of the options. Keep it educational and 
     const naturalCompletionPercent =
       totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
     const unlockedByPerfectLesson = perfectLessonCount > 0;
+    const hasAnyProgress = completedLessons > 0 || unlockedByPerfectLesson;
     const completionPercent = unlockedByPerfectLesson
       ? 100
       : naturalCompletionPercent;
     const normalizedCompletedLessons = unlockedByPerfectLesson
       ? totalLessons
       : completedLessons;
-    const status = completionPercent >= 100 ? 'COMPLETED' : 'IN_PROGRESS';
+    const status = !hasAnyProgress
+      ? 'NOT_STARTED'
+      : completionPercent >= 100
+        ? 'COMPLETED'
+        : 'IN_PROGRESS';
     const certificateIssued = status === 'COMPLETED';
 
     return this.prisma.skillPathCompletion.upsert({
