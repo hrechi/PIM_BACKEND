@@ -219,7 +219,10 @@ export class NotificationService implements OnModuleInit {
     }
   }
 
-  private getNotificationContent(type: string): { title: string; body: string } {
+  private getNotificationContent(type: string): {
+    title: string;
+    body: string;
+  } {
     switch (type) {
       case 'intruder':
         return {

@@ -1,38 +1,45 @@
-import { IsString, IsOptional, IsNumber, IsEnum, IsDateString, IsBoolean } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsNumber,
+  IsEnum,
+  IsDateString,
+  IsBoolean,
+} from 'class-validator';
 
 export class CreateVaccineRecordDto {
-    @IsString()
-    animalId: string;
+  @IsString()
+  animalId: string;
 
-    @IsString()
-    vaccineCode: string;
+  @IsString()
+  vaccineCode: string;
 
-    @IsString()
-    administeredBy: string;
+  @IsString()
+  administeredBy: string;
 
-    @IsDateString()
-    administeredAt: string;
+  @IsDateString()
+  administeredAt: string;
 
-    @IsNumber()
-    doseGiven: number;
+  @IsNumber()
+  doseGiven: number;
 
-    @IsOptional()
-    @IsString()
-    doseUnit?: string;
+  @IsOptional()
+  @IsString()
+  doseUnit?: string;
 
-    @IsOptional()
-    @IsString()
-    lotNumber?: string;
+  @IsOptional()
+  @IsString()
+  lotNumber?: string;
 
-    @IsOptional()
-    @IsNumber()
-    bodyWeight?: number;
+  @IsOptional()
+  @IsNumber()
+  bodyWeight?: number;
 
-    @IsOptional()
-    @IsString()
-    scheduleId?: string;
+  @IsOptional()
+  @IsString()
+  scheduleId?: string;
 
-    @IsOptional()
-    @IsString()
-    notes?: string;
+  @IsOptional()
+  @IsString()
+  notes?: string;
 }

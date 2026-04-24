@@ -12,10 +12,7 @@ import { CreateSoilDto } from './dto/create-soil.dto';
 import { UpdateSoilDto } from './dto/update-soil.dto';
 import { QuerySoilDto } from './dto/query-soil.dto';
 import { PhStatus, MoistureStatus } from './enums';
-import {
-  SoilMeasurementWithStatus,
-  PaginatedResponse,
-} from './interfaces';
+import { SoilMeasurementWithStatus, PaginatedResponse } from './interfaces';
 import * as fs from 'fs';
 import axios from 'axios';
 import FormData = require('form-data');
@@ -38,7 +35,9 @@ export class SoilService {
   /**
    * Create a new soil measurement
    */
-  async create(createSoilDto: CreateSoilDto): Promise<SoilMeasurementWithStatus> {
+  async create(
+    createSoilDto: CreateSoilDto,
+  ): Promise<SoilMeasurementWithStatus> {
     try {
       const measurement = this.soilRepository.create(createSoilDto);
       const savedMeasurement = await this.soilRepository.save(measurement);
@@ -69,7 +68,7 @@ export class SoilService {
 
       try {
         this.logger.log('Calling AI service to classify soil image...');
-        
+
         // Read image file and create form data
         const formData = new FormData();
         formData.append('image', fs.createReadStream(imageFilePath));
@@ -77,21 +76,19 @@ export class SoilService {
         const fullUrl = `${this.aiServiceUrl}/classify-soil-image`;
         this.logger.log(`📡 Calling AI endpoint: ${fullUrl}`);
 
-        const response = await axios.post(
-          fullUrl,
-          formData,
-          {
-            headers: formData.getHeaders(),
-            timeout: 15000, // 15 second timeout
-          },
-        );
+        const response = await axios.post(fullUrl, formData, {
+          headers: formData.getHeaders(),
+          timeout: 15000, // 15 second timeout
+        });
 
         const aiResult = response.data;
-        this.logger.log(`✅ AI Classification result: ${JSON.stringify(aiResult)}`);
+        this.logger.log(
+          `✅ AI Classification result: ${JSON.stringify(aiResult)}`,
+        );
 
         soilType = aiResult.soilType || 'Unknown';
         detectionConfidence = aiResult.confidence || 0.0;
-        
+
         // Use AI estimates if values weren't manually provided or if confidence is high
         if (detectionConfidence >= 0.7) {
           // Only suggest values if confidence is high enough
@@ -132,18 +129,24 @@ export class SoilService {
 
       const measurement = this.soilRepository.create(measurementData);
       const savedMeasurement = await this.soilRepository.save(measurement);
-      
-      this.logger.log(`✅ Soil measurement created with type: ${soilType} (confidence: ${detectionConfidence})`);
-      this.logger.log(`📊 Saved measurement data: ${JSON.stringify({
-        id: savedMeasurement.id,
-        soilType: savedMeasurement.soilType,
-        detectionConfidence: savedMeasurement.detectionConfidence,
-        imagePath: savedMeasurement.imagePath,
-      })}`);
-      
+
+      this.logger.log(
+        `✅ Soil measurement created with type: ${soilType} (confidence: ${detectionConfidence})`,
+      );
+      this.logger.log(
+        `📊 Saved measurement data: ${JSON.stringify({
+          id: savedMeasurement.id,
+          soilType: savedMeasurement.soilType,
+          detectionConfidence: savedMeasurement.detectionConfidence,
+          imagePath: savedMeasurement.imagePath,
+        })}`,
+      );
+
       const enriched = this.enrichWithStatus(savedMeasurement);
-      this.logger.log(`📤 Returning to client: soilType=${enriched.soilType}, confidence=${enriched.detectionConfidence}`);
-      
+      this.logger.log(
+        `📤 Returning to client: soilType=${enriched.soilType}, confidence=${enriched.detectionConfidence}`,
+      );
+
       return enriched;
     } catch (error) {
       this.logger.error('Failed to create soil measurement with image:', error);
@@ -164,7 +167,7 @@ export class SoilService {
     const limit = query.limit ?? 10;
     const sortBy = query.sortBy ?? 'createdAt';
     const order = query.order ?? 'DESC';
-    
+
     const skip = (page - 1) * limit;
 
     // Build dynamic where clause for filtering
@@ -190,8 +193,14 @@ export class SoilService {
     }
 
     // Temperature filtering
-    if (query.minTemperature !== undefined && query.maxTemperature !== undefined) {
-      whereClause.temperature = Between(query.minTemperature, query.maxTemperature);
+    if (
+      query.minTemperature !== undefined &&
+      query.maxTemperature !== undefined
+    ) {
+      whereClause.temperature = Between(
+        query.minTemperature,
+        query.maxTemperature,
+      );
     } else if (query.minTemperature !== undefined) {
       whereClause.temperature = MoreThanOrEqual(query.minTemperature);
     } else if (query.maxTemperature !== undefined) {

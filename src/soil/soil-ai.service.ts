@@ -134,11 +134,13 @@ export class SoilAiService {
 
   /**
    * Predict wilting risk for a specific soil measurement
-   * 
+   *
    * @param measurementId - UUID of the soil measurement
    * @returns Prediction result with wilting score and risk level
    */
-  async predictWiltingRisk(measurementId: string): Promise<SoilPredictionResult> {
+  async predictWiltingRisk(
+    measurementId: string,
+  ): Promise<SoilPredictionResult> {
     try {
       // 1. Fetch soil measurement from database
       this.logger.log(`Fetching measurement ${measurementId} from database`);
@@ -159,7 +161,9 @@ export class SoilAiService {
         sunlight: measurement.sunlight,
       };
 
-      this.logger.log(`Sending prediction request to AI service: ${JSON.stringify(predictionRequest)}`);
+      this.logger.log(
+        `Sending prediction request to AI service: ${JSON.stringify(predictionRequest)}`,
+      );
 
       // 3. Call AI service via HTTP
       const response = await this.axiosInstance.post<PredictionResponse>(
@@ -186,13 +190,14 @@ export class SoilAiService {
           measured_at: measurement.createdAt,
         },
       };
-
     } catch (error) {
       // Handle different error types
       if (axios.isAxiosError(error)) {
         if (error.response) {
           // AI service returned an error response
-          this.logger.error(`AI service error: ${error.response.status} - ${JSON.stringify(error.response.data)}`);
+          this.logger.error(
+            `AI service error: ${error.response.status} - ${JSON.stringify(error.response.data)}`,
+          );
           throw new HttpException(
             `AI service error: ${error.response.data?.detail || 'Prediction failed'}`,
             error.response.status,
@@ -218,12 +223,16 @@ export class SoilAiService {
 
   /**
    * Batch prediction for multiple soil measurements
-   * 
+   *
    * @param measurementIds - Array of measurement UUIDs
    * @returns Array of prediction results
    */
-  async batchPredictWiltingRisk(measurementIds: string[]): Promise<SoilPredictionResult[]> {
-    this.logger.log(`Processing batch prediction for ${measurementIds.length} measurements`);
+  async batchPredictWiltingRisk(
+    measurementIds: string[],
+  ): Promise<SoilPredictionResult[]> {
+    this.logger.log(
+      `Processing batch prediction for ${measurementIds.length} measurements`,
+    );
 
     const predictions: SoilPredictionResult[] = [];
 
@@ -233,7 +242,9 @@ export class SoilAiService {
         const prediction = await this.predictWiltingRisk(measurementId);
         predictions.push(prediction);
       } catch (error) {
-        this.logger.warn(`Failed to predict for measurement ${measurementId}: ${error.message}`);
+        this.logger.warn(
+          `Failed to predict for measurement ${measurementId}: ${error.message}`,
+        );
         // Continue with other measurements even if one fails
       }
     }
@@ -243,10 +254,13 @@ export class SoilAiService {
 
   /**
    * Check if AI service is available
-   * 
+   *
    * @returns Health status of AI service
    */
-  async checkAiServiceHealth(): Promise<{ status: string; service_url: string }> {
+  async checkAiServiceHealth(): Promise<{
+    status: string;
+    service_url: string;
+  }> {
     try {
       const response = await this.axiosInstance.get('/health');
       return {
@@ -264,7 +278,7 @@ export class SoilAiService {
 
   /**
    * Call unified ML-based crop recommendation API
-   * 
+   *
    * @param input - Soil and environmental parameters
    * @returns Complete crop suitability analysis from ML model
    */
@@ -280,7 +294,9 @@ export class SoilAiService {
     farmerCrops?: string[];
   }): Promise<CropSuitabilityAiResponse> {
     try {
-      this.logger.log(`Calling ML crop suitability prediction for region: ${input.region}`);
+      this.logger.log(
+        `Calling ML crop suitability prediction for region: ${input.region}`,
+      );
 
       const request: CropSuitabilityRequest = {
         N: input.N,
@@ -299,14 +315,17 @@ export class SoilAiService {
         request,
       );
 
-      this.logger.log(`ML prediction received: Soil Health=${response.data.soilProfile.soilHealthScore}, Best Crop=${response.data.bestCrops[0]?.crop}`);
+      this.logger.log(
+        `ML prediction received: Soil Health=${response.data.soilProfile.soilHealthScore}, Best Crop=${response.data.bestCrops[0]?.crop}`,
+      );
 
       return response.data;
-
     } catch (error) {
       if (axios.isAxiosError(error)) {
         if (error.response) {
-          this.logger.error(`AI service error: ${error.response.status} - ${JSON.stringify(error.response.data)}`);
+          this.logger.error(
+            `AI service error: ${error.response.status} - ${JSON.stringify(error.response.data)}`,
+          );
           throw new HttpException(
             `AI crop prediction failed: ${error.response.data?.detail || 'Unknown error'}`,
             error.response.status,

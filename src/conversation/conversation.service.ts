@@ -5,10 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 export class ConversationService {
   constructor(private readonly prismaService: PrismaService) {}
 
-  async createConversation(
-    userId: string,
-    title: string = 'New Conversation',
-  ) {
+  async createConversation(userId: string, title: string = 'New Conversation') {
     return this.prismaService.conversation.create({
       data: {
         userId,

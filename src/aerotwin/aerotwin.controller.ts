@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Query, Body, BadRequestException } from '@nestjs/common';
 import { AeroTwinService } from './aerotwin.service';
-import { IsString, IsNumber, ValidateNested, IsObject } from 'class-validator';
+import { IsString, IsNumber, ValidateNested, IsObject, IsOptional } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class SimulationParamsDto {
@@ -12,6 +12,14 @@ export class SimulationParamsDto {
 
   @IsNumber()
   nitrogenLevel: number;
+
+  @IsOptional()
+  @IsNumber()
+  pestRisk?: number;
+
+  @IsOptional()
+  @IsNumber()
+  sunlightHours?: number;
 }
 
 export class SimulateDto {
@@ -31,8 +39,7 @@ export class AeroTwinController {
   @Get('ndvi')
   async getNDVI(@Query('fieldId') fieldId: string, @Query('date') date: string) {
     if (!fieldId) throw new BadRequestException("fieldId is required");
-    const targetDate = date ? date : new Date().toISOString();
-    return this.aerotwinService.getOrComputeNDVI(fieldId, targetDate);
+    return this.aerotwinService.getOrComputeNDVI(fieldId, date);
   }
 
   @Get('history')
@@ -52,6 +59,12 @@ export class AeroTwinController {
     if (!body.fieldId || !body.params) {
       throw new BadRequestException("fieldId and params are required");
     }
-    return this.aerotwinService.simulateNDVI(body.fieldId, body.params);
+    const simulationResult = await this.aerotwinService.simulateNDVI(body.fieldId, body.params);
+    const alerts = await this.aerotwinService.getAlerts(body.fieldId, body.params);
+    
+    return {
+      ...simulationResult,
+      alerts
+    };
   }
 }

@@ -14,7 +14,13 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -27,7 +33,15 @@ import { VoteDto } from './dto/vote.dto';
 import { UpdatePostDto } from './dto/update-post.dto';
 import { UpdateCommentDto } from './dto/update-comment.dto';
 
-const ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif', '.jfif'];
+const ALLOWED_EXTENSIONS = [
+  '.jpg',
+  '.jpeg',
+  '.png',
+  '.webp',
+  '.heic',
+  '.heif',
+  '.jfif',
+];
 const MAX_FILE_SIZE = 15 * 1024 * 1024;
 
 @ApiTags('Community')
@@ -49,7 +63,10 @@ export class CommunityController {
         pollOptions: {
           oneOf: [
             { type: 'array', items: { type: 'string' } },
-            { type: 'string', description: 'JSON array string or comma-separated values' },
+            {
+              type: 'string',
+              description: 'JSON array string or comma-separated values',
+            },
           ],
         },
         pollEndsAt: { type: 'string', format: 'date-time' },
@@ -75,7 +92,9 @@ export class CommunityController {
   ) {
     if (file) {
       if (file.size > MAX_FILE_SIZE) {
-        throw new BadRequestException('Image file exceeds maximum size of 15MB');
+        throw new BadRequestException(
+          'Image file exceeds maximum size of 15MB',
+        );
       }
 
       const extension = extname(file.originalname).toLowerCase();
@@ -93,12 +112,20 @@ export class CommunityController {
   @Get('posts')
   @ApiOperation({ summary: 'Get global community feed posts' })
   listPosts(@Req() req: any, @Query() query: ListPostsDto) {
-    return this.communityService.listPosts(req.user.id, query.limit, query.offset);
+    return this.communityService.listPosts(
+      req.user.id,
+      query.limit,
+      query.offset,
+    );
   }
 
   @Patch('posts/:postId')
   @ApiOperation({ summary: 'Update own post content' })
-  updatePost(@Req() req: any, @Param('postId') postId: string, @Body() dto: UpdatePostDto) {
+  updatePost(
+    @Req() req: any,
+    @Param('postId') postId: string,
+    @Body() dto: UpdatePostDto,
+  ) {
     return this.communityService.updatePost(req.user.id, postId, dto);
   }
 
@@ -110,7 +137,11 @@ export class CommunityController {
 
   @Post('posts/:postId/react')
   @ApiOperation({ summary: 'Like or dislike a post (toggle behavior)' })
-  reactPost(@Req() req: any, @Param('postId') postId: string, @Body() dto: ReactDto) {
+  reactPost(
+    @Req() req: any,
+    @Param('postId') postId: string,
+    @Body() dto: ReactDto,
+  ) {
     return this.communityService.reactToPost(req.user.id, postId, dto.type);
   }
 
@@ -147,13 +178,19 @@ export class CommunityController {
   }
 
   @Post('comments/:commentId/react')
-  @ApiOperation({ summary: 'Like or dislike a comment/reply (toggle behavior)' })
+  @ApiOperation({
+    summary: 'Like or dislike a comment/reply (toggle behavior)',
+  })
   reactComment(
     @Req() req: any,
     @Param('commentId') commentId: string,
     @Body() dto: ReactDto,
   ) {
-    return this.communityService.reactToComment(req.user.id, commentId, dto.type);
+    return this.communityService.reactToComment(
+      req.user.id,
+      commentId,
+      dto.type,
+    );
   }
 
   @Post('posts/:postId/vote')
@@ -164,8 +201,10 @@ export class CommunityController {
 
   private parseCreatePostDto(body: Record<string, unknown>): CreatePostDto {
     const content = typeof body.content === 'string' ? body.content : '';
-    const pollQuestion = typeof body.pollQuestion === 'string' ? body.pollQuestion : undefined;
-    const pollEndsAt = typeof body.pollEndsAt === 'string' ? body.pollEndsAt : undefined;
+    const pollQuestion =
+      typeof body.pollQuestion === 'string' ? body.pollQuestion : undefined;
+    const pollEndsAt =
+      typeof body.pollEndsAt === 'string' ? body.pollEndsAt : undefined;
 
     const rawOptions = body.pollOptions;
     let pollOptions: string[] | undefined;

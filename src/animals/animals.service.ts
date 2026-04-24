@@ -5,296 +5,540 @@ import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class AnimalsService {
-    constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService) {}
 
-    private calculateExpectedBirthDate(animalType: string, lastInseminationDate: Date): Date {
-        const gestationPeriods: Record<string, number> = {
-            cow: 283,
-            horse: 340,
-            sheep: 152,
-            dog: 63,
-        };
-        const days = gestationPeriods[animalType.toLowerCase()] ?? 283;
-        const expectedDate = new Date(lastInseminationDate);
-        expectedDate.setDate(expectedDate.getDate() + days);
-        return expectedDate;
+  private calculateAgeInMonths(birthDate: Date | null, createdAt: Date): number {
+    const referenceDate = birthDate || createdAt;
+    const now = new Date();
+    const diffTime = Math.abs(now.getTime() - referenceDate.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return Math.floor(diffDays / 30); // Approximate months
+  }
+
+  private calculateExpectedBirthDate(
+    animalType: string,
+    lastInseminationDate: Date,
+  ): Date {
+    const gestationPeriods: Record<string, number> = {
+      cow: 283,
+      horse: 340,
+      sheep: 152,
+      dog: 63,
+    };
+    const days = gestationPeriods[animalType.toLowerCase()] ?? 283;
+    const expectedDate = new Date(lastInseminationDate);
+    expectedDate.setDate(expectedDate.getDate() + days);
+    return expectedDate;
+  }
+
+  async create(data: any, farmerId: string) {
+    const { vaccines, fieldId, ...rest } = data;
+
+    // Transform incoming data to match schema
+    const transformedData: any = {
+      ...rest,
+      farmerId, // Explicitly set foreign key from JWT
+      fieldId, // Explicitly set field association
+    };
+
+    // Handle species-specific gestation calculation
+    if (transformedData.lastInseminationDate && transformedData.animalType) {
+      transformedData.expectedBirthDate = this.calculateExpectedBirthDate(
+        transformedData.animalType,
+        new Date(transformedData.lastInseminationDate),
+      );
     }
 
-    async create(data: any, farmerId: string) {
-        const { vaccines, fieldId, ...rest } = data;
+    // Calculate age in months
+    const birthDate = transformedData.lastBirthDate ? new Date(transformedData.lastBirthDate) : null;
+    const createdAt = new Date();
+    transformedData.age = this.calculateAgeInMonths(birthDate, createdAt);
+    transformedData.ageYears = Math.floor(transformedData.age / 12);
 
-        // Transform incoming data to match schema
-        const transformedData: any = {
-            ...rest,
-            farmerId, // Explicitly set foreign key from JWT
-            fieldId  // Explicitly set field association
-        };
+    // Handle date fields to ensure they are actual Date objects if provided as strings
+    const dateFields = [
+      'lastInseminationDate',
+      'lastBirthDate',
+      'expectedBirthDate',
+      'lastVetCheck',
+      'feedIntakeRecorded',
+      'dewormingScheduled',
+      'milkPeakDate',
+      'woolLastShearDate',
+      'purchaseDate',
+      'saleDate',
+    ];
 
-        // Handle species-specific gestation calculation
-        if (transformedData.lastInseminationDate && transformedData.animalType) {
-            transformedData.expectedBirthDate = this.calculateExpectedBirthDate(
-                transformedData.animalType,
-                new Date(transformedData.lastInseminationDate),
-            );
-        }
+    dateFields.forEach((field) => {
+      if (
+        transformedData[field] &&
+        typeof transformedData[field] === 'string'
+      ) {
+        transformedData[field] = new Date(transformedData[field]);
+      }
+    });
 
-        // Handle date fields to ensure they are actual Date objects if provided as strings
-        const dateFields = [
-            'lastInseminationDate', 'lastBirthDate', 'expectedBirthDate', 'lastVetCheck',
-            'feedIntakeRecorded', 'dewormingScheduled', 'milkPeakDate', 'woolLastShearDate',
-            'purchaseDate', 'saleDate'
-        ];
+    // Map vaccines to vaccineRecords relation
+    if (vaccines && Array.isArray(vaccines)) {
+      const otherVaccine = await this.prisma.vaccine.findUnique({
+        where: { code: 'OTHER' },
+      });
 
-        dateFields.forEach(field => {
-            if (transformedData[field] && typeof transformedData[field] === 'string') {
-                transformedData[field] = new Date(transformedData[field]);
-            }
-        });
-
-        // Map vaccines to vaccineRecords relation
-        if (vaccines && Array.isArray(vaccines)) {
-            const otherVaccine = await this.prisma.vaccine.findUnique({ where: { code: 'OTHER' } });
-
-            transformedData.vaccineRecords = {
-                create: vaccines.filter(v => v.name || v.vaccineName || v.vaccineId).map((v: any) => ({
-                    vaccineId: v.vaccineId || otherVaccine?.id || '',
-                    administeredAt: new Date(v.date || v.vaccineDate || v.administeredAt || new Date()),
-                    administeredBy: v.administeredBy || v.vetName || 'System',
-                    doseGiven: v.doseGiven || 1.0,
-                    lotNumber: v.lotNumber,
-                    nextDueDate: v.nextDueDate ? new Date(v.nextDueDate) : null,
-                    observations: v.notes || v.observations || (v.name || v.vaccineName),
-                })),
-            };
-        }
-
-        return this.prisma.animal.create({
-            data: transformedData,
-        });
+      transformedData.vaccineRecords = {
+        create: vaccines
+          .filter((v) => v.name || v.vaccineName || v.vaccineId)
+          .map((v: any) => ({
+            vaccineId: v.vaccineId || otherVaccine?.id || '',
+            administeredAt: new Date(
+              v.date || v.vaccineDate || v.administeredAt || new Date(),
+            ),
+            administeredBy: v.administeredBy || v.vetName || 'System',
+            doseGiven: v.doseGiven || 1.0,
+            lotNumber: v.lotNumber,
+            nextDueDate: v.nextDueDate ? new Date(v.nextDueDate) : null,
+            observations: v.notes || v.observations || v.name || v.vaccineName,
+          })),
+      };
     }
 
-    async findAllByFarmer(
-        farmerId: string,
-        animalType?: string,
-        fieldId?: string,
-        role: string = 'OWNER',
-        assignedFieldId?: string | null,
-    ) {
-        const where: any = { farmerId };
-        if (animalType) {
-            where.animalType = animalType.toLowerCase();
-        }
-        if (role === 'WORKER' || role === 'FARMER') {
-            where.fieldId = assignedFieldId || '__NO_FIELD__';
-        } else if (fieldId) {
-            where.fieldId = fieldId;
-        }
+    const newAnimal = await this.prisma.animal.create({
+      data: transformedData,
+    });
 
-        return this.prisma.animal.findMany({
-            where,
-            include: {
-                medicalEvents: true,
-                vaccineRecords: true
-            } as any,
-            orderBy: { createdAt: 'desc' },
-        });
+    // Add expense automatically for purchased animals
+    if (newAnimal.origin === 'purchased' && newAnimal.purchasePrice) {
+      await this.prisma.expense.create({
+        data: {
+          animalId: newAnimal.id,
+          farmId: farmerId,
+          fieldId: newAnimal.fieldId,
+          date: newAnimal.purchaseDate || new Date(),
+          category: 'achat animal',
+          amount: newAnimal.purchasePrice,
+          description: `Achat de l'animal : ${newAnimal.name} (${newAnimal.tagNumber || 'Sans tag'})`,
+        },
+      });
     }
 
-    async update(nodeId: string, data: any, farmerId: string) {
-        // Find by nodeId AND farmerId for security
-        const animal = await this.prisma.animal.findFirst({
-            where: { nodeId, farmerId },
-        });
+    return newAnimal;
+  }
 
-        if (!animal) {
-            throw new NotFoundException(`Animal with NodeID ${nodeId} not found or access denied`);
-        }
-
-        const { vaccines, ...rest } = data;
-        const transformedData = { ...rest };
-
-        // Handle species-specific gestation calculation
-        if (transformedData.lastInseminationDate || transformedData.animalType) {
-            const type = transformedData.animalType || animal.animalType;
-            const insDate = transformedData.lastInseminationDate
-                ? new Date(transformedData.lastInseminationDate)
-                : animal.lastInseminationDate;
-
-            if (insDate) {
-                transformedData.expectedBirthDate = this.calculateExpectedBirthDate(type, insDate);
-            }
-        }
-
-        // Handle date fields
-        const dateFields = [
-            'lastInseminationDate', 'lastBirthDate', 'expectedBirthDate', 'lastVetCheck',
-            'feedIntakeRecorded', 'dewormingScheduled', 'milkPeakDate', 'woolLastShearDate',
-            'purchaseDate', 'saleDate'
-        ];
-
-        dateFields.forEach(field => {
-            if (transformedData[field] && typeof transformedData[field] === 'string') {
-                transformedData[field] = new Date(transformedData[field]);
-            }
-        });
-
-        // Clean up data
-        delete transformedData.id;
-        delete transformedData.farmerId;
-        delete transformedData.nodeId;
-
-        // Synchronize vaccineRecords if provided
-        if (vaccines && Array.isArray(vaccines)) {
-            // Transaction to ensure atomicity
-            return this.prisma.$transaction(async (tx) => {
-                // 1. Delete existing records
-                await (tx as any).vaccineRecord.deleteMany({
-                    where: { animalId: animal.id },
-                });
-
-                // 2. Create new records
-                const otherVaccine = await tx.vaccine.findUnique({ where: { code: 'OTHER' } });
-                const vaccinationData = vaccines.filter(v => v.name || v.vaccineName || v.vaccineId).map((v: any) => ({
-                    vaccineId: v.vaccineId || otherVaccine?.id || '',
-                    administeredAt: new Date(v.date || v.vaccineDate || v.administeredAt || new Date()),
-                    administeredBy: v.administeredBy || v.vetName || 'System',
-                    doseGiven: v.doseGiven || 1.0,
-                    lotNumber: v.lotNumber,
-                    nextDueDate: v.nextDueDate ? new Date(v.nextDueDate) : null,
-                    observations: v.notes || v.observations || (v.name || v.vaccineName),
-                    animalId: animal.id, // Explicitly set the animal link
-                }));
-
-                if (vaccinationData.length > 0) {
-                    await (tx as any).vaccineRecord.createMany({
-                        data: vaccinationData,
-                    });
-                }
-
-                // 3. Update the animal
-                return tx.animal.update({
-                    where: { nodeId },
-                    data: transformedData,
-                });
-            });
-        }
-
-        return this.prisma.animal.update({
-            where: { nodeId },
-            data: transformedData,
-        });
+  async findAllByFarmer(
+    farmerId: string,
+    animalType?: string,
+    fieldId?: string,
+  ) {
+    const where: any = { farmerId };
+    if (animalType) {
+      where.animalType = animalType.toLowerCase();
+    }
+    if (fieldId) {
+      where.fieldId = fieldId;
     }
 
-    async remove(nodeId: string, farmerId: string) {
-        const animal = await this.prisma.animal.findFirst({
-            where: { nodeId, farmerId },
-        });
+    return this.prisma.animal.findMany({
+      where,
+      include: {
+        medicalEvents: true,
+        vaccineRecords: true,
+      } as any,
+      orderBy: { createdAt: 'desc' },
+    });
+  }
 
-        if (!animal) {
-            throw new NotFoundException(`Animal with NodeID ${nodeId} not found or access denied`);
-        }
-
-        return this.prisma.animal.delete({
-            where: { nodeId },
-        });
+  async findForSaleByFarmer(farmerId: string, fieldId?: string) {
+    const where: any = {
+      farmerId,
+      status: 'active',
+      isFattening: true,
+    };
+    if (fieldId) {
+      where.fieldId = fieldId;
     }
 
-    async getStatistics(
-        farmerId: string,
-        fieldId?: string,
-        role: string = 'OWNER',
-        assignedFieldId?: string | null,
-    ) {
-        const baseWhere: any = { farmerId, status: 'active' };
-        if (role === 'WORKER' || role === 'FARMER') {
-            baseWhere.fieldId = assignedFieldId || '__NO_FIELD__';
-        } else if (fieldId) {
-            baseWhere.fieldId = fieldId;
+    return this.prisma.animal.findMany({
+      where,
+      include: {
+        medicalEvents: true,
+        vaccineRecords: true,
+      } as any,
+      orderBy: { targetSaleDate: 'asc' },
+    });
+  }
+
+  async setFattening(nodeId: string, data: any, farmerId: string) {
+    const animal = await this.prisma.animal.findFirst({
+      where: { nodeId, farmerId },
+    });
+
+    if (!animal) {
+      throw new NotFoundException(
+        `Animal with NodeID ${nodeId} not found or access denied`,
+      );
+    }
+
+    if (animal.status === 'sold' || animal.status === 'deceased') {
+      throw new NotFoundException(
+        `Cannot mark ${animal.status} animal as fattening`,
+      );
+    }
+
+    const transformedData: any = {
+      isFattening: true,
+      fatteningStartDate: data.fatteningStartDate
+        ? new Date(data.fatteningStartDate)
+        : new Date(),
+      targetSaleDate: data.targetSaleDate
+        ? new Date(data.targetSaleDate)
+        : null,
+      notes: data.notes
+        ? animal.notes
+          ? animal.notes + '\n\nPlanned fattening: ' + data.notes
+          : 'Planned fattening: ' + data.notes
+        : animal.notes,
+      status: 'active',
+    };
+
+    return this.prisma.animal.update({
+      where: { nodeId },
+      data: transformedData,
+    });
+  }
+
+  async update(nodeId: string, data: any, farmerId: string) {
+    // Find by nodeId AND farmerId for security
+    const animal = await this.prisma.animal.findFirst({
+      where: { nodeId, farmerId },
+    });
+
+    if (!animal) {
+      throw new NotFoundException(
+        `Animal with NodeID ${nodeId} not found or access denied`,
+      );
+    }
+
+    const { vaccines, ...rest } = data;
+    const transformedData = { ...rest };
+
+    // Handle species-specific gestation calculation
+    if (transformedData.lastInseminationDate || transformedData.animalType) {
+      const type = transformedData.animalType || animal.animalType;
+      const insDate = transformedData.lastInseminationDate
+        ? new Date(transformedData.lastInseminationDate)
+        : animal.lastInseminationDate;
+
+      if (insDate) {
+        transformedData.expectedBirthDate = this.calculateExpectedBirthDate(
+          type,
+          insDate,
+        );
+      }
+    }
+
+    // Handle date fields
+    const dateFields = [
+      'lastInseminationDate',
+      'lastBirthDate',
+      'expectedBirthDate',
+      'lastVetCheck',
+      'feedIntakeRecorded',
+      'dewormingScheduled',
+      'milkPeakDate',
+      'woolLastShearDate',
+      'purchaseDate',
+      'saleDate',
+    ];
+
+    dateFields.forEach((field) => {
+      if (
+        transformedData[field] &&
+        typeof transformedData[field] === 'string'
+      ) {
+        transformedData[field] = new Date(transformedData[field]);
+      }
+    });
+
+    // Clean up data
+    delete transformedData.id;
+    delete transformedData.farmerId;
+    delete transformedData.nodeId;
+
+    // Synchronize vaccineRecords if provided
+    if (vaccines && Array.isArray(vaccines)) {
+      // Transaction to ensure atomicity
+      return this.prisma.$transaction(async (tx) => {
+        // 1. Delete existing records
+        await (tx as any).vaccineRecord.deleteMany({
+          where: { animalId: animal.id },
+        });
+
+        // 2. Create new records
+        const otherVaccine = await tx.vaccine.findUnique({
+          where: { code: 'OTHER' },
+        });
+        const vaccinationData = vaccines
+          .filter((v) => v.name || v.vaccineName || v.vaccineId)
+          .map((v: any) => ({
+            vaccineId: v.vaccineId || otherVaccine?.id || '',
+            administeredAt: new Date(
+              v.date || v.vaccineDate || v.administeredAt || new Date(),
+            ),
+            administeredBy: v.administeredBy || v.vetName || 'System',
+            doseGiven: v.doseGiven || 1.0,
+            lotNumber: v.lotNumber,
+            nextDueDate: v.nextDueDate ? new Date(v.nextDueDate) : null,
+            observations: v.notes || v.observations || v.name || v.vaccineName,
+            animalId: animal.id, // Explicitly set the animal link
+          }));
+
+        if (vaccinationData.length > 0) {
+          await (tx as any).vaccineRecord.createMany({
+            data: vaccinationData,
+          });
         }
 
-        const [
-            totalCount,
-            lowHealthCount,
-            speciesCounts,
-            attentionList,
-            vaccinesDueCount,
-            todayMilk,
-            yesterdayMilk,
-            monthlyExpenseAggregate,
-        ] = await Promise.all([
-            this.prisma.animal.count({ where: baseWhere }),
-            this.prisma.animal.count({ where: { ...baseWhere, vitalityScore: { lt: 50 } } }),
-            this.prisma.animal.groupBy({
-                by: ['animalType'],
-                where: baseWhere,
-                _count: true,
-            }),
-            this.prisma.animal.findMany({
-                where: { ...baseWhere, vitalityScore: { lt: 80 } },
-                orderBy: { vitalityScore: 'asc' },
-                take: 5,
-            }),
-            (this.prisma as any).vaccineSchedule.count({
-                where: {
-                    animal: baseWhere,
-                    status: { in: ['PENDING', 'NOTIFIED', 'OVERDUE'] },
-                    scheduledDate: { lte: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) }, // Due within 7 days
-                },
-            }),
-            this.prisma.milkProduction.aggregate({
-                where: {
-                    animal: baseWhere,
-                    date: {
-                        gte: new Date(new Date().setHours(0, 0, 0, 0)),
-                        lt: new Date(new Date().setHours(23, 59, 59, 999)),
-                    },
-                },
-                _sum: { totalL: true },
-            }),
-            this.prisma.milkProduction.aggregate({
-                where: {
-                    animal: baseWhere,
-                    date: {
-                        gte: new Date(new Date(new Date().setDate(new Date().getDate() - 1)).setHours(0, 0, 0, 0)),
-                        lt: new Date(new Date(new Date().setDate(new Date().getDate() - 1)).setHours(23, 59, 59, 999)),
-                    },
-                },
-                _sum: { totalL: true },
-            }),
-            role === 'WORKER' || role === 'FARMER'
-                ? Promise.resolve({ _sum: { amount: null } })
-                : this.prisma.expense.aggregate({
-                    where: {
-                        farmId: farmerId,
-                        date: {
-                            gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
-                        },
-                    },
-                    _sum: { amount: true },
-                }),
-        ]);
-
-        const speciesDistribution = speciesCounts.reduce((acc, curr) => {
-            acc[curr.animalType.toLowerCase()] = curr._count;
-            return acc;
-        }, {} as Record<string, number>);
-
-        return {
-            totalAnimals: totalCount,
-            healthAlerts: lowHealthCount,
-            vaccinesDue: vaccinesDueCount,
-            monthlySpend: role === 'WORKER' || role === 'FARMER'
-                ? 0
-                : monthlyExpenseAggregate?._sum?.amount ? Number(monthlyExpenseAggregate._sum.amount) : 0,
-            speciesDistribution,
-            needingAttention: attentionList,
-            todayMilk: todayMilk._sum.totalL ? Number(todayMilk._sum.totalL) : 0,
-            yesterdayMilk: yesterdayMilk._sum.totalL ? Number(yesterdayMilk._sum.totalL) : 0,
-            reminders: [
-                { id: '1', title: 'Vaccine due (Bessie)', subtitle: 'Scheduled for morning session', time: 'ASAP', type: 'vaccine' },
-                { id: '2', title: 'Vet visit', subtitle: 'General herd inspection', time: '14:00', type: 'visit' }
-            ]
-        };
+        // 3. Update the animal
+        return tx.animal.update({
+          where: { nodeId },
+          data: transformedData,
+        });
+      });
     }
+
+    return this.prisma.animal.update({
+      where: { nodeId },
+      data: transformedData,
+    });
+  }
+
+  async sell(nodeId: string, data: any, farmerId: string) {
+    const animal = await this.prisma.animal.findFirst({
+      where: { nodeId, farmerId },
+    });
+
+    if (!animal) {
+      throw new NotFoundException(
+        `Animal with NodeID ${nodeId} not found or access denied`,
+      );
+    }
+
+    const { salePrice, saleDate, buyerName, saleWeightKg, notes } = data;
+
+    console.log('💰 SELL ANIMAL');
+    console.log('  nodeId:', nodeId);
+    console.log('  farmerId:', farmerId);
+    console.log('  fieldId:', animal.fieldId);
+    console.log('  salePrice:', salePrice);
+    console.log('  saleDate:', saleDate);
+    console.log('  saleDate as Date:', new Date(saleDate).toISOString());
+
+    return this.prisma.animal.update({
+      where: { nodeId },
+      data: {
+        status: 'sold',
+        salePrice,
+        saleDate: new Date(saleDate),
+        buyerName,
+        saleWeightKg,
+        notes: notes
+          ? animal.notes
+            ? animal.notes + '\n\nSale Note: ' + notes
+            : 'Sale Note: ' + notes
+          : animal.notes,
+      },
+    });
+  }
+
+  async cancelSale(nodeId: string, farmerId: string) {
+    const animal = await this.prisma.animal.findFirst({
+      where: { nodeId, farmerId },
+    });
+
+    if (!animal) {
+      throw new NotFoundException(
+        `Animal with NodeID ${nodeId} not found or access denied`,
+      );
+    }
+
+    if (animal.status !== 'sold') {
+      throw new NotFoundException(`Animal with NodeID ${nodeId} is not sold`);
+    }
+
+    // Clear sale information and revert to active
+    return this.prisma.animal.update({
+      where: { nodeId },
+      data: {
+        status: 'active',
+        salePrice: null,
+        saleDate: null,
+        buyerName: null,
+        saleWeightKg: null,
+        notes: animal.notes
+          ? animal.notes + '\n\nSale cancelled'
+          : 'Sale cancelled',
+      },
+    });
+  }
+
+  async getSoldAnimals(farmerId: string, fieldId?: string) {
+    const where: any = { farmerId, status: 'sold' };
+    if (fieldId) {
+      where.fieldId = fieldId;
+    }
+
+    return this.prisma.animal.findMany({
+      where,
+      include: { medicalEvents: true, vaccineRecords: true } as any,
+      orderBy: { saleDate: 'desc' },
+    });
+  }
+
+  async remove(nodeId: string, farmerId: string) {
+    const animal = await this.prisma.animal.findFirst({
+      where: { nodeId, farmerId },
+    });
+
+    if (!animal) {
+      throw new NotFoundException(
+        `Animal with NodeID ${nodeId} not found or access denied`,
+      );
+    }
+
+    return this.prisma.animal.delete({
+      where: { nodeId },
+    });
+  }
+
+  async findById(id: string, farmerId: string) {
+    const animal = await this.prisma.animal.findFirst({
+      where: { id, farmerId },
+      include: { medicalEvents: true, vaccineRecords: true } as any,
+    });
+    if (!animal) throw new NotFoundException('Animal not found');
+    return animal;
+  }
+
+  async getStatistics(farmerId: string, fieldId?: string) {
+    const baseWhere: any = { farmerId, status: 'active' };
+    if (fieldId) {
+      baseWhere.fieldId = fieldId;
+    }
+
+    const [
+      totalCount,
+      lowHealthCount,
+      speciesCounts,
+      attentionList,
+      vaccinesDueCount,
+      todayMilk,
+      yesterdayMilk,
+      monthlyExpenseAggregate,
+    ] = await Promise.all([
+      this.prisma.animal.count({ where: baseWhere }),
+      this.prisma.animal.count({
+        where: { ...baseWhere, vitalityScore: { lt: 50 } },
+      }),
+      this.prisma.animal.groupBy({
+        by: ['animalType'],
+        where: baseWhere,
+        _count: true,
+      }),
+      this.prisma.animal.findMany({
+        where: { ...baseWhere, vitalityScore: { lt: 80 } },
+        orderBy: { vitalityScore: 'asc' },
+        take: 5,
+      }),
+      (this.prisma as any).vaccineSchedule.count({
+        where: {
+          animal: baseWhere,
+          status: { in: ['PENDING', 'NOTIFIED', 'OVERDUE'] },
+          scheduledDate: {
+            lte: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+          }, // Due within 7 days
+        },
+      }),
+      this.prisma.milkProduction.aggregate({
+        where: {
+          animal: baseWhere,
+          date: {
+            gte: new Date(new Date().setHours(0, 0, 0, 0)),
+            lt: new Date(new Date().setHours(23, 59, 59, 999)),
+          },
+        },
+        _sum: { totalL: true },
+      }),
+      this.prisma.milkProduction.aggregate({
+        where: {
+          animal: baseWhere,
+          date: {
+            gte: new Date(
+              new Date(new Date().setDate(new Date().getDate() - 1)).setHours(
+                0,
+                0,
+                0,
+                0,
+              ),
+            ),
+            lt: new Date(
+              new Date(new Date().setDate(new Date().getDate() - 1)).setHours(
+                23,
+                59,
+                59,
+                999,
+              ),
+            ),
+          },
+        },
+        _sum: { totalL: true },
+      }),
+      this.prisma.expense.aggregate({
+        where: {
+          farmId: farmerId,
+          date: {
+            gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+          },
+        },
+        _sum: { amount: true },
+      }),
+    ]);
+
+    const speciesDistribution = speciesCounts.reduce(
+      (acc, curr) => {
+        acc[curr.animalType.toLowerCase()] = curr._count;
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
+
+    return {
+      totalAnimals: totalCount,
+      healthAlerts: lowHealthCount,
+      vaccinesDue: vaccinesDueCount,
+      monthlySpend: monthlyExpenseAggregate?._sum?.amount
+        ? Number(monthlyExpenseAggregate._sum.amount)
+        : 0,
+      speciesDistribution,
+      needingAttention: attentionList,
+      todayMilk: todayMilk._sum.totalL ? Number(todayMilk._sum.totalL) : 0,
+      yesterdayMilk: yesterdayMilk._sum.totalL
+        ? Number(yesterdayMilk._sum.totalL)
+        : 0,
+      reminders: [
+        {
+          id: '1',
+          title: 'Vaccine due (Bessie)',
+          subtitle: 'Scheduled for morning session',
+          time: 'ASAP',
+          type: 'vaccine',
+        },
+        {
+          id: '2',
+          title: 'Vet visit',
+          subtitle: 'General herd inspection',
+          time: '14:00',
+          type: 'visit',
+        },
+      ],
+    };
+  }
 }
-

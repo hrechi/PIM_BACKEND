@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, ForbiddenException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  Logger,
+} from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
@@ -22,7 +27,10 @@ export class IrrigationService {
   /**
    * Compute the centroid (average lat/lng) of a polygon's coordinates.
    */
-  private computeCentroid(areaCoordinates: number[][]): { lat: number; lng: number } {
+  private computeCentroid(areaCoordinates: number[][]): {
+    lat: number;
+    lng: number;
+  } {
     if (!areaCoordinates || areaCoordinates.length === 0) {
       throw new Error('Field has no area coordinates');
     }

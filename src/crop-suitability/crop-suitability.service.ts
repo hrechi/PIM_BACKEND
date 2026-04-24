@@ -3,47 +3,47 @@ import { PrismaService } from '../prisma/prisma.service';
 import { SoilService } from '../soil/soil.service';
 import { SoilAiService } from '../soil/soil-ai.service';
 import {
-	AnalyzeExistingCropsResponseDto,
-	CropAnalysisItemDto,
-	CropDecision,
-	RecommendCropsResponseDto,
-	RecommendedCropDto,
-	SoilProfileDto,
-	PhStatus,
-	NutrientStatus,
+  AnalyzeExistingCropsResponseDto,
+  CropAnalysisItemDto,
+  CropDecision,
+  RecommendCropsResponseDto,
+  RecommendedCropDto,
+  SoilProfileDto,
+  PhStatus,
+  NutrientStatus,
 } from './dto/analyze-crop.dto';
 
 interface ParcelWithRelations {
-	id: string;
-	location: string;
-	soilPh: number | null;
-	nitrogenLevel: number | null;
-	phosphorusLevel: number | null;
-	potassiumLevel: number | null;
-	farmerId: string;
-	crops: {
-		id: string;
-		cropName: string;
-		variety: string;
-		plantingDate: Date;
-		expectedHarvestDate: Date;
-	}[];
+  id: string;
+  location: string;
+  soilPh: number | null;
+  nitrogenLevel: number | null;
+  phosphorusLevel: number | null;
+  potassiumLevel: number | null;
+  farmerId: string;
+  crops: {
+    id: string;
+    cropName: string;
+    variety: string;
+    plantingDate: Date;
+    expectedHarvestDate: Date;
+  }[];
 }
 
 interface CropRequirementConfig {
-	id: string;
-	cropName: string;
-	minPH: number;
-	maxPH: number;
-	minMoisture: number;
-	maxMoisture: number;
-	nitrogenRequired: number;
+  id: string;
+  cropName: string;
+  minPH: number;
+  maxPH: number;
+  minMoisture: number;
+  maxMoisture: number;
+  nitrogenRequired: number;
 }
 
 interface CropRegionConfig {
-	id: string;
-	cropName: string;
-	country: string;
+  id: string;
+  cropName: string;
+  country: string;
 }
 
 // Old interfaces for deprecated rule-based methods
@@ -67,21 +67,20 @@ interface CropCompatibility {
 }
 */
 
-
 @Injectable()
 export class CropSuitabilityService {
-	constructor(
-		private readonly prisma: PrismaService,
-		private readonly soilService: SoilService,
-		private readonly soilAiService: SoilAiService,
-	) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly soilService: SoilService,
+    private readonly soilAiService: SoilAiService,
+  ) {}
 
-	// ========================================================================
-	// OLD RULE-BASED METHODS (DEPRECATED - Replaced by ML in analyzeExistingCrops and recommendCrops)
-	// Kept for reference only
-	// ========================================================================
-	
-	/*
+  // ========================================================================
+  // OLD RULE-BASED METHODS (DEPRECATED - Replaced by ML in analyzeExistingCrops and recommendCrops)
+  // Kept for reference only
+  // ========================================================================
+
+  /*
 	private async computeSoilProfile(): Promise<SoilProfile> {
 		const latestMeasurement = await this.soilService.findLatest();
 		const prediction = await this.soilAiService.predictWiltingRisk(
@@ -271,199 +270,202 @@ export class CropSuitabilityService {
 	}
 	*/
 
-	// ========================================================================
-	// END OF DEPRECATED METHODS
-	// ========================================================================
+  // ========================================================================
+  // END OF DEPRECATED METHODS
+  // ========================================================================
 
-	/**
-	 * Normalize crop names to match the standard naming in crop_requirements table.
-	 * Handles variations like "cucumber" → "Cucumbers", "Olive" → "Olive Trees"
-	 */
-	private normalizeCropName(cropName: string): string {
-		const normalized = cropName.trim();
-		
-		// Mapping for common variations
-		const mappings: Record<string, string> = {
-			'cucumber': 'Cucumbers',
-			'cucumbers': 'Cucumbers',
-			'tomato': 'Tomatoes',
-			'tomatoes': 'Tomatoes',
-			'potato': 'Potatoes',
-			'potatoes': 'Potatoes',
-			'carrot': 'Carrots',
-			'carrots': 'Carrots',
-			'pepper': 'Peppers',
-			'peppers': 'Peppers',
-			'strawberry': 'Strawberries',
-			'strawberries': 'Strawberries',
-			'blueberry': 'Blueberries',
-			'blueberries': 'Blueberries',
-			'olive': 'Olive Trees',
-			'olives': 'Olive Trees',
-			'olive tree': 'Olive Trees',
-			'olive trees': 'Olive Trees',
-			'bean': 'Beans',
-			'beans': 'Beans',
-			'garlic': 'Garlic',
-			'onion': 'Onions',
-			'onions': 'Onions',
-			'lettuce': 'Lettuce',
-			'spinach': 'Spinach',
-			'basil': 'Basil',
-		};
+  /**
+   * Normalize crop names to match the standard naming in crop_requirements table.
+   * Handles variations like "cucumber" → "Cucumbers", "Olive" → "Olive Trees"
+   */
+  private normalizeCropName(cropName: string): string {
+    const normalized = cropName.trim();
 
-		// Check case-insensitive mapping
-		const lowerName = normalized.toLowerCase();
-		if (mappings[lowerName]) {
-			return mappings[lowerName];
-		}
+    // Mapping for common variations
+    const mappings: Record<string, string> = {
+      cucumber: 'Cucumbers',
+      cucumbers: 'Cucumbers',
+      tomato: 'Tomatoes',
+      tomatoes: 'Tomatoes',
+      potato: 'Potatoes',
+      potatoes: 'Potatoes',
+      carrot: 'Carrots',
+      carrots: 'Carrots',
+      pepper: 'Peppers',
+      peppers: 'Peppers',
+      strawberry: 'Strawberries',
+      strawberries: 'Strawberries',
+      blueberry: 'Blueberries',
+      blueberries: 'Blueberries',
+      olive: 'Olive Trees',
+      olives: 'Olive Trees',
+      'olive tree': 'Olive Trees',
+      'olive trees': 'Olive Trees',
+      bean: 'Beans',
+      beans: 'Beans',
+      garlic: 'Garlic',
+      onion: 'Onions',
+      onions: 'Onions',
+      lettuce: 'Lettuce',
+      spinach: 'Spinach',
+      basil: 'Basil',
+    };
 
-		// If no mapping found, try to match case-insensitively against existing requirements
-		// Return the input as-is (the query will still try to match it)
-		return normalized;
-	}
+    // Check case-insensitive mapping
+    const lowerName = normalized.toLowerCase();
+    if (mappings[lowerName]) {
+      return mappings[lowerName];
+    }
 
-	/**
-	 * Analyze existing crops using unified ML-based AI service
-	 */
-	async analyzeExistingCrops(
-		parcelId: string,
-		farmerId: string,
-		measurementData?: {
-			N?: number;
-			P?: number;
-			K?: number;
-			ph?: number;
-			temperature?: number;
-			humidity?: number;
-			rainfall?: number;
-		},
-	): Promise<AnalyzeExistingCropsResponseDto> {
-		const parcel = (await this.prisma.parcel.findFirst({
-			where: { id: parcelId, farmerId },
-			include: { crops: true },
-		})) as ParcelWithRelations | null;
+    // If no mapping found, try to match case-insensitively against existing requirements
+    // Return the input as-is (the query will still try to match it)
+    return normalized;
+  }
 
-		if (!parcel) {
-			throw new NotFoundException('Parcel not found or you do not have access');
-		}
+  /**
+   * Analyze existing crops using unified ML-based AI service
+   */
+  async analyzeExistingCrops(
+    parcelId: string,
+    farmerId: string,
+    measurementData?: {
+      N?: number;
+      P?: number;
+      K?: number;
+      ph?: number;
+      temperature?: number;
+      humidity?: number;
+      rainfall?: number;
+    },
+  ): Promise<AnalyzeExistingCropsResponseDto> {
+    const parcel = (await this.prisma.parcel.findFirst({
+      where: { id: parcelId, farmerId },
+      include: { crops: true },
+    })) as ParcelWithRelations | null;
 
-		// Use provided measurement data if available, otherwise fall back to parcel defaults
-		// Priority: measurementData > parcel values > defaults
-		const N = measurementData?.N ?? parcel.nitrogenLevel ?? 40;
-		const P = measurementData?.P ?? parcel.phosphorusLevel ?? 30;
-		const K = measurementData?.K ?? parcel.potassiumLevel ?? 30;
-		const ph = measurementData?.ph ?? parcel.soilPh ?? 6.5;
-		const temperature = measurementData?.temperature ?? 25 + Math.random() * 5;
-		const humidity = measurementData?.humidity ?? 60 + Math.random() * 20;
-		const rainfall = measurementData?.rainfall ?? 100 + Math.random() * 100;
+    if (!parcel) {
+      throw new NotFoundException('Parcel not found or you do not have access');
+    }
 
-		// Prepare farmer's crops list
-		const farmerCrops = parcel.crops.map(c => c.cropName.toLowerCase());
+    // Use provided measurement data if available, otherwise fall back to parcel defaults
+    // Priority: measurementData > parcel values > defaults
+    const N = measurementData?.N ?? parcel.nitrogenLevel ?? 40;
+    const P = measurementData?.P ?? parcel.phosphorusLevel ?? 30;
+    const K = measurementData?.K ?? parcel.potassiumLevel ?? 30;
+    const ph = measurementData?.ph ?? parcel.soilPh ?? 6.5;
+    const temperature = measurementData?.temperature ?? 25 + Math.random() * 5;
+    const humidity = measurementData?.humidity ?? 60 + Math.random() * 20;
+    const rainfall = measurementData?.rainfall ?? 100 + Math.random() * 100;
 
-		// Get region from parcel location
-		const region = parcel.location || 'Lebanon';
+    // Prepare farmer's crops list
+    const farmerCrops = parcel.crops.map((c) => c.cropName.toLowerCase());
 
-		// Call ML-based crop suitability API with parcel-specific data
-		const aiResponse = await this.soilAiService.predictCropSuitability({
-			N,
-			P,
-			K,
-			temperature,
-			humidity,
-			ph,
-			rainfall,
-			region,
-			farmerCrops,
-		});
+    // Get region from parcel location
+    const region = parcel.location || 'Lebanon';
 
-		// Map AI response to DTO format
-		const soilProfileDto: SoilProfileDto = {
-			soilHealthScore: Math.round(aiResponse.soilProfile.soilHealthScore * 100) / 100,
-			fertilityIndex: Math.round(aiResponse.soilProfile.fertilityIndex * 100) / 100,
-			phStatus: aiResponse.soilProfile.phStatus as PhStatus,
-			nutrientStatus: aiResponse.soilProfile.nutrientStatus as NutrientStatus,
-		};
+    // Call ML-based crop suitability API with parcel-specific data
+    const aiResponse = await this.soilAiService.predictCropSuitability({
+      N,
+      P,
+      K,
+      temperature,
+      humidity,
+      ph,
+      rainfall,
+      region,
+      farmerCrops,
+    });
 
-		const cropsAnalysis: CropAnalysisItemDto[] = aiResponse.farmerCropsAnalysis.map(analysis => ({
-			crop: analysis.crop,
-			probability: Math.round(analysis.probability * 100) / 100,
-			decision: analysis.decision as CropDecision,
-			recommendations: [], // Individual crop recommendations can be added here if needed
-		}));
+    // Map AI response to DTO format
+    const soilProfileDto: SoilProfileDto = {
+      soilHealthScore:
+        Math.round(aiResponse.soilProfile.soilHealthScore * 100) / 100,
+      fertilityIndex:
+        Math.round(aiResponse.soilProfile.fertilityIndex * 100) / 100,
+      phStatus: aiResponse.soilProfile.phStatus as PhStatus,
+      nutrientStatus: aiResponse.soilProfile.nutrientStatus as NutrientStatus,
+    };
 
-		return {
-			soilProfile: soilProfileDto,
-			cropsAnalysis,
-			recommendations: aiResponse.recommendations,
-		};
-	}
+    const cropsAnalysis: CropAnalysisItemDto[] =
+      aiResponse.farmerCropsAnalysis.map((analysis) => ({
+        crop: analysis.crop,
+        probability: Math.round(analysis.probability * 100) / 100,
+        decision: analysis.decision as CropDecision,
+        recommendations: [], // Individual crop recommendations can be added here if needed
+      }));
 
-	async recommendCrops(
-		parcelId: string,
-		farmerId: string,
-		measurementData?: {
-			N?: number;
-			P?: number;
-			K?: number;
-			ph?: number;
-			temperature?: number;
-			humidity?: number;
-			rainfall?: number;
-		},
-	): Promise<RecommendCropsResponseDto> {
-		const parcel = await this.prisma.parcel.findFirst({
-			where: { id: parcelId, farmerId },
-		});
+    return {
+      soilProfile: soilProfileDto,
+      cropsAnalysis,
+      recommendations: aiResponse.recommendations,
+    };
+  }
 
-		if (!parcel) {
-			throw new NotFoundException('Parcel not found or you do not have access');
-		}
+  async recommendCrops(
+    parcelId: string,
+    farmerId: string,
+    measurementData?: {
+      N?: number;
+      P?: number;
+      K?: number;
+      ph?: number;
+      temperature?: number;
+      humidity?: number;
+      rainfall?: number;
+    },
+  ): Promise<RecommendCropsResponseDto> {
+    const parcel = await this.prisma.parcel.findFirst({
+      where: { id: parcelId, farmerId },
+    });
 
-		// Use measurement data if provided, otherwise use parcel values, otherwise use defaults
-		const N = measurementData?.N ?? parcel.nitrogenLevel ?? 40;
-		const P = measurementData?.P ?? parcel.phosphorusLevel ?? 30;
-		const K = measurementData?.K ?? parcel.potassiumLevel ?? 30;
-		const ph = measurementData?.ph ?? parcel.soilPh ?? 6.5;
-		const temperature = measurementData?.temperature ?? 25.0;
-		const humidity = measurementData?.humidity ?? 65.0;
-		const rainfall = measurementData?.rainfall ?? 100.0;
-		const region = parcel.location;
+    if (!parcel) {
+      throw new NotFoundException('Parcel not found or you do not have access');
+    }
 
-		// Call ML API to get crop recommendations (without farmerCrops)
-		const mlResult = await this.soilAiService.predictCropSuitability({
-			N,
-			P,
-			K,
-			temperature,
-			humidity,
-			ph,
-			rainfall,
-			region,
-			// Don't pass farmerCrops to get general recommendations
-		});
+    // Use measurement data if provided, otherwise use parcel values, otherwise use defaults
+    const N = measurementData?.N ?? parcel.nitrogenLevel ?? 40;
+    const P = measurementData?.P ?? parcel.phosphorusLevel ?? 30;
+    const K = measurementData?.K ?? parcel.potassiumLevel ?? 30;
+    const ph = measurementData?.ph ?? parcel.soilPh ?? 6.5;
+    const temperature = measurementData?.temperature ?? 25.0;
+    const humidity = measurementData?.humidity ?? 65.0;
+    const rainfall = measurementData?.rainfall ?? 100.0;
+    const region = parcel.location;
 
-		// Map soil profile
-		const soilProfileDto: SoilProfileDto = {
-			soilHealthScore: mlResult.soilProfile.soilHealthScore,
-			fertilityIndex: mlResult.soilProfile.fertilityIndex,
-			phStatus: mlResult.soilProfile.phStatus as PhStatus,
-			nutrientStatus: mlResult.soilProfile.nutrientStatus as NutrientStatus,
-		};
+    // Call ML API to get crop recommendations (without farmerCrops)
+    const mlResult = await this.soilAiService.predictCropSuitability({
+      N,
+      P,
+      K,
+      temperature,
+      humidity,
+      ph,
+      rainfall,
+      region,
+      // Don't pass farmerCrops to get general recommendations
+    });
 
-		// Map recommended crops from ML best crops
-		const recommendedCrops: RecommendedCropDto[] = mlResult.bestCrops.map(
-			(crop) => ({
-				crop: crop.crop,
-				probability: crop.probability,
-				decision: 'CAN_PLANT', // Top ML recommendations are plantable
-			}),
-		);
+    // Map soil profile
+    const soilProfileDto: SoilProfileDto = {
+      soilHealthScore: mlResult.soilProfile.soilHealthScore,
+      fertilityIndex: mlResult.soilProfile.fertilityIndex,
+      phStatus: mlResult.soilProfile.phStatus as PhStatus,
+      nutrientStatus: mlResult.soilProfile.nutrientStatus as NutrientStatus,
+    };
 
-		return {
-			soilProfile: soilProfileDto,
-			recommendedCrops,
-			recommendations: mlResult.recommendations,
-		};
-	}
+    // Map recommended crops from ML best crops
+    const recommendedCrops: RecommendedCropDto[] = mlResult.bestCrops.map(
+      (crop) => ({
+        crop: crop.crop,
+        probability: crop.probability,
+        decision: 'CAN_PLANT', // Top ML recommendations are plantable
+      }),
+    );
+
+    return {
+      soilProfile: soilProfileDto,
+      recommendedCrops,
+      recommendations: mlResult.recommendations,
+    };
+  }
 }

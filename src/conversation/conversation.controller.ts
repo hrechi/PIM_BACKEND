@@ -11,7 +11,12 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ConversationService } from './conversation.service';
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 
 @ApiTags('Conversations')
 @Controller('conversations')
@@ -23,14 +28,8 @@ export class ConversationController {
   @Post()
   @ApiOperation({ summary: 'Create a new conversation' })
   @ApiResponse({ status: 201, description: 'Conversation created' })
-  async createConversation(
-    @Req() req: any,
-    @Body() body: { title?: string },
-  ) {
-    return this.conversationService.createConversation(
-      req.user.id,
-      body.title,
-    );
+  async createConversation(@Req() req: any, @Body() body: { title?: string }) {
+    return this.conversationService.createConversation(req.user.id, body.title);
   }
 
   @Get()
@@ -43,11 +42,11 @@ export class ConversationController {
   @Get(':id')
   @ApiOperation({ summary: 'Get specific conversation with messages' })
   @ApiResponse({ status: 200, description: 'Conversation with messages' })
-  async getConversation(
-    @Param('id') conversationId: string,
-    @Req() req: any,
-  ) {
-    return this.conversationService.getConversationById(conversationId, req.user.id);
+  async getConversation(@Param('id') conversationId: string, @Req() req: any) {
+    return this.conversationService.getConversationById(
+      conversationId,
+      req.user.id,
+    );
   }
 
   @Put(':id')
@@ -72,7 +71,10 @@ export class ConversationController {
     @Param('id') conversationId: string,
     @Req() req: any,
   ) {
-    await this.conversationService.deleteConversation(conversationId, req.user.id);
+    await this.conversationService.deleteConversation(
+      conversationId,
+      req.user.id,
+    );
     return { message: 'Conversation deleted successfully' };
   }
 }

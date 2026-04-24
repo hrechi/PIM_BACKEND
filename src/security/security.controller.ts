@@ -1,5 +1,10 @@
 import { Controller, Get, Post, UseGuards, Req, Headers } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PrismaService } from '../prisma/prisma.service';
 import * as fs from 'fs';
@@ -31,7 +36,9 @@ export class SecurityController {
 
     try {
       fs.writeFileSync(AI_TOKEN_FILE, token, { encoding: 'utf-8' });
-      console.log(`[AI] Token registered for user "${userName}" → ${AI_TOKEN_FILE}`);
+      console.log(
+        `[AI] Token registered for user "${userName}" → ${AI_TOKEN_FILE}`,
+      );
       return {
         message: `AI engine will now monitor ${userName}'s farm`,
         user: userName,
@@ -47,8 +54,13 @@ export class SecurityController {
    * The AI engine must send the JWT token of the account it's monitoring.
    */
   @Get('sync')
-  @ApiOperation({ summary: 'Get whitelisted faces for AI recognition (per user)' })
-  @ApiResponse({ status: 200, description: 'List of staff with image paths for the logged-in user' })
+  @ApiOperation({
+    summary: 'Get whitelisted faces for AI recognition (per user)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'List of staff with image paths for the logged-in user',
+  })
   async syncStaff(@Req() req: any) {
     const userId = req.user.id;
     const staff = await this.prisma.whitelistStaff.findMany({
