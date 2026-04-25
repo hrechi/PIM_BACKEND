@@ -6,14 +6,11 @@ import {
   IsEnum,
   IsNotEmpty,
   IsNumber,
-  IsObject,
   IsOptional,
   IsString,
   IsUUID,
   MaxLength,
-  ValidateNested,
 } from 'class-validator';
-import { Type } from 'class-transformer';
 import { Prisma, CatalogueStatus } from '@prisma/client';
 
 export class CreateSaleCatalogueDto {
@@ -45,7 +42,6 @@ export class CreateSaleCatalogueDto {
 
   @ApiProperty({ required: false, type: Object })
   @IsOptional()
-  @IsObject()
   settings?: Prisma.JsonValue;
 }
 
@@ -130,4 +126,9 @@ export class PreviewCatalogueFilterDto {
   @IsOptional()
   @IsString()
   tagNumber?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  isFattening?: boolean;
 }

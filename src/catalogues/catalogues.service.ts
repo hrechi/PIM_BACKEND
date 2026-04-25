@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { randomBytes } from 'crypto';
-import { Prisma, PrismaClient } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   AddCatalogueAnimalsDto,
@@ -20,15 +20,23 @@ export class CataloguesService {
   }
 
   async createCatalogue(farmerId: string, dto: CreateSaleCatalogueDto) {
+    const settings: Prisma.InputJsonValue =
+      dto.settings !== null &&
+      dto.settings !== undefined &&
+      typeof dto.settings === 'object' &&
+      !Array.isArray(dto.settings)
+        ? (dto.settings as Prisma.InputJsonValue)
+        : {};
+
     return this.prisma.saleCatalogue.create({
       data: {
         farmerId,
         title: dto.title,
-        saleDate: this.parseDate(dto.saleDate),
+        saleDate: this.parseDate(dto.saleDate) ?? undefined,
         location: dto.location,
-        currency: dto.currency || 'TND',
+        currency: dto.currency ?? 'TND',
         showPrices: dto.showPrices ?? false,
-        settings: dto.settings || {},
+        settings,
       },
     });
   }
@@ -81,9 +89,11 @@ export class CataloguesService {
         currency: dto.currency ?? existing.currency,
         showPrices: dto.showPrices ?? existing.showPrices,
         settings:
-          dto.settings === null
-            ? Prisma.JsonNull
-            : dto.settings ?? (existing.settings as Prisma.InputJsonValue),
+          dto.settings !== undefined
+            ? dto.settings === null
+              ? {}
+              : (dto.settings as Prisma.InputJsonValue)
+            : (existing.settings as Prisma.InputJsonValue),
         status: dto.status ?? existing.status,
       },
     });
@@ -253,6 +263,10 @@ export class CataloguesService {
     if (dto.tagNumber) {
       where.tagNumber = { contains: dto.tagNumber };
       console.log('Filtering by tag number:', dto.tagNumber);
+    }
+    if (dto.isFattening !== undefined) {
+      where.isFattening = dto.isFattening;
+      console.log('Filtering by isFattening:', dto.isFattening);
     }
 
     console.log('Final where clause:', JSON.stringify(where, null, 2));

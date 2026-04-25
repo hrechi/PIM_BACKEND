@@ -49,11 +49,18 @@ export class AnimalsService {
       );
     }
 
-    // Calculate age in months
+    // Calculate age in months from birthDate if available, otherwise keep frontend value
     const birthDate = transformedData.lastBirthDate ? new Date(transformedData.lastBirthDate) : null;
-    const createdAt = new Date();
-    transformedData.age = this.calculateAgeInMonths(birthDate, createdAt);
-    transformedData.ageYears = Math.floor(transformedData.age / 12);
+    if (birthDate) {
+      const createdAt = new Date();
+      transformedData.age = this.calculateAgeInMonths(birthDate, createdAt);
+      transformedData.ageYears = Math.floor(transformedData.age / 12);
+    } else if (transformedData.age == null || transformedData.age === undefined) {
+      // No age provided and no birthDate — default to 0
+      transformedData.age = 0;
+      transformedData.ageYears = 0;
+    }
+    // Otherwise keep the age/ageYears values sent from the frontend
 
     // Handle date fields to ensure they are actual Date objects if provided as strings
     const dateFields = [
@@ -127,6 +134,7 @@ export class AnimalsService {
     farmerId: string,
     animalType?: string,
     fieldId?: string,
+    isFattening?: boolean,
   ) {
     const where: any = { farmerId };
     if (animalType) {
@@ -134,6 +142,9 @@ export class AnimalsService {
     }
     if (fieldId) {
       where.fieldId = fieldId;
+    }
+    if (isFattening !== undefined) {
+      where.isFattening = isFattening;
     }
 
     return this.prisma.animal.findMany({

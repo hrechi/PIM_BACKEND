@@ -31,11 +31,15 @@ export class AnimalsController {
     @Req() req: any,
     @Query('animalType') animalType?: string,
     @Query('fieldId') fieldId?: string,
+    @Query('isFattening') isFattening?: string,
   ) {
+    const fatteningFilter =
+      isFattening === 'true' ? true : isFattening === 'false' ? false : undefined;
     return this.animalsService.findAllByFarmer(
       req.user.id,
       animalType,
       fieldId,
+      fatteningFilter,
     );
   }
 
