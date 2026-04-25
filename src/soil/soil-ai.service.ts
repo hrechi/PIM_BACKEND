@@ -118,7 +118,7 @@ export class SoilAiService {
     private readonly configService: ConfigService,
   ) {
     // Get AI service URL from environment variables
-    this.aiServiceUrl = this.configService.get<string>('AI_SERVICE_URL') || 'http://192.168.1.17:8000';
+    this.aiServiceUrl = this.configService.get<string>('AI_SERVICE_URL') || 'http://192.168.142.3:8000';
     
     // Create axios instance with configuration
     this.axiosInstance = axios.create({
