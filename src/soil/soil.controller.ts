@@ -34,9 +34,18 @@ import { UpdateSoilDto } from './dto/update-soil.dto';
 import { QuerySoilDto } from './dto/query-soil.dto';
 import { BatchPredictionDto } from './dto/batch-prediction.dto';
 
-// Custom file extension validator for soil images
+// Custom file extension validator for soil photos and robot recordings.
+// `.zip` payloads are produced by the Flutter robot live-preview screen
+// when the operator records a video; the backend assembles them into an
+// MP4 before classification.
 class ImageFileValidator extends FileValidator {
-  private allowedExtensions = ['.jpg', '.jpeg', '.png', '.webp'];
+  private allowedExtensions = [
+    '.jpg',
+    '.jpeg',
+    '.png',
+    '.webp',
+    '.zip',
+  ];
 
   isValid(file: Express.Multer.File): boolean {
     const ext = extname(file.originalname).toLowerCase();
@@ -44,7 +53,7 @@ class ImageFileValidator extends FileValidator {
   }
 
   buildErrorMessage(): string {
-    return 'Only image files (jpg, jpeg, png, webp) are allowed';
+    return 'Only image files (jpg, jpeg, png, webp) or robot recordings (.zip) are allowed';
   }
 }
 
@@ -144,7 +153,7 @@ export class SoilController {
     @UploadedFile(
       new ParseFilePipe({
         validators: [
-          new MaxFileSizeValidator({ maxSize: 10 * 1024 * 1024 }), // 10 MB
+          new MaxFileSizeValidator({ maxSize: 100 * 1024 * 1024 }), // 100 MB (covers robot recordings)
           new ImageFileValidator({}),
         ],
       }),

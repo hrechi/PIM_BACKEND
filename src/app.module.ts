@@ -47,6 +47,8 @@ import { AiModule } from './ai/ai.module';
 
 import { SoilIntelligenceModule } from './soil-intelligence/soil-intelligence.module';
 import { CataloguesModule } from './catalogues/catalogues.module';
+import { RobotsModule } from './robots/robots.module';
+import { TelemetryModule } from './telemetry/telemetry.module';
 
  
 @Module({
@@ -174,6 +176,8 @@ import { CataloguesModule } from './catalogues/catalogues.module';
     SoilIntelligenceModule,
     AssetModule,
     AiModule,
+    RobotsModule,
+    TelemetryModule,
   ],
 
   controllers: [AppController],
