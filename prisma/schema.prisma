@@ -156,7 +156,7 @@ model User {
   fcmToken       String?
   otp            String?
   otpExpiresAt   DateTime?
-   createdAt      DateTime  @default(now())
+  createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
   fields         Field[]
@@ -169,18 +169,21 @@ model User {
   // Staff whitelist managed by this user
   whitelistStaff WhitelistStaff[]
   assets         Asset[]
-  
+
   // Security incidents logged by this user
   securityIncidents SecurityIncident[]
-  savedArticles  SavedArticle[]
-  dailyReports   DailyReport[]
+  savedArticles     SavedArticle[]
+  dailyReports      DailyReport[]
   // Currency settings for the entire farm
-  currency         String             @default("USD") // TND, EUR, USD, etc.
-  currencySymbol   String             @default("$")
+  currency          String             @default("USD") // TND, EUR, USD, etc.
+  currencySymbol    String             @default("$")
   // Gamification — from schema 1
-  quizResults QuizResult[]
-  badges      Badge[]
+  quizResults       QuizResult[]
+  badges            Badge[]
 
+  // Skill certification
+  skillLessonProgress  SkillLessonProgress[]
+  skillPathCompletions SkillPathCompletion[]
 
   // Community module
   communityPosts            CommunityPost[]
@@ -207,8 +210,8 @@ model QuizResult {
   streak         Int      @default(0)
   createdAt      DateTime @default(now())
 
-  @@map("quiz_results")
   @@index([userId])
+  @@map("quiz_results")
 }
 
 model Badge {
@@ -219,8 +222,96 @@ model Badge {
   type       String
   unlockedAt DateTime @default(now())
 
-  @@map("badges")
   @@unique([userId, type])
+  @@map("badges")
+}
+
+model SkillPath {
+  id               String   @id @default(uuid())
+  code             String   @unique
+  title            String
+  description      String   @db.Text
+  icon             String?
+  gradientStart    String?  @map("gradient_start")
+  gradientEnd      String?  @map("gradient_end")
+  difficulty       String   @default("INTERMEDIATE")
+  estimatedMinutes Int      @default(60) @map("estimated_minutes")
+  isActive         Boolean  @default(true) @map("is_active")
+  sortOrder        Int      @default(0) @map("sort_order")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  lessons     SkillLesson[]
+  completions SkillPathCompletion[]
+
+  @@index([isActive, sortOrder])
+  @@map("skill_paths")
+}
+
+model SkillLesson {
+  id               String    @id @default(uuid())
+  pathId           String    @map("path_id")
+  path             SkillPath @relation(fields: [pathId], references: [id], onDelete: Cascade)
+  code             String    @unique
+  title            String
+  summary          String
+  microContent     String    @map("micro_content") @db.Text
+  skillTag         String    @map("skill_tag")
+  estimatedMinutes Int       @default(10) @map("estimated_minutes")
+  sortOrder        Int       @default(0) @map("sort_order")
+  isActive         Boolean   @default(true) @map("is_active")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  progress SkillLessonProgress[]
+
+  @@index([pathId, sortOrder])
+  @@index([isActive])
+  @@map("skill_lessons")
+}
+
+model SkillLessonProgress {
+  id                String      @id @default(uuid())
+  userId            String      @map("user_id")
+  user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lessonId          String      @map("lesson_id")
+  lesson            SkillLesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  status            String      @default("NOT_STARTED")
+  completionPercent Int         @default(0) @map("completion_percent")
+  lastScore         Int?        @map("last_score")
+  bestScore         Int?        @map("best_score")
+  attempts          Int         @default(0)
+  languageCode      String      @default("en-US") @map("language_code")
+  lastQuiz          Json?       @map("last_quiz")
+  completedAt       DateTime?   @map("completed_at")
+  createdAt         DateTime    @default(now()) @map("created_at")
+  updatedAt         DateTime    @updatedAt @map("updated_at")
+
+  @@unique([userId, lessonId])
+  @@index([userId, status])
+  @@index([lessonId])
+  @@map("skill_lesson_progress")
+}
+
+model SkillPathCompletion {
+  id                String    @id @default(uuid())
+  userId            String    @map("user_id")
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pathId            String    @map("path_id")
+  path              SkillPath @relation(fields: [pathId], references: [id], onDelete: Cascade)
+  completionPercent Int       @default(0) @map("completion_percent")
+  completedLessons  Int       @default(0) @map("completed_lessons")
+  totalLessons      Int       @default(0) @map("total_lessons")
+  status            String    @default("IN_PROGRESS")
+  certificateIssued Boolean   @default(false) @map("certificate_issued")
+  completedAt       DateTime? @map("completed_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  @@unique([userId, pathId])
+  @@index([userId, status])
+  @@index([pathId])
+  @@map("skill_path_completions")
 }
 
 // ─────────────────────────────────────────────
@@ -238,8 +329,8 @@ model SavedArticle {
   farmer      User     @relation(fields: [farmerId], references: [id], onDelete: Cascade)
   createdAt   DateTime @default(now())
 
-  @@map("saved_articles")
   @@index([farmerId])
+  @@map("saved_articles")
 }
 
 // ─────────────────────────────────────────────
@@ -252,14 +343,14 @@ model Field {
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   name            String
   cropType        String?
-  areaCoordinates Json     // [[lat, lng], [lat, lng], ...]
-  areaSize        Float?   // in square meters
+  areaCoordinates Json // [[lat, lng], [lat, lng], ...]
+  areaSize        Float? // in square meters
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   // Vaccine module geo fields
-  countryCode String?      // ISO 3166 — ex: "TN", "FR", "US"
-  regionCode  String?      // sub-zone — ex: "AR-PATAGONIA"
+  countryCode String? // ISO 3166 — ex: "TN", "FR", "US"
+  regionCode  String? // sub-zone — ex: "AR-PATAGONIA"
   fmdFreeZone Boolean      @default(false)
   countryId   String?
   regionId    String?
@@ -269,14 +360,14 @@ model Field {
   // Relations
   missions         Mission[]
   soilMeasurements SoilMeasurement[]
-  ndviRecords      NDVIRecord[]       // from schema 1
+  ndviRecords      NDVIRecord[] // from schema 1
   animals          Animal[]
-  assets           Asset[]            // from schema 2
-  assignedWorkers  WhitelistStaff[]   // from schema 2
+  assets           Asset[] // from schema 2
+  assignedWorkers  WhitelistStaff[] // from schema 2
   expenses         Expense[]
 
-  @@map("fields")
   @@index([userId])
+  @@map("fields")
 }
 
 // ─────────────────────────────────────────────
@@ -291,22 +382,22 @@ model Mission {
   field             Field     @relation(fields: [fieldId], references: [id], onDelete: Cascade)
   title             String
   description       String?
-  missionType       String    // PLANTING, HARVESTING, IRRIGATION, FERTILIZING, PEST_CONTROL, MAINTENANCE, MONITORING, OTHER
-  status            String    @default("PENDING")  // PENDING, IN_PROGRESS, COMPLETED, CANCELLED
-  priority          String    @default("MEDIUM")   // LOW, MEDIUM, HIGH, URGENT
+  missionType       String // PLANTING, HARVESTING, IRRIGATION, FERTILIZING, PEST_CONTROL, MAINTENANCE, MONITORING, OTHER
+  status            String    @default("PENDING") // PENDING, IN_PROGRESS, COMPLETED, CANCELLED
+  priority          String    @default("MEDIUM") // LOW, MEDIUM, HIGH, URGENT
   dueDate           DateTime?
   assignedDate      DateTime  @default(now())
   completedAt       DateTime?
-  estimatedDuration Int?      // in hours
-  actualDuration    Int?      // in hours
+  estimatedDuration Int? // in hours
+  actualDuration    Int? // in hours
   progress          Int       @default(0) // 0–100
   notes             String?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
-  @@map("missions")
   @@index([userId])
   @@index([fieldId])
+  @@map("missions")
 }
 
 // ─────────────────────────────────────────────
@@ -322,20 +413,20 @@ model Conversation {
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
 
-  @@map("conversations")
   @@index([userId])
+  @@map("conversations")
 }
 
 model ChatMessage {
   id             String       @id @default(uuid())
   conversationId String
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  role           String       // "user" or "assistant"
+  role           String // "user" or "assistant"
   content        String       @db.Text
   createdAt      DateTime     @default(now())
 
-  @@map("chat_messages")
   @@index([conversationId])
+  @@map("chat_messages")
 }
 
 // ─────────────────────────────────────────────
@@ -343,26 +434,26 @@ model ChatMessage {
 // ─────────────────────────────────────────────
 
 model WhitelistStaff {
-  id       String  @id @default(uuid())
-  name     String
+  id        String  @id @default(uuid())
+  name      String
   // schema 2 fields
-  username String  @unique
-  password String
-  role     String  @default("WORKER")
-  email    String? @unique
-  phone    String? @unique
-  fcmToken String?
+  username  String  @unique
+  password  String
+  role      String  @default("WORKER")
+  email     String? @unique
+  phone     String? @unique
+  fcmToken  String?
   // schema 1 field
   imagePath String
 
-  assignedFieldId String?         @map("assigned_field_id")
+  assignedFieldId String?    @map("assigned_field_id")
   userId          String
-  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  assignedField   Field?          @relation(fields: [assignedFieldId], references: [id], onDelete: SetNull)
+  user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignedField   Field?     @relation(fields: [assignedFieldId], references: [id], onDelete: SetNull)
   assignedAssets  Asset[]
   usageLogs       UsageLog[]
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
 
   @@map("whitelist_staff")
 }
@@ -372,7 +463,7 @@ model WhitelistStaff {
 // ─────────────────────────────────────────────
 
 model Asset {
-  id              String         @id @default(uuid())
+  id              String      @id @default(uuid())
   name            String
   brand           String
   model           String?
@@ -380,16 +471,16 @@ model Asset {
   mileage         Float?
   operatingHours  Float?
   category        String
-  status          AssetStatus    @default(AVAILABLE)
-  imageUrl        String?        @map("image_url")
-  serialNumber    String         @map("serial_number")
-  lastServiceDate DateTime?      @map("last_service_date")
+  status          AssetStatus @default(AVAILABLE)
+  imageUrl        String?     @map("image_url")
+  serialNumber    String      @map("serial_number")
+  lastServiceDate DateTime?   @map("last_service_date")
 
-  fieldId      String         @map("field_id")
-  field        Field          @relation(fields: [fieldId], references: [id], onDelete: Cascade)
-  userId       String         @map("user_id")
-  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  assignedToId String?        @map("assigned_to_id")
+  fieldId      String          @map("field_id")
+  field        Field           @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+  userId       String          @map("user_id")
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignedToId String?         @map("assigned_to_id")
   assignedTo   WhitelistStaff? @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
   usageLogs    UsageLog[]
 
@@ -417,15 +508,15 @@ model UsageLog {
   endOperatingHours   Float?         @map("end_operating_hours")
   taskType            String?        @map("task_type")
   fuelLevel           Float?         @map("fuel_level")
-  conditionNote       String?        @db.Text @map("condition_note")
+  conditionNote       String?        @map("condition_note") @db.Text
   notes               String?        @db.Text
   createdAt           DateTime       @default(now()) @map("created_at")
   updatedAt           DateTime       @updatedAt @map("updated_at")
 
-  @@map("usage_logs")
   @@index([assetId])
   @@index([farmerId])
   @@index([startTime])
+  @@map("usage_logs")
 }
 
 // ─────────────────────────────────────────────
@@ -434,7 +525,7 @@ model UsageLog {
 
 model SecurityIncident {
   id        String   @id @default(uuid())
-  type      String   // 'intruder' or 'animal'
+  type      String // 'intruder' or 'animal'
   imagePath String
   timestamp DateTime @default(now())
   latitude  Float?
@@ -450,15 +541,15 @@ model DailyReport {
   summary            String   @db.Text
   totalIncidents     Int
   criticalAlerts     Int
-  peakActivityHour   Int      // 0–23
-  averageThreatLevel String   // 'low' | 'medium' | 'high' | 'critical'
+  peakActivityHour   Int // 0–23
+  averageThreatLevel String // 'low' | 'medium' | 'high' | 'critical'
   userId             String
   user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt          DateTime @default(now())
 
-  @@map("daily_reports")
   @@index([userId])
   @@index([createdAt])
+  @@map("daily_reports")
 }
 
 // ─────────────────────────────────────────────
@@ -485,12 +576,12 @@ model SoilMeasurement {
   createdAt           DateTime @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt           DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
 
-  @@map("soil_measurements")
   @@index([createdAt], map: "IDX_1b5048dedf4b0c67b0e3d69028")
-  @@index([fieldId],   map: "IDX_b1d30f7933303444ba94550db7")
+  @@index([fieldId], map: "IDX_b1d30f7933303444ba94550db7")
   @@index([latitude, longitude], map: "IDX_db34dddb4edfd4e726c70f52b0")
-  @@index([soilType],  map: "IDX_0a742379a0b58d214968308ae8")
+  @@index([soilType], map: "IDX_0a742379a0b58d214968308ae8")
   @@index([parcelId])
+  @@map("soil_measurements")
 }
 
 // ─────────────────────────────────────────────
@@ -506,8 +597,8 @@ model NDVIRecord {
   gridData  Json
   createdAt DateTime @default(now())
 
-  @@map("ndvi_records")
   @@index([fieldId])
+  @@map("ndvi_records")
 }
 
 // ─────────────────────────────────────────────
@@ -530,10 +621,10 @@ model Animal {
   tagNumber    String?
   profileImage String?
   notes        String?
-  origin       String       @default("purchased") // purchased | born
+  origin       String     @default("purchased") // purchased | born
 
   // Age & reproduction
-  age                  Int       // months
+  age                  Int // months
   ageYears             Int       @default(0)
   isPregnant           Boolean?
   lastInseminationDate DateTime?
@@ -542,37 +633,37 @@ model Animal {
   birthCount           Int       @default(0)
 
   // Genealogy (Self-referential)
-  motherId             String?
-  fatherId             String?
-  mother               Animal?   @relation("MotherToChild", fields: [motherId], references: [id])
-  father               Animal?   @relation("FatherToChild", fields: [fatherId], references: [id])
-  childrenFromMother   Animal[]  @relation("MotherToChild")
-  childrenFromFather   Animal[]  @relation("FatherToChild")
+  motherId           String?
+  fatherId           String?
+  mother             Animal?  @relation("MotherToChild", fields: [motherId], references: [id])
+  father             Animal?  @relation("FatherToChild", fields: [fatherId], references: [id])
+  childrenFromMother Animal[] @relation("MotherToChild")
+  childrenFromFather Animal[] @relation("FatherToChild")
 
   // Birth & Growth
-  birthWeightKg        Float?
-  birthCost           Float?
+  birthWeightKg Float?
+  birthCost     Float?
 
   // Health & status
-  status              AnimalStatus @default(active)
-  healthStatus        String       @default("OPTIMAL") // OPTIMAL, WARNING, CRITICAL
-  vitalityScore       Int          @default(100)
-  bodyTemp            Float?
-  activityLevel       String       @default("MODERATE") // LOW, MODERATE, HIGH
-  lastVetCheck        DateTime?
-  vaccination         Boolean      @default(false)
+  status             AnimalStatus @default(active)
+  healthStatus       String       @default("OPTIMAL") // OPTIMAL, WARNING, CRITICAL
+  vitalityScore      Int          @default(100)
+  bodyTemp           Float?
+  activityLevel      String       @default("MODERATE") // LOW, MODERATE, HIGH
+  lastVetCheck       DateTime?
+  vaccination        Boolean      @default(false)
   // Fattening & Target Sales
-  isFattening         Boolean      @default(false)
-  fatteningStartDate  DateTime?
-  targetSaleDate      DateTime?
-  buyerName           String?
-  saleWeightKg        Float?
+  isFattening        Boolean      @default(false)
+  fatteningStartDate DateTime?
+  targetSaleDate     DateTime?
+  buyerName          String?
+  saleWeightKg       Float?
 
   // Ajouts pour le module vaccin
   // fin ajout pour le module vaccin
 
-  healthRiskScore     Float?       // Calculated by AI model (sprint suivant)
-  diseaseHistoryCount Int          @default(0) // Calculated from medical_events
+  healthRiskScore     Float? // Calculated by AI model (sprint suivant)
+  diseaseHistoryCount Int    @default(0) // Calculated from medical_events
 
   // General production / physical
   weight             Float?
@@ -586,13 +677,13 @@ model Animal {
   birthHistory       Json?
 
   // ── Species-specific: COW ──
-  dailyMilkAvgL   Decimal? @db.Decimal(5, 2)
+  dailyMilkAvgL   Decimal?  @db.Decimal(5, 2)
   milkPeakDate    DateTime?
   lactationNumber Int?
 
   // ── Species-specific: HORSE ──
   raceCategory  RaceCategory?
-  bestRaceTime  Decimal?      @db.Decimal(8, 3)
+  bestRaceTime  Decimal?       @db.Decimal(8, 3)
   trainingLevel TrainingLevel?
 
   // ── Species-specific: SHEEP ──
@@ -636,33 +727,33 @@ enum CatalogueStatus {
 }
 
 model SaleCatalogue {
-  id             String             @id @default(cuid())
+  id             String            @id @default(cuid())
   farmerId       String
-  farmer         User               @relation(fields: [farmerId], references: [id])
+  farmer         User              @relation(fields: [farmerId], references: [id])
   title          String
   saleDate       DateTime?
   location       String?
-  currency       String             @default("TND")
-  showPrices     Boolean            @default(false)
+  currency       String            @default("TND")
+  showPrices     Boolean           @default(false)
   settings       Json
-  shareToken     String?            @unique
+  shareToken     String?           @unique
   shareExpiresAt DateTime?
-  shareViewCount Int                @default(0)
-  status         CatalogueStatus    @default(DRAFT)
+  shareViewCount Int               @default(0)
+  status         CatalogueStatus   @default(DRAFT)
   animals        CatalogueAnimal[]
-  createdAt      DateTime           @default(now())
-  updatedAt      DateTime           @updatedAt
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
 }
 
 model CatalogueAnimal {
-  id          String        @id @default(cuid())
-  catalogueId String
-  catalogue   SaleCatalogue @relation(fields: [catalogueId], references: [id])
-  animalId    String
-  animal      Animal        @relation(fields: [animalId], references: [id])
-  sortOrder   Int           @default(0)
+  id            String        @id @default(cuid())
+  catalogueId   String
+  catalogue     SaleCatalogue @relation(fields: [catalogueId], references: [id])
+  animalId      String
+  animal        Animal        @relation(fields: [animalId], references: [id])
+  sortOrder     Int           @default(0)
   priceOverride Float?
-  notes       String?
+  notes         String?
 
   @@unique([catalogueId, animalId])
 }
@@ -673,7 +764,7 @@ model CatalogueAnimal {
 
 model Country {
   id              String        @id @default(uuid())
-  code            String        @unique  // ISO 3166-1 alpha-2
+  code            String        @unique // ISO 3166-1 alpha-2
   nameEn          String
   nameFr          String
   nameAr          String?
@@ -718,7 +809,7 @@ model Vaccine {
   nameFr               String
   nameEn               String
   nameAr               String?
-  targetSpecies        Json     // ["cow","sheep"]
+  targetSpecies        Json // ["cow","sheep"]
   manufacturer         String?
   doseUnit             String   @default("ml")
   defaultIntervalDays  Int      @default(365)
@@ -764,14 +855,14 @@ model VaccineRegulation {
 }
 
 model VaccineCampaignPeriod {
-  id            String   @id @default(uuid())
+  id            String  @id @default(uuid())
   countryId     String
   vaccineCode   String
   species       Json
   startMonth    Int
   endMonth      Int
-  isFree        Boolean  @default(false)
-  isSubsidized  Boolean  @default(false)
+  isFree        Boolean @default(false)
+  isSubsidized  Boolean @default(false)
   subsidyAmount Float?
   notes         String?
 
@@ -813,7 +904,7 @@ model VaccineNotificationLog {
   scheduleId String
   schedule   VaccineSchedule @relation(fields: [scheduleId], references: [id])
   sentAt     DateTime        @default(now())
-  type       String          // "REMINDER_D14", "URGENT_D3", "DUE_TODAY", "OVERDUE"
+  type       String // "REMINDER_D14", "URGENT_D3", "DUE_TODAY", "OVERDUE"
   title      String
   body       String
   success    Boolean         @default(true)
@@ -836,9 +927,9 @@ model VaccineRecord {
   administeredBy String
   administeredAt DateTime
   // schema 1 extra fields
-  vaccineName    String?          // legacy / denormalised display name
-  vaccineDate    DateTime?        // legacy administered date alias
-  vetName        String?          // alias for administeredBy (free text)
+  vaccineName    String? // legacy / denormalised display name
+  vaccineDate    DateTime? // legacy administered date alias
+  vetName        String? // alias for administeredBy (free text)
   lotNumber      String?
   doseGiven      Float
   doseUnit       String           @default("ml")
@@ -890,8 +981,8 @@ model SensorReading {
   activityScore Float?
   createdAt     DateTime @default(now())
 
-  @@map("sensor_readings")
   @@index([animalId, timestamp])
+  @@map("sensor_readings")
 }
 
 // ─────────────────────────────────────────────
@@ -980,7 +1071,7 @@ model Expense {
   fieldId     String?
   field       Field?   @relation(fields: [fieldId], references: [id], onDelete: SetNull)
   date        DateTime
-  category    String   // alimentation, veterinaire, medicaments, equipements, autre
+  category    String // alimentation, veterinaire, medicaments, equipements, autre
   amount      Decimal  @db.Decimal(10, 2)
   description String?
   receiptUrl  String?
@@ -994,7 +1085,7 @@ model Expense {
 // ─────────────────────────────────────────────
 
 model Parcel {
-  id                    String          @id @default(uuid())
+  id                    String            @id @default(uuid())
   location              String
   areaSize              Float
   polygon               Json?
@@ -1008,14 +1099,14 @@ model Parcel {
   irrigationMethod      String
   irrigationFrequency   String
   farmerId              String
-  farmer                User            @relation(fields: [farmerId], references: [id])
+  farmer                User              @relation(fields: [farmerId], references: [id])
   crops                 Crop[]
   fertilizations        Fertilization[]
   pests                 PestDisease[]
   harvests              Harvest[]
   soilMeasurements      SoilMeasurement[] // from schema 1
-  createdAt             DateTime        @default(now())
-  updatedAt             DateTime        @updatedAt
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
 
   @@map("parcels")
 }
@@ -1086,8 +1177,8 @@ model CropRequirement {
   maxMoisture      Float  @map("max_moisture")
   nitrogenRequired Float  @map("nitrogen_required")
 
-  @@map("crop_requirements")
   @@index([cropName])
+  @@map("crop_requirements")
 }
 
 model CropRegion {
@@ -1095,9 +1186,9 @@ model CropRegion {
   cropName String @map("crop_name")
   country  String
 
-  @@map("crop_regions")
   @@index([cropName])
   @@index([country])
+  @@map("crop_regions")
 }
 
 // ─────────────────────────────────────────────
@@ -1124,9 +1215,9 @@ model CommunityPost {
   reactions   CommunityPostReaction[]
   comments    CommunityComment[]
 
-  @@map("community_posts")
   @@index([authorId])
   @@index([createdAt])
+  @@map("community_posts")
 }
 
 model CommunityPostReaction {
@@ -1138,34 +1229,34 @@ model CommunityPostReaction {
   type      CommunityReactionType
   createdAt DateTime              @default(now())
 
-  @@map("community_post_reactions")
   @@unique([postId, userId])
   @@index([userId])
+  @@map("community_post_reactions")
 }
 
 model CommunityComment {
-  id              String                    @id @default(uuid())
+  id              String             @id @default(uuid())
   postId          String
-  post            CommunityPost             @relation(fields: [postId], references: [id], onDelete: Cascade)
+  post            CommunityPost      @relation(fields: [postId], references: [id], onDelete: Cascade)
   authorId        String
-  author          User                      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  author          User               @relation(fields: [authorId], references: [id], onDelete: Cascade)
   parentCommentId String?
-  parentComment   CommunityComment?         @relation("CommunityCommentReplies", fields: [parentCommentId], references: [id], onDelete: Cascade)
-  replies         CommunityComment[]        @relation("CommunityCommentReplies")
-  content         String                    @db.Text
-  likesCount      Int                       @default(0)
-  dislikesCount   Int                       @default(0)
-  repliesCount    Int                       @default(0)
-  createdAt       DateTime                  @default(now())
-  updatedAt       DateTime                  @updatedAt
+  parentComment   CommunityComment?  @relation("CommunityCommentReplies", fields: [parentCommentId], references: [id], onDelete: Cascade)
+  replies         CommunityComment[] @relation("CommunityCommentReplies")
+  content         String             @db.Text
+  likesCount      Int                @default(0)
+  dislikesCount   Int                @default(0)
+  repliesCount    Int                @default(0)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
 
   reactions CommunityCommentReaction[]
 
-  @@map("community_comments")
   @@index([postId])
   @@index([authorId])
   @@index([parentCommentId])
   @@index([createdAt])
+  @@map("community_comments")
 }
 
 model CommunityCommentReaction {
@@ -1177,24 +1268,24 @@ model CommunityCommentReaction {
   type      CommunityReactionType
   createdAt DateTime              @default(now())
 
-  @@map("community_comment_reactions")
   @@unique([commentId, userId])
   @@index([userId])
+  @@map("community_comment_reactions")
 }
 
 model CommunityPollOption {
-  id         String            @id @default(uuid())
+  id         String              @id @default(uuid())
   postId     String
-  post       CommunityPost     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  post       CommunityPost       @relation(fields: [postId], references: [id], onDelete: Cascade)
   text       String
-  votesCount Int               @default(0)
+  votesCount Int                 @default(0)
   position   Int
-  createdAt  DateTime          @default(now())
+  createdAt  DateTime            @default(now())
   votes      CommunityPollVote[]
 
-  @@map("community_poll_options")
-  @@index([postId])
   @@unique([postId, position])
+  @@index([postId])
+  @@map("community_poll_options")
 }
 
 model CommunityPollVote {
@@ -1207,8 +1298,8 @@ model CommunityPollVote {
   user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime            @default(now())
 
-  @@map("community_poll_votes")
   @@unique([postId, userId])
   @@index([optionId])
   @@index([userId])
+  @@map("community_poll_votes")
 }
