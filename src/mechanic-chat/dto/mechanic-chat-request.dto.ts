@@ -25,6 +25,14 @@ export class MechanicChatRequestDto {
   message!: string;
 
   @ApiProperty({
+    description: 'Optional asset ID for machine-aware answers',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  assetId?: string = undefined;
+
+  @ApiProperty({
     description: 'Optional asset context for more accurate answers',
     required: false,
     type: AssetContextDto,

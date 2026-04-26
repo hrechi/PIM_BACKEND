@@ -11,9 +11,12 @@ import { AssetStatus } from '@prisma/client';
 import { join } from 'path';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateAssetDto } from './dto/create-asset.dto';
+import { EndAssetSessionDto, SessionCondition } from './dto/end-asset-session.dto';
 import { UpdateAssetDto } from './dto/update-asset.dto';
 import { Inject, forwardRef } from '@nestjs/common';
 import { AiValidationService } from '../ai/ai-validation.service';
+import { AssetMaintenanceNotificationService } from './asset-maintenance-notification.service';
+import { PredictiveMaintenanceService } from './predictive-maintenance.service';
 
 type MechanicalAnalysis = {
   brand: string;
@@ -95,6 +98,8 @@ export class AssetService {
     private configService: ConfigService,
     @Inject(forwardRef(() => AiValidationService))
     private readonly aiValidationService: AiValidationService,
+    private readonly assetMaintenanceNotificationService: AssetMaintenanceNotificationService,
+    private readonly predictiveMaintenanceService: PredictiveMaintenanceService,
   ) {}
 
   async create(userId: string, dto: CreateAssetDto) {
@@ -215,13 +220,30 @@ export class AssetService {
     };
   }
 
-  async findAll(userId: string, role: string = 'OWNER', assignedFieldId?: string | null) {
-    const where: any = { userId };
+  async findAll(
+    ownerId: string,
+    role: string = 'OWNER',
+    assignedFieldId?: string | null,
+    staffId?: string | null,
+  ) {
+    const where: any = { userId: ownerId };
+
     if (role === 'WORKER' || role === 'FARMER') {
-      if (!assignedFieldId) {
+      const workerFilters: any[] = [];
+
+      if (assignedFieldId) {
+        workerFilters.push({ fieldId: assignedFieldId });
+      }
+
+      if (staffId) {
+        workerFilters.push({ assignedToId: staffId });
+      }
+
+      if (!workerFilters.length) {
         return [];
       }
-      where.fieldId = assignedFieldId;
+
+      where.AND = [{ OR: workerFilters }];
     }
 
     const assets = await (this.prisma as any).asset.findMany({
@@ -238,6 +260,18 @@ export class AssetService {
           select: {
             id: true,
             name: true,
+          },
+        },
+        usageLogs: {
+          orderBy: { startTime: 'desc' },
+          take: 1,
+          include: {
+            farmer: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
           },
         },
       },
@@ -379,21 +413,32 @@ export class AssetService {
   }
 
   async scanBySerial(
-    userId: string,
+    ownerId: string,
     role: string,
     serialNumber: string,
     assignedFieldId?: string | null,
+    staffId?: string | null,
   ) {
     const where: any = {
-      userId,
+      userId: ownerId,
       serialNumber: serialNumber.trim(),
     };
 
     if (role === 'WORKER' || role === 'FARMER') {
-      if (!assignedFieldId) {
+      const workerFilters: any[] = [];
+
+      if (assignedFieldId) {
+        workerFilters.push({ fieldId: assignedFieldId });
+      }
+
+      if (staffId) {
+        workerFilters.push({ assignedToId: staffId });
+      }
+
+      if (!workerFilters.length) {
         throw new NotFoundException('No field assigned to this worker');
       }
-      where.fieldId = assignedFieldId;
+      where.AND = [{ OR: workerFilters }];
     }
 
     const asset = await (this.prisma as any).asset.findFirst({
@@ -404,6 +449,15 @@ export class AssetService {
         },
         field: {
           select: { id: true, name: true },
+        },
+        usageLogs: {
+          orderBy: { startTime: 'desc' },
+          take: 1,
+          include: {
+            farmer: {
+              select: { id: true, name: true },
+            },
+          },
         },
       },
     });
@@ -440,74 +494,21 @@ export class AssetService {
     farmerId: string,
     dto: {
       assetId: string;
-      startMileage: number;
+      startMileage?: number;
       startOperatingHours?: number;
       taskType?: string;
       startTime?: string;
       notes?: string;
     },
   ) {
-    const farmer = await (this.prisma as any).whitelistStaff.findFirst({
-      where: { id: farmerId, role: { in: ['WORKER', 'FARMER'] } },
-    });
-
-    if (!farmer) {
-      throw new BadRequestException('Farmer session context not found');
-    }
-
-    if (!farmer.assignedFieldId) {
-      throw new BadRequestException('No field assigned to this farmer');
-    }
-
-    const asset = await (this.prisma as any).asset.findFirst({
-      where: {
-        id: dto.assetId,
-        fieldId: farmer.assignedFieldId,
-      },
-    });
-
-    if (!asset) {
-      throw new NotFoundException('Asset not found for assigned field');
-    }
-
-    const openSession = await this.usageLogClient().findFirst({
-      where: {
-        assetId: dto.assetId,
-        farmerId,
-        endTime: null,
-      },
-    });
-
-    if (openSession) {
-      throw new BadRequestException('An active usage session already exists for this asset');
-    }
-
-    const startTime = dto.startTime ? new Date(dto.startTime) : new Date();
-    const session = await this.usageLogClient().create({
-      data: {
-        assetId: dto.assetId,
-        farmerId,
-        startTime,
-        startMileage: dto.startMileage,
-        startOperatingHours: dto.startOperatingHours ?? null,
-        taskType: dto.taskType?.trim() || null,
-        notes: dto.notes?.trim() || null,
-      },
-    });
-
-    await (this.prisma as any).asset.update({
-      where: { id: asset.id },
-      data: { status: AssetStatus.IN_USE },
-    });
-
-    return this.serializeSession(session);
+    return this.startAssetSession(farmerId, dto.assetId);
   }
 
   async endUsageSession(
     farmerId: string,
     dto: {
       usageLogId: string;
-      endMileage: number;
+      endMileage?: number;
       endOperatingHours?: number;
       fuelLevel?: number;
       conditionNote?: string;
@@ -517,72 +518,221 @@ export class AssetService {
       notes?: string;
     },
   ) {
-    const farmer = await (this.prisma as any).whitelistStaff.findFirst({
-      where: { id: farmerId, role: { in: ['WORKER', 'FARMER'] } },
-    });
-
-    if (!farmer) {
-      throw new BadRequestException('Farmer session context not found');
-    }
-
     const session = await this.usageLogClient().findFirst({
       where: {
         id: dto.usageLogId,
         farmerId,
         endTime: null,
       },
-      include: { asset: true },
     });
 
     if (!session) {
       throw new NotFoundException('Active usage session not found');
     }
 
-    const endTime = dto.endTime ? new Date(dto.endTime) : new Date();
-    const durationHours = Math.max(
-      0,
-      (endTime.getTime() - new Date(session.startTime).getTime()) / 36e5,
-    );
+    const startMileage = session.startMileage ?? 0;
+    const computedDistance =
+      dto.endMileage != null ? Math.max(0, dto.endMileage - startMileage) : 0;
 
-    const notesParts = [
-      session.notes?.trim(),
-      dto.notes?.trim(),
-      dto.returnConfirmation === false ? 'Return confirmation pending' : 'Return confirmed',
-      dto.issues?.trim() ? `Issues: ${dto.issues.trim()}` : null,
-    ].filter(Boolean);
-
-    const updatedSession = await this.usageLogClient().update({
-      where: { id: session.id },
-      data: {
-        endTime,
-        endMileage: dto.endMileage,
-        endOperatingHours: dto.endOperatingHours ?? null,
-        fuelLevel: dto.fuelLevel ?? null,
-        conditionNote: dto.conditionNote?.trim() || null,
-        notes: notesParts.join(' | '),
-      },
+    return this.endAssetSession(farmerId, session.assetId, {
+      distanceKm: computedDistance,
+      issues: dto.issues,
+      maintenanceNote: dto.notes,
+      condition: SessionCondition.GOOD,
     });
+  }
 
-    await (this.prisma as any).asset.update({
-      where: { id: session.assetId },
-      data: {
-        mileage: dto.endMileage,
-        operatingHours:
-          dto.endOperatingHours ?? (session.asset.operatingHours ?? 0) + durationHours,
-        status: AssetStatus.AVAILABLE,
-      },
+  async startAssetSession(workerId: string, assetId: string) {
+    const result = await this.prisma.$transaction(async (tx) => {
+      const worker = await (tx as any).whitelistStaff.findFirst({
+        where: { id: workerId, role: { in: ['WORKER', 'FARMER'] } },
+      });
+
+      if (!worker) {
+        throw new BadRequestException('Worker session context not found');
+      }
+
+      const assetWhere: any = {
+        id: assetId,
+        userId: worker.userId,
+        OR: [],
+      };
+
+      if (worker.assignedFieldId) {
+        assetWhere.OR.push({ fieldId: worker.assignedFieldId });
+      }
+
+      assetWhere.OR.push({ assignedToId: worker.id });
+
+      const asset = await (tx as any).asset.findFirst({ where: assetWhere });
+
+      if (!asset) {
+        throw new NotFoundException('Asset not found for worker field');
+      }
+
+      const predictiveCheck = await this.predictiveMaintenanceService.ensureSafeToUse(asset.id);
+      if (!predictiveCheck.canUse) {
+        throw new ConflictException(
+          'Machine is in high-risk condition. Maintenance required before use.',
+        );
+      }
+
+      if (asset.status !== AssetStatus.AVAILABLE) {
+        throw new ConflictException('Asset is not available');
+      }
+
+      const activeSession = await (tx as any).usageLog.findFirst({
+        where: {
+          assetId,
+          endTime: null,
+        },
+      });
+
+      if (activeSession) {
+        throw new ConflictException('Asset already has an active usage session');
+      }
+
+      const session = await (tx as any).usageLog.create({
+        data: {
+          assetId,
+          farmerId: workerId,
+          fieldId: asset.fieldId,
+          startTime: new Date(),
+          startMileage: asset.mileage ?? 0,
+          startOperatingHours: asset.operatingHours ?? null,
+          notes: null,
+        },
+      });
+
+      const updated = await (tx as any).asset.updateMany({
+        where: { id: assetId, status: AssetStatus.AVAILABLE },
+        data: { status: AssetStatus.IN_USE },
+      });
+
+      if (!updated || updated.count !== 1) {
+        throw new ConflictException('Asset status changed while starting session');
+      }
+
+      return session;
     });
-
-    const analysis = await this.buildMechanicalAnalysis(
-      session.asset,
-      null,
-      dto.conditionNote || dto.issues || dto.notes || '',
-    );
 
     return {
-      ...this.serializeSession(updatedSession),
-      durationHours: Number(durationHours.toFixed(2)),
-      mechanicalExpert: analysis,
+      success: true,
+      session: this.serializeSession(result),
+    };
+  }
+
+  async endAssetSession(
+    workerId: string,
+    assetId: string,
+    checkout: EndAssetSessionDto,
+  ) {
+    if (checkout.distanceKm < 0) {
+      throw new BadRequestException('distanceKm must be greater than or equal to 0');
+    }
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      const worker = await (tx as any).whitelistStaff.findFirst({
+        where: { id: workerId, role: { in: ['WORKER', 'FARMER'] } },
+      });
+
+      if (!worker) {
+        throw new BadRequestException('Worker session context not found');
+      }
+
+      const assetWhere: any = {
+        id: assetId,
+        userId: worker.userId,
+        OR: [],
+      };
+
+      if (worker.assignedFieldId) {
+        assetWhere.OR.push({ fieldId: worker.assignedFieldId });
+      }
+
+      assetWhere.OR.push({ assignedToId: worker.id });
+
+      const asset = await (tx as any).asset.findFirst({ where: assetWhere });
+
+      if (!asset) {
+        throw new NotFoundException('Asset not found for worker field');
+      }
+
+      const activeSession = await (tx as any).usageLog.findFirst({
+        where: {
+          assetId,
+          endTime: null,
+        },
+      });
+
+      if (!activeSession) {
+        throw new NotFoundException('No active usage session found for this asset');
+      }
+
+      const endTime = new Date();
+      const durationHours = this.computeDurationHours(activeSession.startTime, endTime);
+      const existingMileage = asset.mileage ?? activeSession.startMileage ?? 0;
+      const existingOperatingHours =
+        asset.operatingHours ?? activeSession.startOperatingHours ?? 0;
+      const nextMileage = Number((existingMileage + checkout.distanceKm).toFixed(2));
+      const nextOperatingHours = Number((existingOperatingHours + durationHours).toFixed(2));
+
+      const updatedSession = await (tx as any).usageLog.update({
+        where: { id: activeSession.id },
+        data: {
+          endTime,
+          duration: durationHours,
+          distanceKm: checkout.distanceKm,
+          issues: checkout.issues?.trim() || null,
+          maintenanceNote: checkout.maintenanceNote?.trim() || null,
+          condition: checkout.condition,
+          endMileage: nextMileage,
+          endOperatingHours: nextOperatingHours,
+        },
+      });
+
+      const updated = await (tx as any).asset.updateMany({
+        where: { id: assetId, status: AssetStatus.IN_USE },
+        data: {
+          status: AssetStatus.AVAILABLE,
+          mileage: nextMileage,
+          operatingHours: nextOperatingHours,
+        },
+      });
+
+      if (!updated || updated.count !== 1) {
+        throw new ConflictException('Asset status changed while ending session');
+      }
+
+      const updatedAsset = await (tx as any).asset.findFirst({ where: { id: assetId } });
+
+      return { updatedSession, durationHours, updatedAsset };
+    });
+
+    void this.assetMaintenanceNotificationService
+      .notifyAfterSessionEnd({
+        ownerId: result.updatedAsset.userId,
+        assetId,
+        assetName: result.updatedAsset.name,
+        sessionId: result.updatedSession.id,
+        operatingHours: result.updatedAsset.operatingHours ?? 0,
+        condition: checkout.condition,
+        issues: checkout.issues?.trim() || null,
+      })
+      .catch((error) => {
+        this.logger.warn(
+          `Maintenance notification dispatch failed for asset ${assetId}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      });
+
+    return {
+      success: true,
+      duration: result.durationHours,
+      durationHours: result.durationHours,
+      updatedAsset: this.sanitize(result.updatedAsset),
+      session: this.serializeSession(result.updatedSession),
     };
   }
 
@@ -631,12 +781,19 @@ export class AssetService {
   }
 
   async getAssetHistory(
-    userId: string,
+    ownerId: string,
     role: string,
     assetId: string,
     assignedFieldId?: string | null,
+    staffId?: string | null,
   ) {
-    const asset = await this.getAssetWithAccess(userId, role, assetId, assignedFieldId);
+    const asset = await this.getAssetWithAccess(
+      ownerId,
+      role,
+      assetId,
+      assignedFieldId,
+      staffId,
+    );
 
     const sessions = await this.usageLogClient().findMany({
       where: { assetId: asset.id },
@@ -675,18 +832,31 @@ export class AssetService {
   }
 
   async getAiDiagnostics(
-    userId: string,
+    ownerId: string,
     role: string,
     assetId: string,
     assignedFieldId?: string | null,
+    staffId?: string | null,
   ) {
     try {
-      const asset = await this.getAssetWithAccess(userId, role, assetId, assignedFieldId);
+      const asset = await this.getAssetWithAccess(
+        ownerId,
+        role,
+        assetId,
+        assignedFieldId,
+        staffId,
+      );
 
       // Use flexible AI engine
       const diagnosis = await this.buildMechanicalAnalysis(asset);
 
-      const historyResult = await this.getAssetHistory(userId, role, assetId, assignedFieldId);
+      const historyResult = await this.getAssetHistory(
+        ownerId,
+        role,
+        assetId,
+        assignedFieldId,
+        staffId,
+      );
       const dynamicReport = this.buildDynamicReport(asset.brand, historyResult.history);
 
       return {
@@ -956,6 +1126,7 @@ export class AssetService {
       id: session.id,
       assetId: session.assetId,
       farmerId: session.farmerId,
+      fieldId: session.fieldId,
       startTime: session.startTime,
       endTime: session.endTime,
       startMileage: session.startMileage,
@@ -963,6 +1134,11 @@ export class AssetService {
       endMileage: session.endMileage,
       endOperatingHours: session.endOperatingHours,
       taskType: session.taskType,
+      duration: session.duration,
+      distanceKm: session.distanceKm,
+      issues: session.issues,
+      maintenanceNote: session.maintenanceNote,
+      condition: session.condition,
       fuelLevel: session.fuelLevel,
       conditionNote: session.conditionNote,
       notes: session.notes,
@@ -972,17 +1148,29 @@ export class AssetService {
   }
 
   private async getAssetWithAccess(
-    userId: string,
+    ownerId: string,
     role: string,
     assetId: string,
     assignedFieldId?: string | null,
+    staffId?: string | null,
   ) {
-    const where: any = { id: assetId, userId };
+    const where: any = { id: assetId, userId: ownerId };
     if (role === 'WORKER' || role === 'FARMER') {
-      if (!assignedFieldId) {
+      const workerFilters: any[] = [];
+
+      if (assignedFieldId) {
+        workerFilters.push({ fieldId: assignedFieldId });
+      }
+
+      if (staffId) {
+        workerFilters.push({ assignedToId: staffId });
+      }
+
+      if (!workerFilters.length) {
         throw new NotFoundException('No field assigned to this worker');
       }
-      where.fieldId = assignedFieldId;
+
+      where.AND = [{ OR: workerFilters }];
     }
 
     const asset = await (this.prisma as any).asset.findFirst({ where });
@@ -1092,6 +1280,10 @@ export class AssetService {
   }
 
   private sanitize(asset: any) {
+    const latestUsageLog = Array.isArray(asset.usageLogs) ? asset.usageLogs[0] : null;
+    const activeUsageSession = latestUsageLog && latestUsageLog.endTime == null ? latestUsageLog : null;
+    const usageCondition = latestUsageLog?.condition ?? null;
+
     return {
       id: asset.id,
       name: asset.name,
@@ -1108,6 +1300,20 @@ export class AssetService {
       assignedTo: asset.assignedTo,
       field_id: asset.fieldId,
       field: asset.field,
+      usageCondition,
+      isWarning: usageCondition === 'WARNING' || usageCondition === 'CRITICAL',
+      activeSession: activeUsageSession
+        ? {
+            id: activeUsageSession.id,
+            assetId: activeUsageSession.assetId,
+            farmerId: activeUsageSession.farmerId,
+            farmerName: activeUsageSession.farmer?.name ?? null,
+            startTime: activeUsageSession.startTime,
+            condition: activeUsageSession.condition,
+          }
+        : null,
+      activeUsageWorkerId: activeUsageSession?.farmerId ?? null,
+      activeUsageWorkerName: activeUsageSession?.farmer?.name ?? null,
       createdAt: asset.createdAt,
       updatedAt: asset.updatedAt,
     };

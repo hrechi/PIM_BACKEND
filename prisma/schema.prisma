@@ -140,6 +140,12 @@ enum AssetStatus {
   MAINTENANCE
 }
 
+enum SessionCondition {
+  GOOD
+  WARNING
+  CRITICAL
+}
+
 // ─────────────────────────────────────────────
 // USER
 // ─────────────────────────────────────────────
@@ -363,6 +369,7 @@ model Field {
   ndviRecords      NDVIRecord[] // from schema 1
   animals          Animal[]
   assets           Asset[] // from schema 2
+  usageLogs        UsageLog[]
   assignedWorkers  WhitelistStaff[] // from schema 2
   expenses         Expense[]
 
@@ -498,10 +505,17 @@ model UsageLog {
   id                  String         @id @default(uuid())
   assetId             String         @map("asset_id")
   asset               Asset          @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  fieldId             String?        @map("field_id")
+  field               Field?         @relation(fields: [fieldId], references: [id], onDelete: SetNull)
   farmerId            String         @map("farmer_id")
   farmer              WhitelistStaff @relation(fields: [farmerId], references: [id], onDelete: Cascade)
   startTime           DateTime       @map("start_time")
   endTime             DateTime?      @map("end_time")
+  duration            Float?
+  distanceKm          Float?         @map("distance_km")
+  issues              String?        @db.Text
+  maintenanceNote     String?        @map("maintenance_note") @db.Text
+  condition           SessionCondition?
   startMileage        Float          @map("start_mileage")
   startOperatingHours Float?         @map("start_operating_hours")
   endMileage          Float?         @map("end_mileage")
@@ -514,6 +528,7 @@ model UsageLog {
   updatedAt           DateTime       @updatedAt @map("updated_at")
 
   @@index([assetId])
+  @@index([fieldId])
   @@index([farmerId])
   @@index([startTime])
   @@map("usage_logs")

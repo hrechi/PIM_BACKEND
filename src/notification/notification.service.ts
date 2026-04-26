@@ -2,11 +2,14 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import * as admin from 'firebase-admin';
 import * as path from 'path';
 import * as fs from 'fs';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class NotificationService implements OnModuleInit {
   private readonly logger = new Logger(NotificationService.name);
   private initialized = false;
+
+  constructor(private readonly prisma: PrismaService) {}
 
   onModuleInit() {
     try {
@@ -55,7 +58,7 @@ export class NotificationService implements OnModuleInit {
       return;
     }
 
-    const apiBase = process.env.API_BASE_URL || 'http://192.168.142.3:3000';
+    const apiBase = process.env.API_BASE_URL || 'http://192.168.1.115:3000';
     const imageUrl = `${apiBase}${incident.imagePath}`;
 
     const { title, body } = this.getNotificationContent(incident.type);
@@ -140,6 +143,35 @@ export class NotificationService implements OnModuleInit {
     } catch (err) {
       this.logger.error('❌ Push failed:', err);
     }
+  }
+
+  async sendNotification(
+    userId: string,
+    title: string,
+    message: string,
+    data?: Record<string, string>,
+  ): Promise<void> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { fcmToken: true },
+    });
+
+    if (!user?.fcmToken) {
+      this.logger.warn(`No FCM token found for user ${userId} — skipping push`);
+      return;
+    }
+
+    await this.sendToDevice(user.fcmToken, {
+      notification: { title, body: message },
+      data: {
+        click_action: 'FLUTTER_NOTIFICATION_CLICK',
+        screen: 'ASSET_DETAILS',
+        type: 'ASSET_MAINTENANCE_ALERT',
+        title,
+        body: message,
+        ...(data ?? {}),
+      },
+    });
   }
 
   /**

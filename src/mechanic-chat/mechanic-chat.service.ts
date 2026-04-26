@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { AssetInsightsService } from '../asset/asset-insights.service';
+import { PrismaService } from '../prisma/prisma.service';
 
 interface GroqResponse {
   choices?: Array<{ message?: { content?: string } }>;
@@ -7,12 +9,17 @@ interface GroqResponse {
 
 @Injectable()
 export class MechanicChatService {
-  constructor(private readonly configService: ConfigService) {}
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly prismaService: PrismaService,
+    private readonly assetInsightsService: AssetInsightsService,
+  ) {}
 
   private getMechanicSystemPrompt(assetContext?: {
     brand?: string;
     model?: string;
     category?: string;
+    assetId?: string;
   }): string {
     let prompt =
       'You are an expert agricultural mechanic and machinery specialist. ' +
@@ -31,6 +38,7 @@ export class MechanicChatService {
       'Rules: ' +
       '- Be practical and realistic ' +
       '- Do not hallucinate unknown machines or parts ' +
+      '- You also receive real machine data and history. Use it to improve your diagnosis. Prioritize real data over assumptions. ' +
       '- If unsure about diagnosis, say it clearly ' +
       '- Keep answers concise but useful ' +
       '- For safety-critical issues, always recommend professional inspection ' +
@@ -61,12 +69,13 @@ export class MechanicChatService {
   async sendMessage(
     userId: string,
     message: string,
+    conversationId?: string,
+    assetId?: string,
     assetContext?: {
       brand?: string;
       model?: string;
       category?: string;
     },
-    conversationId?: string,
   ): Promise<{ reply: string; conversationId: string }> {
     const apiKey = this.configService.get<string>('GROQ_API_KEY');
     const apiUrl =
@@ -82,11 +91,28 @@ export class MechanicChatService {
       };
     }
 
-    const systemPrompt = this.getMechanicSystemPrompt(assetContext);
+    const machineContext = await this.buildMachineContext(assetId, assetContext);
+    const systemPrompt = this.getMechanicSystemPrompt({
+      ...assetContext,
+      ...(assetId ? { assetId } : {}),
+    });
 
     try {
       const abortController = new AbortController();
       const timeout = setTimeout(() => abortController.abort(), 30000); // 30 second timeout
+
+      const messages: Array<{ role: 'system' | 'user'; content: string }> = [
+        { role: 'system', content: systemPrompt },
+      ];
+
+      if (machineContext) {
+        messages.push({
+          role: 'system',
+          content: `Machine context JSON:\n${JSON.stringify(machineContext, null, 2)}`,
+        });
+      }
+
+      messages.push({ role: 'user', content: message });
 
       const response = await fetch(apiUrl, {
         method: 'POST',
@@ -96,10 +122,7 @@ export class MechanicChatService {
         },
         body: JSON.stringify({
           model,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: message },
-          ],
+          messages,
           temperature: 0.3, // Slightly higher than chat for more versatile responses
         }),
         signal: abortController.signal,
@@ -153,5 +176,100 @@ export class MechanicChatService {
         conversationId: conversationId || '',
       };
     }
+  }
+
+  private async buildMachineContext(
+    assetId?: string,
+    legacyAssetContext?: {
+      brand?: string;
+      model?: string;
+      category?: string;
+    },
+  ): Promise<Record<string, unknown> | null> {
+    if (!assetId) {
+      if (!legacyAssetContext || (!legacyAssetContext.brand && !legacyAssetContext.model && !legacyAssetContext.category)) {
+        return null;
+      }
+
+      return {
+        asset: {
+          brand: legacyAssetContext.brand ?? null,
+          model: legacyAssetContext.model ?? null,
+          category: legacyAssetContext.category ?? null,
+        },
+        recentIssues: [],
+        conditions: [],
+        insights: null,
+      };
+    }
+
+    const [asset, recentLogs, insights] = await Promise.all([
+      this.prismaService.asset.findUnique({
+        where: { id: assetId },
+        select: {
+          id: true,
+          brand: true,
+          model: true,
+          category: true,
+          operatingHours: true,
+          mileage: true,
+        },
+      }),
+      this.prismaService.usageLog.findMany({
+        where: { assetId },
+        orderBy: { endTime: 'desc' },
+        take: 10,
+        select: {
+          issues: true,
+          maintenanceNote: true,
+          condition: true,
+          duration: true,
+          startTime: true,
+          endTime: true,
+        },
+      }),
+      this.assetInsightsService.getAssetInsights(assetId),
+    ]);
+
+    if (!asset) {
+      return legacyAssetContext
+        ? {
+            asset: {
+              brand: legacyAssetContext.brand ?? null,
+              model: legacyAssetContext.model ?? null,
+              category: legacyAssetContext.category ?? null,
+            },
+            recentIssues: [],
+            conditions: [],
+            insights: null,
+          }
+        : null;
+    }
+
+    const recentIssues = recentLogs
+      .flatMap((log) => [log.issues, log.maintenanceNote])
+      .map((value) => (value ?? '').trim())
+      .filter((value) => value.length > 0)
+      .slice(0, 10);
+
+    const conditions: string[] = [];
+    for (const log of recentLogs) {
+      if (log.condition) {
+        conditions.push(String(log.condition));
+      }
+    }
+
+    return {
+      asset: {
+        brand: asset.brand,
+        model: asset.model,
+        category: asset.category,
+        operatingHours: asset.operatingHours,
+        mileage: asset.mileage,
+      },
+      recentIssues,
+      conditions,
+      insights,
+    };
   }
 }
