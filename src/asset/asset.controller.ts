@@ -31,8 +31,13 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CreateAssetDto } from './dto/create-asset.dto';
+import { EndAssetSessionDto } from './dto/end-asset-session.dto';
+import { EndSessionDto } from './dto/end-session.dto';
+import { StartSessionDto } from './dto/start-session.dto';
 import { UpdateAssetDto } from './dto/update-asset.dto';
 import { AssetService } from './asset.service';
+import { AssetInsightsService } from './asset-insights.service';
+import { PredictiveMaintenanceService } from './predictive-maintenance.service';
 
 class ImageFileValidator extends FileValidator {
   private allowedExtensions = ['.jpg', '.jpeg', '.png', '.webp'];
@@ -52,7 +57,11 @@ class ImageFileValidator extends FileValidator {
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('assets')
 export class AssetController {
-  constructor(private readonly assetService: AssetService) {}
+  constructor(
+    private readonly assetService: AssetService,
+    private readonly assetInsightsService: AssetInsightsService,
+    private readonly predictiveMaintenanceService: PredictiveMaintenanceService,
+  ) {}
 
   @Get('brands/search')
   @Roles('OWNER', 'WORKER', 'FARMER')
@@ -130,10 +139,13 @@ export class AssetController {
   @ApiOperation({ summary: 'Get all assets for current user' })
   @ApiResponse({ status: 200, description: 'Assets list' })
   async findAll(@Req() req: any) {
+    const ownerId = req.user.ownerId || req.user.id;
+    const staffId = req.user.staffId || req.user.workerId || null;
     return this.assetService.findAll(
-      req.user.id,
+      ownerId,
       req.user.role,
       req.user.assignedFieldId,
+      staffId,
     );
   }
 
@@ -142,11 +154,14 @@ export class AssetController {
   @ApiOperation({ summary: 'Scan by serial and return AI mechanical hint' })
   @ApiResponse({ status: 200, description: 'Asset scan and diagnosis result' })
   async scanBySerial(@Req() req: any, @Param('serialNumber') serialNumber: string) {
+    const ownerId = req.user.ownerId || req.user.id;
+    const staffId = req.user.staffId || req.user.workerId || null;
     return this.assetService.scanBySerial(
-      req.user.id,
+      ownerId,
       req.user.role,
       serialNumber,
       req.user.assignedFieldId,
+      staffId,
     );
   }
 
@@ -154,11 +169,14 @@ export class AssetController {
   @Roles('OWNER', 'WORKER', 'FARMER')
   @ApiOperation({ summary: 'Get asset usage history with aggregates' })
   async history(@Req() req: any, @Param('id') id: string) {
+    const ownerId = req.user.ownerId || req.user.id;
+    const staffId = req.user.staffId || req.user.workerId || null;
     return this.assetService.getAssetHistory(
-      req.user.id,
+      ownerId,
       req.user.role,
       id,
       req.user.assignedFieldId,
+      staffId,
     );
   }
 
@@ -166,12 +184,29 @@ export class AssetController {
   @Roles('OWNER', 'WORKER', 'FARMER')
   @ApiOperation({ summary: 'Run live AI diagnostics for an asset' })
   async diagnostics(@Req() req: any, @Param('id') id: string) {
+    const ownerId = req.user.ownerId || req.user.id;
+    const staffId = req.user.staffId || req.user.workerId || null;
     return this.assetService.getAiDiagnostics(
-      req.user.id,
+      ownerId,
       req.user.role,
       id,
       req.user.assignedFieldId,
+      staffId,
     );
+  }
+
+  @Get(':id/insights')
+  @Roles('OWNER', 'WORKER', 'FARMER')
+  @ApiOperation({ summary: 'Get rule-based machine insights for an asset' })
+  async insights(@Param('id') id: string) {
+    return this.assetInsightsService.getAssetInsights(id);
+  }
+
+  @Get(':id/predictive-maintenance')
+  @Roles('OWNER', 'WORKER', 'FARMER')
+  @ApiOperation({ summary: 'Get predictive maintenance signals for an asset' })
+  async predictiveMaintenance(@Param('id') id: string) {
+    return this.predictiveMaintenanceService.evaluateAsset(id, { notify: false });
   }
 
   @Patch(':id')
@@ -190,15 +225,37 @@ export class AssetController {
   @Post('session/start')
   @Roles('WORKER', 'FARMER')
   @ApiOperation({ summary: 'Start a usage session for a farm asset' })
-  async startSession(@Req() req: any, @Body() body: any) {
-    return this.assetService.startUsageSession(req.user.staffId || req.user.workerId || req.user.id, body);
+  async startSessionLegacy(@Req() req: any, @Body() body: StartSessionDto) {
+    const workerId = req.user.staffId || req.user.workerId || req.user.id;
+    return this.assetService.startUsageSession(workerId, body);
   }
 
   @Post('session/end')
   @Roles('WORKER', 'FARMER')
   @ApiOperation({ summary: 'End a usage session and update mileage' })
-  async endSession(@Req() req: any, @Body() body: any) {
-    return this.assetService.endUsageSession(req.user.staffId || req.user.workerId || req.user.id, body);
+  async endSessionLegacy(@Req() req: any, @Body() body: EndSessionDto) {
+    const workerId = req.user.staffId || req.user.workerId || req.user.id;
+    return this.assetService.endUsageSession(workerId, body);
+  }
+
+  @Post(':id/start-session')
+  @Roles('WORKER', 'FARMER')
+  @ApiOperation({ summary: 'Start an asset usage session' })
+  async startSession(@Req() req: any, @Param('id') id: string) {
+    const workerId = req.user.staffId || req.user.workerId || req.user.id;
+    return this.assetService.startAssetSession(workerId, id);
+  }
+
+  @Post(':id/end-session')
+  @Roles('WORKER', 'FARMER')
+  @ApiOperation({ summary: 'End an asset usage session' })
+  async endSession(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() body: EndAssetSessionDto,
+  ) {
+    const workerId = req.user.staffId || req.user.workerId || req.user.id;
+    return this.assetService.endAssetSession(workerId, id, body);
   }
 
   @Get('session/weekly')

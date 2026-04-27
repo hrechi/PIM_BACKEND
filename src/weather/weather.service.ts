@@ -21,7 +21,9 @@ export class WeatherService {
   ) {
     this.weatherServiceUrl =
       this.configService.get<string>('WEATHER_SERVICE_URL') ||
+
       'http://192.168.0.148:5000';
+
   }
 
   /**

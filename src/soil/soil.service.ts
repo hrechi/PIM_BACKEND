@@ -14,8 +14,10 @@ import { QuerySoilDto } from './dto/query-soil.dto';
 import { PhStatus, MoistureStatus } from './enums';
 import { SoilMeasurementWithStatus, PaginatedResponse } from './interfaces';
 import * as fs from 'fs';
+import * as path from 'path';
 import axios from 'axios';
 import FormData = require('form-data');
+import { RobotRecordingService } from './robot-recording.service';
 
 @Injectable()
 export class SoilService {
@@ -25,9 +27,10 @@ export class SoilService {
   constructor(
     @InjectRepository(SoilMeasurement)
     private readonly soilRepository: Repository<SoilMeasurement>,
+    private readonly robotRecordingService: RobotRecordingService,
   ) {
     // Ensure URL doesn't end with slash to avoid double slashes
-    const baseUrl = process.env.AI_SERVICE_URL || 'http://192.168.1.183:8000';
+    const baseUrl = process.env.AI_SERVICE_URL || 'http://192.168.1.115:8000';
     this.aiServiceUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
     this.logger.log(`🤖 AI Service URL configured: ${this.aiServiceUrl}`);
   }
@@ -52,7 +55,10 @@ export class SoilService {
 
   /**
    * Create soil measurement with image classification
-   * Calls AI service to detect soil type from photo
+   * Calls AI service to detect soil type from photo, OR (when the
+   * Flutter app uploads a `.zip` produced by the robot live-preview
+   * screen) assembles the recorded JPEG frames into an MP4 first using
+   * ffmpeg-static, then classifies the middle frame.
    */
   async createWithImage(
     createSoilDto: CreateSoilDto,
@@ -60,6 +66,40 @@ export class SoilService {
     imageFilePath: string,
   ): Promise<SoilMeasurementWithStatus> {
     try {
+      // For robot recordings, assemble the MP4 + still frame BEFORE
+      // calling AI. After this block aiInputPath is always a JPEG and
+      // displayPath is what we persist + show in the soil details.
+      let aiInputPath = imageFilePath;
+      let displayPath = imagePath;
+      if (path.extname(imageFilePath).toLowerCase() === '.zip') {
+        const mp4DiskPath = imageFilePath.replace(/\.zip$/i, '.mp4');
+        try {
+          const assembled = await this.robotRecordingService.assembleFromZip(
+            imageFilePath,
+            mp4DiskPath,
+          );
+          aiInputPath = assembled.posterFramePath;
+          displayPath = imagePath.replace(/\.zip$/i, '.mp4');
+          this.logger.log(
+            `\uD83C\uDFA5 Robot recording assembled: ${assembled.frameCount} frames, ` +
+              `${assembled.durationMs}ms, ${assembled.fps} fps -> ${displayPath}`,
+          );
+          fs.promises.unlink(imageFilePath).catch(() => undefined);
+        } catch (e) {
+          this.logger.error(
+            `Failed to assemble robot recording: ${
+              e instanceof Error ? e.message : String(e)
+            }`,
+          );
+          throw new HttpException(
+            `Failed to process robot recording: ${
+              e instanceof Error ? e.message : String(e)
+            }`,
+            HttpStatus.UNPROCESSABLE_ENTITY,
+          );
+        }
+      }
+
       // Call AI service to classify soil image
       let soilType = 'Unknown';
       let detectionConfidence = 0.0;
@@ -69,9 +109,24 @@ export class SoilService {
       try {
         this.logger.log('Calling AI service to classify soil image...');
 
-        // Read image file and create form data
+        // Read image file and create form data. We pass an explicit filename
+        // and content-type so the AI service (FastAPI) sees a proper image
+        // upload regardless of how the source file is on disk (e.g. the .png
+        // poster frame extracted from a recorded video).
+        const aiInputExt = path.extname(aiInputPath).toLowerCase();
+        const aiInputContentType =
+          aiInputExt === '.png'
+            ? 'image/png'
+            : aiInputExt === '.webp'
+              ? 'image/webp'
+              : aiInputExt === '.bmp'
+                ? 'image/bmp'
+                : 'image/jpeg';
         const formData = new FormData();
-        formData.append('image', fs.createReadStream(imageFilePath));
+        formData.append('image', fs.createReadStream(aiInputPath), {
+          filename: path.basename(aiInputPath),
+          contentType: aiInputContentType,
+        });
 
         const fullUrl = `${this.aiServiceUrl}/classify-soil-image`;
         this.logger.log(`📡 Calling AI endpoint: ${fullUrl}`);
@@ -119,7 +174,7 @@ export class SoilService {
       // Create measurement with AI-detected soil type
       const measurementData = {
         ...createSoilDto,
-        imagePath,
+        imagePath: displayPath,
         soilType,
         detectionConfidence,
         // Use estimated values only if not provided by user
@@ -150,6 +205,7 @@ export class SoilService {
       return enriched;
     } catch (error) {
       this.logger.error('Failed to create soil measurement with image:', error);
+      if (error instanceof HttpException) throw error;
       throw new HttpException(
         'Failed to create soil measurement with image',
         HttpStatus.INTERNAL_SERVER_ERROR,

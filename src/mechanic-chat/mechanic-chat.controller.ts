@@ -45,8 +45,9 @@ export class MechanicChatController {
     const { reply } = await this.mechanicChatService.sendMessage(
       req.user.id,
       dto.message,
-      dto.asset,
       conversationId,
+      dto.assetId,
+      dto.asset,
     );
 
     // Save user message and mechanic reply to conversation

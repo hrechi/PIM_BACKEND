@@ -1,11 +1,12 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { AssetModule } from '../asset/asset.module';
 import { MechanicChatController } from './mechanic-chat.controller';
 import { MechanicChatService } from './mechanic-chat.service';
 import { ConversationModule } from '../conversation/conversation.module';
 
 @Module({
-  imports: [ConfigModule, ConversationModule],
+  imports: [ConfigModule, ConversationModule, AssetModule],
   controllers: [MechanicChatController],
   providers: [MechanicChatService],
 })
