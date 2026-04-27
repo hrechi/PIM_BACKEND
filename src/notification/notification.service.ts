@@ -55,7 +55,9 @@ export class NotificationService implements OnModuleInit {
       return;
     }
 
-    const apiBase = process.env.API_BASE_URL || 'http://192.168.1.183:3000';
+    const apiBase = process.env.API_BASE_URL
+      ? `http://${process.env.API_BASE_URL}:${process.env.API_PORT || '3000'}`
+      : 'http://192.168.0.148:3000';
     const imageUrl = `${apiBase}${incident.imagePath}`;
 
     const { title, body } = this.getNotificationContent(incident.type);

@@ -20,8 +20,8 @@ export class IrrigationService {
     private readonly prisma: PrismaService,
   ) {
     this.weatherServiceUrl =
-      this.configService.get<string>('WEATHER_SERVICE_URL') ||
-      'http://172.20.10.10:5000';
+      this.configService.get<string>('IRRIGATION_SERVICE_URL') ||
+      'http://192.168.0.148:5000';
   }
 
   /**

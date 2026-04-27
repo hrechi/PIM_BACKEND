@@ -51,7 +51,7 @@ export class CataloguesService {
         orderBy: { updatedAt: 'desc' },
         skip,
         take: limit,
-        include: { animals: true },
+        include: { animals: { include: { animal: true } } },
       }),
       this.prisma.saleCatalogue.count({ where: { farmerId } }),
     ]);

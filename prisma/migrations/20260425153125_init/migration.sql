@@ -102,6 +102,79 @@ CREATE TABLE "badges" (
 );
 
 -- CreateTable
+CREATE TABLE "skill_paths" (
+    "id" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "description" TEXT NOT NULL,
+    "icon" TEXT,
+    "gradient_start" TEXT,
+    "gradient_end" TEXT,
+    "difficulty" TEXT NOT NULL DEFAULT 'INTERMEDIATE',
+    "estimated_minutes" INTEGER NOT NULL DEFAULT 60,
+    "is_active" BOOLEAN NOT NULL DEFAULT true,
+    "sort_order" INTEGER NOT NULL DEFAULT 0,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "skill_paths_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "skill_lessons" (
+    "id" TEXT NOT NULL,
+    "path_id" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "summary" TEXT NOT NULL,
+    "micro_content" TEXT NOT NULL,
+    "skill_tag" TEXT NOT NULL,
+    "estimated_minutes" INTEGER NOT NULL DEFAULT 10,
+    "sort_order" INTEGER NOT NULL DEFAULT 0,
+    "is_active" BOOLEAN NOT NULL DEFAULT true,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "skill_lessons_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "skill_lesson_progress" (
+    "id" TEXT NOT NULL,
+    "user_id" TEXT NOT NULL,
+    "lesson_id" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'NOT_STARTED',
+    "completion_percent" INTEGER NOT NULL DEFAULT 0,
+    "last_score" INTEGER,
+    "best_score" INTEGER,
+    "attempts" INTEGER NOT NULL DEFAULT 0,
+    "language_code" TEXT NOT NULL DEFAULT 'en-US',
+    "last_quiz" JSONB,
+    "completed_at" TIMESTAMP(3),
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "skill_lesson_progress_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "skill_path_completions" (
+    "id" TEXT NOT NULL,
+    "user_id" TEXT NOT NULL,
+    "path_id" TEXT NOT NULL,
+    "completion_percent" INTEGER NOT NULL DEFAULT 0,
+    "completed_lessons" INTEGER NOT NULL DEFAULT 0,
+    "total_lessons" INTEGER NOT NULL DEFAULT 0,
+    "status" TEXT NOT NULL DEFAULT 'IN_PROGRESS',
+    "certificate_issued" BOOLEAN NOT NULL DEFAULT false,
+    "completed_at" TIMESTAMP(3),
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "skill_path_completions_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "saved_articles" (
     "id" TEXT NOT NULL,
     "title" TEXT NOT NULL,
@@ -271,7 +344,7 @@ CREATE TABLE "daily_reports" (
 
 -- CreateTable
 CREATE TABLE "soil_measurements" (
-    "id" UUID NOT NULL DEFAULT uuid_generate_v4(),
+    "id" TEXT NOT NULL,
     "ph" DOUBLE PRECISION NOT NULL,
     "soil_moisture" DOUBLE PRECISION NOT NULL,
     "sunlight" DOUBLE PRECISION NOT NULL,
@@ -279,7 +352,7 @@ CREATE TABLE "soil_measurements" (
     "temperature" DOUBLE PRECISION NOT NULL,
     "latitude" DOUBLE PRECISION NOT NULL,
     "longitude" DOUBLE PRECISION NOT NULL,
-    "field_id" UUID,
+    "field_id" TEXT,
     "parcel_id" TEXT,
     "image_path" VARCHAR,
     "soil_type" VARCHAR,
@@ -287,7 +360,7 @@ CREATE TABLE "soil_measurements" (
     "created_at" TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT "PK_26b4f52c4005e567602987343a6" PRIMARY KEY ("id")
+    CONSTRAINT "soil_measurements_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -843,6 +916,39 @@ CREATE INDEX "quiz_results_userId_idx" ON "quiz_results"("userId");
 CREATE UNIQUE INDEX "badges_userId_type_key" ON "badges"("userId", "type");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "skill_paths_code_key" ON "skill_paths"("code");
+
+-- CreateIndex
+CREATE INDEX "skill_paths_is_active_sort_order_idx" ON "skill_paths"("is_active", "sort_order");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "skill_lessons_code_key" ON "skill_lessons"("code");
+
+-- CreateIndex
+CREATE INDEX "skill_lessons_path_id_sort_order_idx" ON "skill_lessons"("path_id", "sort_order");
+
+-- CreateIndex
+CREATE INDEX "skill_lessons_is_active_idx" ON "skill_lessons"("is_active");
+
+-- CreateIndex
+CREATE INDEX "skill_lesson_progress_user_id_status_idx" ON "skill_lesson_progress"("user_id", "status");
+
+-- CreateIndex
+CREATE INDEX "skill_lesson_progress_lesson_id_idx" ON "skill_lesson_progress"("lesson_id");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "skill_lesson_progress_user_id_lesson_id_key" ON "skill_lesson_progress"("user_id", "lesson_id");
+
+-- CreateIndex
+CREATE INDEX "skill_path_completions_user_id_status_idx" ON "skill_path_completions"("user_id", "status");
+
+-- CreateIndex
+CREATE INDEX "skill_path_completions_path_id_idx" ON "skill_path_completions"("path_id");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "skill_path_completions_user_id_path_id_key" ON "skill_path_completions"("user_id", "path_id");
+
+-- CreateIndex
 CREATE INDEX "saved_articles_farmerId_idx" ON "saved_articles"("farmerId");
 
 -- CreateIndex
@@ -997,6 +1103,21 @@ ALTER TABLE "quiz_results" ADD CONSTRAINT "quiz_results_userId_fkey" FOREIGN KEY
 
 -- AddForeignKey
 ALTER TABLE "badges" ADD CONSTRAINT "badges_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "skill_lessons" ADD CONSTRAINT "skill_lessons_path_id_fkey" FOREIGN KEY ("path_id") REFERENCES "skill_paths"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "skill_lesson_progress" ADD CONSTRAINT "skill_lesson_progress_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "skill_lesson_progress" ADD CONSTRAINT "skill_lesson_progress_lesson_id_fkey" FOREIGN KEY ("lesson_id") REFERENCES "skill_lessons"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "skill_path_completions" ADD CONSTRAINT "skill_path_completions_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "skill_path_completions" ADD CONSTRAINT "skill_path_completions_path_id_fkey" FOREIGN KEY ("path_id") REFERENCES "skill_paths"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "saved_articles" ADD CONSTRAINT "saved_articles_farmerId_fkey" FOREIGN KEY ("farmerId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
