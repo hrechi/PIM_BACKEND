@@ -9,7 +9,14 @@ import {
   UseGuards,
   Req,
   Query,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { extname } from 'path';
+import { v4 as uuidv4 } from 'uuid';
 import { AnimalsService } from './animals.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { SellAnimalDto, SetFatteningDto } from './animals.dto';
@@ -20,6 +27,34 @@ import { Roles } from '../auth/decorators/roles.decorator';
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class AnimalsController {
   constructor(private readonly animalsService: AnimalsService) {}
+  @Post(':nodeId/upload-photo')
+  @UseInterceptors(FileInterceptor('photo', {
+    storage: diskStorage({
+      destination: './uploads/animals',
+      filename: (req, file, cb) => {
+        cb(null, `${uuidv4()}${extname(file.originalname)}`);
+      },
+    }),
+    fileFilter: (req, file, cb) => {
+      if (!file.mimetype.startsWith('image/')) {
+        return cb(new BadRequestException('Images only'), false);
+      }
+      cb(null, true);
+    },
+    limits: { fileSize: 5 * 1024 * 1024 },
+  }))
+  async uploadPhoto(
+    @Param('nodeId') nodeId: string,
+    @Req() req: any,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    if (!file) throw new BadRequestException('No file uploaded');
+    return this.animalsService.updateProfileImage(
+      nodeId,
+      req.user.id,
+      `/uploads/animals/${file.filename}`,
+    );
+  }
 
   @Post()
   create(@Body() data: any, @Req() req: any) {

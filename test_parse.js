@@ -11,7 +11,7 @@ async function run() {
     };
     console.log("Testing with fieldId:", fieldId);
     try {
-        const res = await fetch('http://192.168.0.148:3000/api/aerotwin/simulate', {
+        const res = await fetch('http://172.20.10.10:3000/api/aerotwin/simulate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)

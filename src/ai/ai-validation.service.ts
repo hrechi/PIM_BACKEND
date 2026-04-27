@@ -7,7 +7,7 @@ import { FallbackAssetService } from './fallback-asset.service';
 export class AiValidationService {
   private readonly logger = new Logger(AiValidationService.name);
   private readonly pythonApiUrl =
-    process.env.PYTHON_AI_API_URL || 'http://192.168.0.148:8000';
+    process.env.PYTHON_AI_API_URL || 'http://172.20.10.10:8000';
 
   constructor(
     private readonly httpService: HttpService,

@@ -1,11 +1,33 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-// Triggering reload to sync Prisma Client
-import { PrismaClient } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class AnimalsService {
   constructor(private prisma: PrismaService) {}
+
+  async updateProfileImage(nodeId: string, farmerId: string, profileImage: string) {
+    const animal = await this.prisma.animal.findFirst({
+      where: { nodeId, farmerId },
+    });
+    if (!animal) throw new NotFoundException('Animal not found or access denied');
+
+    // Delete old file from disk if it exists
+    if (animal.profileImage?.startsWith('/uploads/')) {
+      const fs = await import('fs/promises');
+      const path = await import('path');
+      const oldPath = path.join(process.cwd(), animal.profileImage);
+      await fs.unlink(oldPath).catch(() => {});
+    }
+
+    return this.prisma.animal.update({
+      where: { nodeId },
+      data: { profileImage },
+      include: {
+        vaccineRecords: { include: { vaccine: true } },
+        medicalEvents: true,
+      } as any,
+    });
+  }
 
   private calculateAgeInMonths(birthDate: Date | null, createdAt: Date): number {
     const referenceDate = birthDate || createdAt;

@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { randomBytes } from 'crypto';
-import { Prisma } from '@prisma/client';
+import { AnimalStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   AddCatalogueAnimalsDto,
@@ -145,6 +145,7 @@ export class CataloguesService {
             animalId,
             sortOrder: nextOrder++,
           },
+          include: { animal: true }, // ← always return nested animal
         }),
       );
     }
@@ -204,84 +205,56 @@ export class CataloguesService {
   }
 
   async previewFilter(farmerId: string, dto: PreviewCatalogueFilterDto) {
-    console.log('Preview filter DTO:', dto); // Debug log
-
-    const where: any = { farmerId, status: 'active' };
+    const where: Prisma.AnimalWhereInput = {
+      farmerId,
+      status: AnimalStatus.active,
+    };
 
     if (dto.species) {
-      // Convert species to lowercase to match AnimalType enum
       where.animalType = dto.species.toLowerCase() as any;
-      console.log('Filtering by species:', where.animalType);
     }
     if (dto.sex) {
-      // Convert sex to lowercase to match Sex enum
       where.sex = dto.sex.toLowerCase() as any;
-      console.log('Filtering by sex:', where.sex);
     }
     if (dto.fieldId) {
       where.fieldId = dto.fieldId;
-      console.log('Filtering by fieldId:', where.fieldId);
     }
     if (dto.minAgeMonths !== undefined || dto.maxAgeMonths !== undefined) {
       where.age = {};
-      if (dto.minAgeMonths !== undefined) {
-        where.age.gte = dto.minAgeMonths;
-        console.log('Filtering by min age:', dto.minAgeMonths);
-      }
-      if (dto.maxAgeMonths !== undefined) {
-        where.age.lte = dto.maxAgeMonths;
-        console.log('Filtering by max age:', dto.maxAgeMonths);
-      }
+      if (dto.minAgeMonths !== undefined) (where.age as any).gte = dto.minAgeMonths;
+      if (dto.maxAgeMonths !== undefined) (where.age as any).lte = dto.maxAgeMonths;
     }
     if (dto.minWeight !== undefined || dto.maxWeight !== undefined) {
       where.weight = {};
-      if (dto.minWeight !== undefined) {
-        where.weight.gte = dto.minWeight;
-        console.log('Filtering by min weight:', dto.minWeight);
-      }
-      if (dto.maxWeight !== undefined) {
-        where.weight.lte = dto.maxWeight;
-        console.log('Filtering by max weight:', dto.maxWeight);
-      }
+      if (dto.minWeight !== undefined) (where.weight as any).gte = dto.minWeight;
+      if (dto.maxWeight !== undefined) (where.weight as any).lte = dto.maxWeight;
     }
-    if (dto.vaccinationStatus) {
-      if (dto.vaccinationStatus === 'up_to_date') {
-        where.vaccination = true;
-      } else if (dto.vaccinationStatus === 'incomplete') {
-        where.vaccination = false;
-      }
-      console.log('Filtering by vaccination:', where.vaccination);
+    if (dto.vaccinationStatus === 'up_to_date') {
+      where.vaccination = true;
+    } else if (dto.vaccinationStatus === 'incomplete') {
+      where.vaccination = false;
     }
-    if (dto.reproductionStatus) {
-      if (dto.reproductionStatus === 'pregnant') {
-        where.isPregnant = true;
-      } else if (dto.reproductionStatus === 'not_pregnant') {
-        where.isPregnant = false;
-      }
-      console.log('Filtering by reproduction:', where.isPregnant);
+    if (dto.reproductionStatus === 'pregnant') {
+      where.isPregnant = true;
+    } else if (dto.reproductionStatus === 'not_pregnant') {
+      where.isPregnant = false;
     }
     if (dto.tagNumber) {
       where.tagNumber = { contains: dto.tagNumber };
-      console.log('Filtering by tag number:', dto.tagNumber);
     }
     if (dto.isFattening !== undefined) {
       where.isFattening = dto.isFattening;
-      console.log('Filtering by isFattening:', dto.isFattening);
     }
 
-    console.log('Final where clause:', JSON.stringify(where, null, 2));
-
-    const result = await this.prisma.animal.findMany({
+    return this.prisma.animal.findMany({
       where,
       orderBy: { createdAt: 'desc' },
       include: {
         field: true,
-        vaccineRecords: true,
+        vaccineRecords: { include: { vaccine: true } },
+        medicalEvents: true,
       } as any,
     });
-
-    console.log('Found animals:', result.length);
-    return result;
   }
 
   async generateShareLink(farmerId: string, catalogueId: string) {
