@@ -4,12 +4,14 @@ import {
   IsBoolean,
   IsDateString,
   IsEnum,
+  IsInt,
   IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
   IsUUID,
   MaxLength,
+  Min,
 } from 'class-validator';
 import { Prisma, CatalogueStatus } from '@prisma/client';
 
@@ -62,7 +64,8 @@ export class AddCatalogueAnimalsDto {
 export class UpdateCatalogueAnimalDto {
   @ApiProperty({ required: false })
   @IsOptional()
-  @IsNumber()
+  @IsInt()
+  @Min(0)
   sortOrder?: number;
 
   @ApiProperty({ required: false })

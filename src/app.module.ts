@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { join } from 'path';
@@ -54,6 +55,7 @@ import { TelemetryModule } from './telemetry/telemetry.module';
 @Module({
   imports: [ 
     ConfigModule.forRoot({ isGlobal: true }),
+    ScheduleModule.forRoot(),
     ServeStaticModule.forRoot({
       // process.cwd() always points to the project root regardless of __dirname
       rootPath: join(process.cwd(), 'uploads'),

@@ -15,29 +15,44 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
-import { extname } from 'path';
+import { extname, join } from 'path';
+import { existsSync, mkdirSync } from 'fs';
 import { v4 as uuidv4 } from 'uuid';
 import { AnimalsService } from './animals.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { SellAnimalDto, SetFatteningDto } from './animals.dto';
 import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
+
+// Ensure upload directory exists at module load time
+const UPLOAD_DIR = join(process.cwd(), 'uploads', 'animals');
+if (!existsSync(UPLOAD_DIR)) {
+  mkdirSync(UPLOAD_DIR, { recursive: true });
+  console.log(`[Animals] Created upload directory: ${UPLOAD_DIR}`);
+}
 
 @Controller('animals')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class AnimalsController {
   constructor(private readonly animalsService: AnimalsService) {}
+
   @Post(':nodeId/upload-photo')
   @UseInterceptors(FileInterceptor('photo', {
     storage: diskStorage({
-      destination: './uploads/animals',
+      destination: UPLOAD_DIR, // absolute path — no ambiguity
       filename: (req, file, cb) => {
-        cb(null, `${uuidv4()}${extname(file.originalname)}`);
+        const ext = extname(file.originalname) || '.jpg'; // fallback to .jpg
+        const filename = `${uuidv4()}${ext}`;
+        console.log(`[Animals] Saving photo: ${filename}, mimetype: ${file.mimetype}`);
+        cb(null, filename);
       },
     }),
     fileFilter: (req, file, cb) => {
-      if (!file.mimetype.startsWith('image/')) {
-        return cb(new BadRequestException('Images only'), false);
+      console.log(`[Animals] fileFilter mimetype: ${file.mimetype}`);
+      // Accept any image or octet-stream (Flutter may not set MIME correctly)
+      const ok = file.mimetype.startsWith('image/') ||
+                 file.mimetype === 'application/octet-stream';
+      if (!ok) {
+        return cb(new BadRequestException(`Images only (received: ${file.mimetype})`), false);
       }
       cb(null, true);
     },
@@ -48,6 +63,7 @@ export class AnimalsController {
     @Req() req: any,
     @UploadedFile() file: Express.Multer.File,
   ) {
+    console.log(`[Animals] uploadPhoto called — nodeId: ${nodeId}, file: ${file?.filename}`);
     if (!file) throw new BadRequestException('No file uploaded');
     return this.animalsService.updateProfileImage(
       nodeId,

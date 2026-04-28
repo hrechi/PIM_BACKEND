@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { randomBytes } from 'crypto';
-import { AnimalStatus, Prisma } from '@prisma/client';
+import { AnimalStatus, AnimalType, Sex, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   AddCatalogueAnimalsDto,
@@ -117,40 +117,33 @@ export class CataloguesService {
   }
 
   async addAnimals(farmerId: string, catalogueId: string, dto: AddCatalogueAnimalsDto) {
-    const catalogue = await this.prisma.saleCatalogue.findFirst({
-      where: { id: catalogueId, farmerId },
-      include: { animals: true },
-    });
-    if (!catalogue) {
-      throw new NotFoundException('Catalogue not found');
-    }
+    return this.prisma.$transaction(async (tx) => {
+      const catalogue = await tx.saleCatalogue.findFirst({
+        where: { id: catalogueId, farmerId },
+        include: { animals: { orderBy: { sortOrder: 'desc' }, take: 1 } },
+      });
+      if (!catalogue) throw new NotFoundException('Catalogue not found');
 
-    const existingIds = new Set(catalogue.animals.map((item) => item.animalId));
-    const currentMaxOrder = catalogue.animals.reduce(
-      (max, item) => Math.max(max, item.sortOrder ?? 0),
-      0,
-    );
+      // Fetch all existing animalIds inside the transaction to avoid race conditions
+      const existing = await tx.catalogueAnimal.findMany({
+        where: { catalogueId },
+        select: { animalId: true },
+      });
+      const existingIds = new Set(existing.map((a) => a.animalId));
 
-    const created: Promise<any>[] = [];
-    let nextOrder = currentMaxOrder + 1;
+      // Start from the highest current sortOrder + 1
+      let nextOrder = (catalogue.animals[0]?.sortOrder ?? -1) + 1;
+      const toCreate = dto.animalIds.filter((id) => !existingIds.has(id));
 
-    for (const animalId of dto.animalIds) {
-      if (existingIds.has(animalId)) {
-        continue;
-      }
-      created.push(
-        this.prisma.catalogueAnimal.create({
-          data: {
-            catalogueId,
-            animalId,
-            sortOrder: nextOrder++,
-          },
-          include: { animal: true }, // ← always return nested animal
-        }),
+      return Promise.all(
+        toCreate.map((animalId) =>
+          tx.catalogueAnimal.create({
+            data: { catalogueId, animalId, sortOrder: nextOrder++ },
+            include: { animal: true },
+          }),
+        ),
       );
-    }
-
-    return Promise.all(created);
+    });
   }
 
   async removeAnimal(farmerId: string, catalogueId: string, animalId: string) {
@@ -211,23 +204,25 @@ export class CataloguesService {
     };
 
     if (dto.species) {
-      where.animalType = dto.species.toLowerCase() as any;
+      where.animalType = dto.species.toLowerCase() as AnimalType;
     }
     if (dto.sex) {
-      where.sex = dto.sex.toLowerCase() as any;
+      where.sex = dto.sex.toLowerCase() as Sex;
     }
     if (dto.fieldId) {
       where.fieldId = dto.fieldId;
     }
     if (dto.minAgeMonths !== undefined || dto.maxAgeMonths !== undefined) {
-      where.age = {};
-      if (dto.minAgeMonths !== undefined) (where.age as any).gte = dto.minAgeMonths;
-      if (dto.maxAgeMonths !== undefined) (where.age as any).lte = dto.maxAgeMonths;
+      where.age = {
+        ...(dto.minAgeMonths !== undefined && { gte: dto.minAgeMonths }),
+        ...(dto.maxAgeMonths !== undefined && { lte: dto.maxAgeMonths }),
+      } satisfies Prisma.IntNullableFilter;
     }
     if (dto.minWeight !== undefined || dto.maxWeight !== undefined) {
-      where.weight = {};
-      if (dto.minWeight !== undefined) (where.weight as any).gte = dto.minWeight;
-      if (dto.maxWeight !== undefined) (where.weight as any).lte = dto.maxWeight;
+      where.weight = {
+        ...(dto.minWeight !== undefined && { gte: dto.minWeight }),
+        ...(dto.maxWeight !== undefined && { lte: dto.maxWeight }),
+      } satisfies Prisma.FloatNullableFilter;
     }
     if (dto.vaccinationStatus === 'up_to_date') {
       where.vaccination = true;
@@ -253,7 +248,7 @@ export class CataloguesService {
         field: true,
         vaccineRecords: { include: { vaccine: true } },
         medicalEvents: true,
-      } as any,
+      },
     });
   }
 
@@ -297,11 +292,23 @@ export class CataloguesService {
   }
 
   async getPublicCatalogueByToken(shareToken: string) {
-    return this.prisma.saleCatalogue.findFirst({
+    const catalogue = await this.prisma.saleCatalogue.findFirst({
       where: { shareToken, shareExpiresAt: { gt: new Date() } },
       include: {
         animals: { include: { animal: true } },
       },
     });
+
+    if (!catalogue) throw new NotFoundException('Catalogue not found or link expired');
+
+    // Increment view count in background — fire & forget
+    this.prisma.saleCatalogue
+      .update({
+        where: { id: catalogue.id },
+        data: { shareViewCount: { increment: 1 } },
+      })
+      .catch(() => {});
+
+    return catalogue;
   }
 }
