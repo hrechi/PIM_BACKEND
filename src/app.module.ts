@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { join } from 'path';
@@ -47,11 +48,14 @@ import { AiModule } from './ai/ai.module';
 
 import { SoilIntelligenceModule } from './soil-intelligence/soil-intelligence.module';
 import { CataloguesModule } from './catalogues/catalogues.module';
+import { RobotsModule } from './robots/robots.module';
+import { TelemetryModule } from './telemetry/telemetry.module';
 
  
 @Module({
   imports: [ 
     ConfigModule.forRoot({ isGlobal: true }),
+    ScheduleModule.forRoot(),
     ServeStaticModule.forRoot({
       // process.cwd() always points to the project root regardless of __dirname
       rootPath: join(process.cwd(), 'uploads'),
@@ -62,7 +66,9 @@ import { CataloguesModule } from './catalogues/catalogues.module';
         type: 'postgres',
         url: process.env.DATABASE_URL,
         entities: [SoilMeasurement],
-        synchronize: true, // Be careful with this in production
+        // Schema is owned by Prisma. Keep TypeORM read-only to avoid drift fights
+        // (e.g. trying to coerce soil_measurements.id back to uuid).
+        synchronize: false,
       }),
       dataSourceFactory: async (options) => {
         if (!options) {
@@ -98,6 +104,14 @@ import { CataloguesModule } from './catalogues/catalogues.module';
           ADD COLUMN IF NOT EXISTS outcome VARCHAR(50);
         `);
 
+        // Ensure DB-side default for soil_measurements.id (TypeORM omits id on
+        // INSERT for @PrimaryGeneratedColumn('uuid'), and Prisma's @default(uuid())
+        // is application-side only; without a DB default we get NOT NULL violations.
+        await dataSource.query(`
+          ALTER TABLE soil_measurements
+          ALTER COLUMN id SET DEFAULT gen_random_uuid()::text;
+        `);
+
         if (hasVectorExtension) {
           await dataSource.query(`
             ALTER TABLE soil_measurements
@@ -109,7 +123,7 @@ import { CataloguesModule } from './catalogues/catalogues.module';
           CREATE TABLE IF NOT EXISTS soil_weather_alerts (
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             parcel_id TEXT REFERENCES parcels(id),
-            soil_measurement_id UUID REFERENCES soil_measurements(id),
+            soil_measurement_id TEXT REFERENCES soil_measurements(id),
             alert_type VARCHAR(50),
             severity VARCHAR(20),
             message TEXT,
@@ -174,6 +188,8 @@ import { CataloguesModule } from './catalogues/catalogues.module';
     SoilIntelligenceModule,
     AssetModule,
     AiModule,
+    RobotsModule,
+    TelemetryModule,
   ],
 
   controllers: [AppController],

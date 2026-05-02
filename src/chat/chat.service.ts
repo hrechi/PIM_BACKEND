@@ -794,6 +794,11 @@ export class ChatService {
               normalizedError.includes('unavailable')));
 
         if (response.status === 401 || response.status === 403) {
+          console.error(
+            `[ChatService.voiceChat] Claude auth failed (${response.status}) with model ${model}: ${parsedMessage}. ` +
+              `Key prefix=${apiKey.slice(0, 12)}… len=${apiKey.length}. ` +
+              `Likely revoked/expired — rotate at console.anthropic.com and update CLAUDE_API_KEY in .env, then restart the backend.`,
+          );
           return {
             reply:
               'Voice assistant authentication failed. Please verify CLAUDE_API_KEY.',
@@ -803,6 +808,9 @@ export class ChatService {
         }
 
         if (response.status === 429) {
+          console.warn(
+            `[ChatService.voiceChat] Claude rate-limited (429) with model ${model}: ${parsedMessage}`,
+          );
           return {
             reply:
               'Voice assistant is rate-limited right now. Please try again in a few seconds.',

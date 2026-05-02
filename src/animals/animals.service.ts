@@ -1,14 +1,102 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-// Triggering reload to sync Prisma Client
-import { PrismaClient } from '@prisma/client';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
+import { GroqService } from '../groq/groq.service';
 
 @Injectable()
 export class AnimalsService {
-  constructor(private prisma: PrismaService) {}
+  private readonly logger = new Logger(AnimalsService.name);
 
-  private calculateAgeInMonths(birthDate: Date | null, createdAt: Date): number {
-    const referenceDate = birthDate || createdAt;
+  constructor(
+    private prisma: PrismaService,
+    private groqService: GroqService,
+  ) {}
+
+  async updateProfileImage(nodeId: string, farmerId: string, profileImage: string) {
+    const animal = await this.prisma.animal.findFirst({
+      where: { nodeId, farmerId },
+    });
+    if (!animal) throw new NotFoundException('Animal not found or access denied');
+
+    // Delete old file from disk if it exists
+    if (animal.profileImage?.startsWith('/uploads/')) {
+      const fs = await import('fs/promises');
+      const path = await import('path');
+      const oldPath = path.join(process.cwd(), animal.profileImage);
+      await fs.unlink(oldPath).catch(() => {});
+    }
+
+    return this.prisma.animal.update({
+      where: { nodeId },
+      data: { profileImage },
+      include: {
+        vaccineRecords: { include: { vaccine: true } },
+        medicalEvents: true,
+      } as any,
+    });
+  }
+
+  // ── Groq payload builder ─────────────────────────────────────────────────────
+
+  private async buildGroqPayload(data: any, existingAnimal?: any) {
+    const merged = { ...existingAnimal, ...data };
+
+    let regionCode: string | undefined;
+    let countryCode: string | undefined;
+    const fieldId = merged.fieldId ?? existingAnimal?.fieldId;
+
+    if (fieldId) {
+      const field = await this.prisma.field.findUnique({
+        where: { id: fieldId },
+        select: { regionCode: true, countryCode: true },
+      });
+      regionCode = field?.regionCode ?? undefined;
+      countryCode = field?.countryCode ?? undefined;
+    }
+
+    const animalExpenses = merged.id
+      ? await this.prisma.expense.aggregate({
+          where: { animalId: merged.id },
+          _sum: { amount: true },
+        })
+      : null;
+
+    const fieldExpenses = fieldId
+      ? await this.prisma.expense.aggregate({
+          where: {
+            fieldId,
+            date: { gte: new Date(new Date().getFullYear(), 0, 1) },
+          },
+          _sum: { amount: true },
+        })
+      : null;
+
+    return {
+      animalType:      merged.animalType ?? '',
+      breed:           merged.breed,
+      sex:             merged.sex ?? 'male',
+      age:             merged.age ?? 0,
+      weight:          merged.weight,
+      healthStatus:    merged.healthStatus ?? 'OPTIMAL',
+      vitalityScore:   merged.vitalityScore ?? 100,
+      vaccination:     merged.vaccination ?? false,
+      isFattening:     merged.isFattening ?? false,
+      dailyMilkAvgL:   merged.dailyMilkAvgL ? Number(merged.dailyMilkAvgL) : undefined,
+      lactationNumber: merged.lactationNumber ?? undefined,
+      birthCount:      merged.birthCount ?? 0,
+      meatGrade:       merged.meatGrade ?? undefined,
+      raceCategory:    merged.raceCategory ?? undefined,
+      trainingLevel:   merged.trainingLevel ?? undefined,
+      regionCode,
+      countryCode,
+      totalAnimalCost: Number(animalExpenses?._sum?.amount ?? 0),
+      totalFieldCost:  Number(fieldExpenses?._sum?.amount ?? 0),
+    };
+  }
+
+  // ── Age calculation ───────────────────────────────────────────────────────────
+
+  private calculateAgeInMonths(birthDate: Date | null, createdAt: Date): number {    const referenceDate = birthDate || createdAt;
     const now = new Date();
     const diffTime = Math.abs(now.getTime() - referenceDate.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -49,11 +137,18 @@ export class AnimalsService {
       );
     }
 
-    // Calculate age in months
+    // Calculate age in months from birthDate if available, otherwise keep frontend value
     const birthDate = transformedData.lastBirthDate ? new Date(transformedData.lastBirthDate) : null;
-    const createdAt = new Date();
-    transformedData.age = this.calculateAgeInMonths(birthDate, createdAt);
-    transformedData.ageYears = Math.floor(transformedData.age / 12);
+    if (birthDate) {
+      const createdAt = new Date();
+      transformedData.age = this.calculateAgeInMonths(birthDate, createdAt);
+      transformedData.ageYears = Math.floor(transformedData.age / 12);
+    } else if (transformedData.age == null || transformedData.age === undefined) {
+      // No age provided and no birthDate — default to 0
+      transformedData.age = 0;
+      transformedData.ageYears = 0;
+    }
+    // Otherwise keep the age/ageYears values sent from the frontend
 
     // Handle date fields to ensure they are actual Date objects if provided as strings
     const dateFields = [
@@ -101,11 +196,20 @@ export class AnimalsService {
       };
     }
 
+    // ── Auto-estimate market value via Groq ──────────────────────────────────
+    try {
+      const payload = await this.buildGroqPayload(transformedData);
+      this.logger.log(`[create] Groq payload: type=${payload.animalType} breed=${payload.breed} age=${payload.age} weight=${payload.weight} sex=${payload.sex}`);
+      const { value, reason } = await this.groqService.estimateAnimalValue(payload);
+      this.logger.log(`[create] Groq result: ${value} TND — ${reason}`);
+      transformedData.estimatedValue = value;
+    } catch (e) {
+      this.logger.warn(`[create] Groq estimation skipped: ${e.message}`);
+    }
+
     const newAnimal = await this.prisma.animal.create({
       data: transformedData,
     });
-
-    // Add expense automatically for purchased animals
     if (newAnimal.origin === 'purchased' && newAnimal.purchasePrice) {
       await this.prisma.expense.create({
         data: {
@@ -127,6 +231,7 @@ export class AnimalsService {
     farmerId: string,
     animalType?: string,
     fieldId?: string,
+    isFattening?: boolean,
   ) {
     const where: any = { farmerId };
     if (animalType) {
@@ -134,6 +239,9 @@ export class AnimalsService {
     }
     if (fieldId) {
       where.fieldId = fieldId;
+    }
+    if (isFattening !== undefined) {
+      where.isFattening = isFattening;
     }
 
     return this.prisma.animal.findMany({
@@ -303,6 +411,15 @@ export class AnimalsService {
           data: transformedData,
         });
       });
+    }
+
+    // ── Recalculate estimated value on every update ──────────────────────────
+    try {
+      const payload = await this.buildGroqPayload(transformedData, animal);
+      const { value } = await this.groqService.estimateAnimalValue(payload);
+      transformedData.estimatedValue = value;
+    } catch (e) {
+      this.logger.warn(`[update] Groq estimation skipped: ${e.message}`);
     }
 
     return this.prisma.animal.update({
@@ -540,5 +657,78 @@ export class AnimalsService {
         },
       ],
     };
+  }
+
+  // ── Nightly cron: recalculate all active animals at 2am ──────────────────────
+
+  @Cron(CronExpression.EVERY_DAY_AT_2AM)
+  async recalculateAllEstimatedValues() {
+    this.logger.log('[Cron] Starting nightly estimated value recalculation...');
+
+    const animals = await this.prisma.animal.findMany({
+      where: { status: 'active' },
+      include: {
+        field: { select: { regionCode: true, countryCode: true } },
+      },
+    });
+
+    let updated = 0;
+
+    for (const animal of animals) {
+      try {
+        const animalExpenses = await this.prisma.expense.aggregate({
+          where: { animalId: animal.id },
+          _sum: { amount: true },
+        });
+
+        const fieldExpenses = animal.fieldId
+          ? await this.prisma.expense.aggregate({
+              where: {
+                fieldId: animal.fieldId,
+                date: { gte: new Date(new Date().getFullYear(), 0, 1) },
+              },
+              _sum: { amount: true },
+            })
+          : null;
+
+        const payload = {
+          animalType:      animal.animalType,
+          breed:           animal.breed ?? undefined,
+          sex:             animal.sex,
+          age:             animal.age,
+          weight:          animal.weight ?? undefined,
+          healthStatus:    animal.healthStatus,
+          vitalityScore:   animal.vitalityScore,
+          vaccination:     animal.vaccination,
+          isFattening:     animal.isFattening ?? false,
+          dailyMilkAvgL:   animal.dailyMilkAvgL ? Number(animal.dailyMilkAvgL) : undefined,
+          lactationNumber: animal.lactationNumber ?? undefined,
+          birthCount:      animal.birthCount,
+          meatGrade:       animal.meatGrade ?? undefined,
+          raceCategory:    animal.raceCategory ?? undefined,
+          trainingLevel:   animal.trainingLevel ?? undefined,
+          regionCode:      (animal as any).field?.regionCode ?? undefined,
+          countryCode:     (animal as any).field?.countryCode ?? undefined,
+          totalAnimalCost: Number(animalExpenses._sum?.amount ?? 0),
+          totalFieldCost:  Number(fieldExpenses?._sum?.amount ?? 0),
+        };
+
+        const { value } = await this.groqService.estimateAnimalValue(payload);
+
+        await this.prisma.animal.update({
+          where: { id: animal.id },
+          data: { estimatedValue: value },
+        });
+
+        updated++;
+
+        // Respect Groq rate limits (30 req/min on free tier)
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+      } catch (e) {
+        this.logger.warn(`[Cron] Failed for animal ${animal.id}: ${e.message}`);
+      }
+    }
+
+    this.logger.log(`[Cron] Done: ${updated}/${animals.length} animals updated`);
   }
 }

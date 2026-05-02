@@ -4,16 +4,15 @@ import {
   IsBoolean,
   IsDateString,
   IsEnum,
+  IsInt,
   IsNotEmpty,
   IsNumber,
-  IsObject,
   IsOptional,
   IsString,
   IsUUID,
   MaxLength,
-  ValidateNested,
+  Min,
 } from 'class-validator';
-import { Type } from 'class-transformer';
 import { Prisma, CatalogueStatus } from '@prisma/client';
 
 export class CreateSaleCatalogueDto {
@@ -45,7 +44,6 @@ export class CreateSaleCatalogueDto {
 
   @ApiProperty({ required: false, type: Object })
   @IsOptional()
-  @IsObject()
   settings?: Prisma.JsonValue;
 }
 
@@ -66,7 +64,8 @@ export class AddCatalogueAnimalsDto {
 export class UpdateCatalogueAnimalDto {
   @ApiProperty({ required: false })
   @IsOptional()
-  @IsNumber()
+  @IsInt()
+  @Min(0)
   sortOrder?: number;
 
   @ApiProperty({ required: false })
@@ -130,4 +129,9 @@ export class PreviewCatalogueFilterDto {
   @IsOptional()
   @IsString()
   tagNumber?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  isFattening?: boolean;
 }
