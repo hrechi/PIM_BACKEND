@@ -12,6 +12,7 @@ import {
   ParseFilePipe,
   MaxFileSizeValidator,
   BadRequestException,
+  Param,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
@@ -29,13 +30,20 @@ import { UpdateProfileDto } from './dto/update-profile.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @ApiTags('User')
-@ApiBearerAuth('access-token')
-@UseGuards(JwtAuthGuard)
 @Controller('user')
 export class UserController {
   constructor(private userService: UserService) {}
 
+  @Get('farmers')
+  @ApiOperation({ summary: 'Get all farmer accounts (admin use)' })
+  @ApiResponse({ status: 200, description: 'Returns all farmer accounts' })
+  async getAllFarmers() {
+    return this.userService.getAllFarmers();
+  }
+
   @Get('profile')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Get current user profile' })
   @ApiResponse({ status: 200, description: 'Returns the user profile' })
   async getProfile(@Req() req: any) {
@@ -43,6 +51,8 @@ export class UserController {
   }
 
   @Patch('profile')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Update user profile fields' })
   @ApiResponse({ status: 200, description: 'Profile updated successfully' })
   @ApiResponse({ status: 409, description: 'Email or phone already in use' })
@@ -51,6 +61,8 @@ export class UserController {
   }
 
   @Post('profile/picture')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Upload a profile picture' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
@@ -126,6 +138,8 @@ export class UserController {
   }
 
   @Post('fcm-token')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Save device FCM token for push notifications' })
   @ApiResponse({ status: 201, description: 'FCM token saved' })
   async saveFcmToken(@Req() req: any, @Body() body: { token: string }) {
@@ -133,9 +147,19 @@ export class UserController {
   }
 
   @Delete('profile')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Delete user account permanently' })
   @ApiResponse({ status: 200, description: 'Account deleted' })
   async deleteAccount(@Req() req: any) {
     return this.userService.deleteAccount(req.user.id);
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: 'Delete a user account (admin)' })
+  @ApiResponse({ status: 200, description: 'User account deleted' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  async deleteUserById(@Param('id') userId: string) {
+    return this.userService.deleteAccount(userId);
   }
 }
