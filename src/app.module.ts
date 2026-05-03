@@ -109,7 +109,7 @@ import { TelemetryModule } from './telemetry/telemetry.module';
         // is application-side only; without a DB default we get NOT NULL violations.
         await dataSource.query(`
           ALTER TABLE soil_measurements
-          ALTER COLUMN id SET DEFAULT gen_random_uuid()::text;
+          ALTER COLUMN id SET DEFAULT gen_random_uuid();
         `);
 
         if (hasVectorExtension) {

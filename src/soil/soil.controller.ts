@@ -445,7 +445,7 @@ export class SoilController {
     schema: {
       example: {
         status: 'healthy',
-        service_url: 'http://192.168.1.4:8000',
+        service_url: 'http://192.168.1.146:8000',
       },
     },
   })
