@@ -109,7 +109,7 @@ import { TelemetryModule } from './telemetry/telemetry.module';
         // is application-side only; without a DB default we get NOT NULL violations.
         await dataSource.query(`
           ALTER TABLE soil_measurements
-          ALTER COLUMN id SET DEFAULT gen_random_uuid()::text;
+          ALTER COLUMN id SET DEFAULT gen_random_uuid();
         `);
 
         if (hasVectorExtension) {
@@ -123,7 +123,7 @@ import { TelemetryModule } from './telemetry/telemetry.module';
           CREATE TABLE IF NOT EXISTS soil_weather_alerts (
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             parcel_id TEXT REFERENCES parcels(id),
-            soil_measurement_id TEXT REFERENCES soil_measurements(id),
+            soil_measurement_id UUID REFERENCES soil_measurements(id),
             alert_type VARCHAR(50),
             severity VARCHAR(20),
             message TEXT,
