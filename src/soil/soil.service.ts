@@ -46,8 +46,13 @@ export class SoilService {
       const savedMeasurement = await this.soilRepository.save(measurement);
       return this.enrichWithStatus(savedMeasurement);
     } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      this.logger.error(
+        `[create] Failed to create soil measurement: ${msg}`,
+        error instanceof Error ? error.stack : undefined,
+      );
       throw new HttpException(
-        'Failed to create soil measurement',
+        `Failed to create soil measurement: ${msg}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
@@ -204,10 +209,14 @@ export class SoilService {
 
       return enriched;
     } catch (error) {
-      this.logger.error('Failed to create soil measurement with image:', error);
+      const msg = error instanceof Error ? error.message : String(error);
+      this.logger.error(
+        `[createWithImage] Failed: ${msg}`,
+        error instanceof Error ? error.stack : undefined,
+      );
       if (error instanceof HttpException) throw error;
       throw new HttpException(
-        'Failed to create soil measurement with image',
+        `Failed to create soil measurement with image: ${msg}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }

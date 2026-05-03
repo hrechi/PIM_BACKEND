@@ -11,7 +11,7 @@ import {
   UploadedFile,
   ParseFilePipe,
   MaxFileSizeValidator,
-  FileTypeValidator,
+  BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
@@ -74,9 +74,40 @@ export class UserController {
         filename: (_req, file, cb) => {
           const uniqueSuffix =
             Date.now() + '-' + Math.round(Math.random() * 1e9);
-          cb(null, `profile-${uniqueSuffix}${extname(file.originalname)}`);
+          // Fall back to .jpg if the client didn't send an extension.
+          const ext = (extname(file.originalname) || '.jpg').toLowerCase();
+          cb(null, `profile-${uniqueSuffix}${ext}`);
         },
       }),
+      fileFilter: (_req, file, cb) => {
+        // Validate by extension because Flutter's MultipartFile.fromPath
+        // sends `application/octet-stream` for many image types.
+        const allowed = [
+          '.jpg',
+          '.jpeg',
+          '.png',
+          '.webp',
+          '.gif',
+          '.bmp',
+          '.heic',
+          '.heif',
+          '.tiff',
+          '.tif',
+          '.avif',
+        ];
+        const ext = extname(file.originalname).toLowerCase();
+        const mimeOk = (file.mimetype || '').toLowerCase().startsWith('image/');
+        if (allowed.includes(ext) || mimeOk) {
+          cb(null, true);
+        } else {
+          cb(
+            new BadRequestException(
+              `Unsupported image type. Allowed: ${allowed.join(', ')}`,
+            ),
+            false,
+          );
+        }
+      },
     }),
   )
   async uploadProfilePicture(
@@ -84,8 +115,7 @@ export class UserController {
     @UploadedFile(
       new ParseFilePipe({
         validators: [
-          new MaxFileSizeValidator({ maxSize: 5 * 1024 * 1024 }), // 5MB
-          new FileTypeValidator({ fileType: /(jpg|jpeg|png|webp)$/i }),
+          new MaxFileSizeValidator({ maxSize: 10 * 1024 * 1024 }), // 10MB
         ],
       }),
     )

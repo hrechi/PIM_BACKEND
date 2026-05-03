@@ -66,7 +66,9 @@ import { TelemetryModule } from './telemetry/telemetry.module';
         type: 'postgres',
         url: process.env.DATABASE_URL,
         entities: [SoilMeasurement],
-        synchronize: true, // Be careful with this in production
+        // Schema is owned by Prisma. Keep TypeORM read-only to avoid drift fights
+        // (e.g. trying to coerce soil_measurements.id back to uuid).
+        synchronize: false,
       }),
       dataSourceFactory: async (options) => {
         if (!options) {
@@ -102,6 +104,14 @@ import { TelemetryModule } from './telemetry/telemetry.module';
           ADD COLUMN IF NOT EXISTS outcome VARCHAR(50);
         `);
 
+        // Ensure DB-side default for soil_measurements.id (TypeORM omits id on
+        // INSERT for @PrimaryGeneratedColumn('uuid'), and Prisma's @default(uuid())
+        // is application-side only; without a DB default we get NOT NULL violations.
+        await dataSource.query(`
+          ALTER TABLE soil_measurements
+          ALTER COLUMN id SET DEFAULT gen_random_uuid()::text;
+        `);
+
         if (hasVectorExtension) {
           await dataSource.query(`
             ALTER TABLE soil_measurements
@@ -113,7 +123,7 @@ import { TelemetryModule } from './telemetry/telemetry.module';
           CREATE TABLE IF NOT EXISTS soil_weather_alerts (
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             parcel_id TEXT REFERENCES parcels(id),
-            soil_measurement_id UUID REFERENCES soil_measurements(id),
+            soil_measurement_id TEXT REFERENCES soil_measurements(id),
             alert_type VARCHAR(50),
             severity VARCHAR(20),
             message TEXT,
