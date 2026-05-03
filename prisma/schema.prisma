@@ -198,6 +198,9 @@ model User {
   communityCommentReactions CommunityCommentReaction[]
   communityPollVotes        CommunityPollVote[]
 
+  // Billing
+  subscription              Subscription?
+
   @@map("users")
 }
 
@@ -1317,4 +1320,62 @@ model CommunityPollVote {
   @@index([optionId])
   @@index([userId])
   @@map("community_poll_votes")
+}
+
+// ─────────────────────────────────────────────
+// BILLING / SUBSCRIPTIONS (Stripe)
+// ─────────────────────────────────────────────
+
+enum SubscriptionPlan {
+  FREE
+  ESSENTIAL
+  GROWTH
+  OPERATIONS_PRO
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  INCOMPLETE
+  PAUSED
+}
+
+enum BillingInterval {
+  MONTHLY
+  ANNUAL
+}
+
+model Subscription {
+  id                     String             @id @default(uuid())
+  userId                 String             @unique
+  user                   User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Stripe identifiers
+  stripeCustomerId       String?            @unique @map("stripe_customer_id")
+  stripeSubscriptionId   String?            @unique @map("stripe_subscription_id")
+
+  // Plan details
+  plan                   SubscriptionPlan   @default(FREE)
+  status                 SubscriptionStatus @default(TRIALING)
+  billingInterval        BillingInterval    @default(MONTHLY)
+
+  // Robot add-ons (stored as JSON array of { tier, quantity })
+  robotAddOns            Json?              @map("robot_add_ons")
+
+  // Trial & billing dates
+  trialEndsAt            DateTime?          @map("trial_ends_at")
+  currentPeriodStart     DateTime?          @map("current_period_start")
+  currentPeriodEnd       DateTime?          @map("current_period_end")
+  cancelAtPeriodEnd      Boolean            @default(false) @map("cancel_at_period_end")
+  canceledAt             DateTime?          @map("canceled_at")
+
+  createdAt              DateTime           @default(now()) @map("created_at")
+  updatedAt              DateTime           @updatedAt @map("updated_at")
+
+  @@index([stripeCustomerId])
+  @@index([stripeSubscriptionId])
+  @@map("subscriptions")
 }

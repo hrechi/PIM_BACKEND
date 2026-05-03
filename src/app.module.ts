@@ -50,6 +50,7 @@ import { SoilIntelligenceModule } from './soil-intelligence/soil-intelligence.mo
 import { CataloguesModule } from './catalogues/catalogues.module';
 import { RobotsModule } from './robots/robots.module';
 import { TelemetryModule } from './telemetry/telemetry.module';
+import { BillingModule } from './billing/billing.module';
 
  
 @Module({
@@ -190,6 +191,7 @@ import { TelemetryModule } from './telemetry/telemetry.module';
     AiModule,
     RobotsModule,
     TelemetryModule,
+    BillingModule,
   ],
 
   controllers: [AppController],
