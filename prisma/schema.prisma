@@ -198,6 +198,7 @@ model User {
   communityComments         CommunityComment[]
   communityCommentReactions CommunityCommentReaction[]
   communityPollVotes        CommunityPollVote[]
+  appRatings                AppRating[]
 
   @@map("users")
 }
@@ -1318,4 +1319,20 @@ model CommunityPollVote {
   @@index([optionId])
   @@index([userId])
   @@map("community_poll_votes")
+}
+
+// ─────────────────────────────────────────────
+// APP RATINGS
+// ─────────────────────────────────────────────
+
+model AppRating {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stars     Int      // 1–5
+  message   String?  @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@map("app_ratings")
 }
