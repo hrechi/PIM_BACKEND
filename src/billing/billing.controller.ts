@@ -8,6 +8,7 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  Header,
 } from '@nestjs/common';
 import type { RawBodyRequest } from '@nestjs/common';
 import { Request } from 'express';
@@ -52,6 +53,23 @@ export class BillingController {
   @ApiOperation({ summary: 'Get current subscription status' })
   async getSubscription(@Req() req: any) {
     return this.billingService.getSubscription(req.user.id);
+  }
+
+  // ── GET /api/billing/success ────────────────────────────────────────────
+  @Get('success')
+  @Header('Content-Type', 'text/html; charset=utf-8')
+  @ApiOperation({ summary: 'Stripe success page' })
+  async paymentSuccess(@Req() req: any) {
+    const sessionId = req.query?.session_id?.toString();
+    return this.billingService.getSuccessPage(sessionId);
+  }
+
+  // ── GET /api/billing/cancel ─────────────────────────────────────────────
+  @Get('cancel')
+  @Header('Content-Type', 'text/html; charset=utf-8')
+  @ApiOperation({ summary: 'Stripe cancel page' })
+  async paymentCancel() {
+    return this.billingService.getCancelPage();
   }
 
   // ── POST /api/billing/webhook ───────────────────────────────────────────

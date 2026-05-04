@@ -9,6 +9,7 @@ import Stripe from 'stripe';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCheckoutDto, PlanId, RobotTierId } from './dto/create-checkout.dto';
 import { STRIPE_PRICES, PLAN_LABELS } from './billing.constants';
+import { EmailService } from '../email/email.service';
 
 @Injectable()
 export class BillingService {
@@ -18,6 +19,7 @@ export class BillingService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
+    private readonly emailService: EmailService,
   ) {
     this.stripe = new Stripe(this.config.getOrThrow<string>('STRIPE_SECRET_KEY'), {
       apiVersion: '2025-02-24.acacia',
@@ -42,10 +44,11 @@ export class BillingService {
     // Build line items
     const lineItems = this._buildLineItems(dto);
 
-    // Determine success / cancel URLs
-    const appScheme = this.config.get<string>('APP_SCHEME') ?? 'fieldly';
-    const successUrl = dto.successUrl ?? `${appScheme}://billing/success?session_id={CHECKOUT_SESSION_ID}`;
-    const cancelUrl  = dto.cancelUrl  ?? `${appScheme}://billing/cancel`;
+    // Determine success / cancel URLs.
+    // Keep the checkout redirect on an HTTP page, then let that page open the app via deep link.
+    const publicUrl = this.config.get<string>('PUBLIC_APP_URL') ?? 'http://192.168.100.9:3000';
+    const successUrl = dto.successUrl ?? `${publicUrl}/api/billing/success?session_id={CHECKOUT_SESSION_ID}`;
+    const cancelUrl  = dto.cancelUrl  ?? `${publicUrl}/api/billing/cancel`;
 
     const session = await this.stripe.checkout.sessions.create({
       customer: customerId,
@@ -81,10 +84,10 @@ export class BillingService {
       throw new BadRequestException('No active subscription found. Please subscribe first.');
     }
 
-    const appScheme = this.config.get<string>('APP_SCHEME') ?? 'fieldly';
+    const publicUrl = this.config.get<string>('PUBLIC_APP_URL') ?? 'http://192.168.100.9:3000';
     const session = await this.stripe.billingPortal.sessions.create({
       customer: sub.stripeCustomerId,
-      return_url: returnUrl ?? `${appScheme}://billing/portal-return`,
+      return_url: returnUrl ?? `${publicUrl}/api/billing/portal-return`,
     });
 
     return { url: session.url };
@@ -118,6 +121,86 @@ export class BillingService {
       cancelAtPeriodEnd: sub.cancelAtPeriodEnd,
       robotAddOns: sub.robotAddOns ?? [],
     };
+  }
+
+  getSuccessPage(sessionId?: string) {
+    const appScheme = this.config.get<string>('APP_SCHEME') ?? 'fieldly';
+    const webHomeUrl =
+      this.config.get<string>('APP_HOME_URL') ??
+      this.config.get<string>('PUBLIC_APP_URL') ??
+      '';
+    const deepLink = `${appScheme}://billing-return${sessionId ? `?session_id=${encodeURIComponent(sessionId)}` : ''}`;
+    return `<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Payment successful</title>
+    <script>
+      window.addEventListener('DOMContentLoaded', function () {
+        const deepLink = ${JSON.stringify(deepLink)};
+        setTimeout(function () {
+          window.location.href = deepLink;
+        }, 600);
+      });
+    </script>
+    <style>
+      body { font-family: Arial, sans-serif; padding: 32px; background: #f7faf7; color: #16331f; }
+      .card { max-width: 560px; margin: 0 auto; background: #fff; border-radius: 20px; padding: 28px; box-shadow: 0 8px 30px rgba(0,0,0,.08); }
+      .badge { display:inline-block; padding:8px 12px; border-radius:999px; background:#e9f8ee; color:#1a7f37; font-weight:700; margin-bottom:16px; }
+      h1 { margin: 0 0 12px; font-size: 28px; }
+      p { line-height: 1.5; color: #4a5a4f; }
+      code { word-break: break-all; }
+      .actions { display:flex; gap:12px; flex-wrap:wrap; margin-top:20px; }
+      .button { display:inline-block; padding:12px 18px; border-radius:999px; text-decoration:none; font-weight:700; }
+      .button.primary { background: linear-gradient(90deg, #2ECC71, #3498DB); color:#fff; }
+      .button.secondary { background:#eef4ef; color:#16331f; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="badge">Payment completed</div>
+      <h1>Thanks. Your Stripe payment was received.</h1>
+      <p>You can now return to the Fieldly app. This page will try to open the app automatically.</p>
+      ${sessionId ? `<p>Session: <code>${sessionId}</code></p>` : ''}
+      <div class="actions">
+        <a class="button primary" href="${deepLink}">Open App</a>
+        ${webHomeUrl ? `<a class="button secondary" href="${webHomeUrl}">Back to Web</a>` : ''}
+      </div>
+    </div>
+  </body>
+</html>`;
+  }
+
+  getCancelPage() {
+    const homeUrl =
+      this.config.get<string>('APP_HOME_URL') ??
+      this.config.get<string>('PUBLIC_APP_URL') ??
+      '';
+    return `<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Payment canceled</title>
+    <style>
+      body { font-family: Arial, sans-serif; padding: 32px; background: #fffaf7; color: #4a2b1d; }
+      .card { max-width: 560px; margin: 0 auto; background: #fff; border-radius: 20px; padding: 28px; box-shadow: 0 8px 30px rgba(0,0,0,.08); }
+      .badge { display:inline-block; padding:8px 12px; border-radius:999px; background:#fff1e8; color:#b45309; font-weight:700; margin-bottom:16px; }
+      h1 { margin: 0 0 12px; font-size: 28px; }
+      p { line-height: 1.5; color: #6b4e3d; }
+      .button { display:inline-block; margin-top:18px; padding:12px 18px; border-radius:999px; text-decoration:none; font-weight:700; background:#4a2b1d; color:#fff; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="badge">Canceled</div>
+      <h1>Your payment was canceled.</h1>
+      <p>No charge was made. You can go back to the app and try again whenever you want.</p>
+      ${homeUrl ? `<a class="button" href="${homeUrl}">Back to Home</a>` : ''}
+    </div>
+  </body>
+</html>`;
   }
 
   // ─── Stripe Webhook Handler ───────────────────────────────────────────────
@@ -259,13 +342,39 @@ export class BillingService {
     if (!subId) return;
 
     const stripeSub = await this.stripe.subscriptions.retrieve(subId);
-    await this.prisma.subscription.updateMany({
+    const updated = await this.prisma.subscription.updateMany({
       where: { stripeSubscriptionId: subId },
       data:  {
         status:             'ACTIVE',
         currentPeriodStart: new Date(stripeSub.current_period_start * 1000),
         currentPeriodEnd:   new Date(stripeSub.current_period_end   * 1000),
       },
+    });
+
+    if (updated.count === 0) return;
+
+    const subscription = await this.prisma.subscription.findUnique({
+      where: { stripeSubscriptionId: subId },
+      include: { user: true },
+    });
+
+    if (!subscription?.user?.email) return;
+
+    await this.emailService.sendBillingConfirmationEmail({
+      to: subscription.user.email,
+      userName: subscription.user.name,
+      farmName: subscription.user.farmName,
+      planLabel: PLAN_LABELS[subscription.plan] ?? subscription.plan,
+      billingInterval: subscription.billingInterval,
+      amount: ((invoice.amount_paid ?? 0) / 100).toFixed(2),
+      currency: invoice.currency ?? 'usd',
+      invoiceNumber: invoice.number ?? null,
+      invoiceUrl: invoice.hosted_invoice_url ?? null,
+      invoicePdf: invoice.invoice_pdf ?? null,
+      paidAt: invoice.status_transitions?.paid_at
+        ? new Date(invoice.status_transitions.paid_at * 1000)
+        : new Date(),
+      sessionId: invoice.id,
     });
   }
 
