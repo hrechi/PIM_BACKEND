@@ -7,7 +7,9 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    rawBody: true, // Required for Stripe webhook signature verification
+  });
   // Serve static uploads for animal profile images
   app.useStaticAssets(join(__dirname, '..', 'uploads'), {
     prefix: '/uploads',

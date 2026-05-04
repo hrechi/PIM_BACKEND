@@ -51,6 +51,7 @@ import { CataloguesModule } from './catalogues/catalogues.module';
 import { RobotsModule } from './robots/robots.module';
 import { TelemetryModule } from './telemetry/telemetry.module';
 import { RatingsModule } from './ratings/ratings.module';
+import { BillingModule } from './billing/billing.module';
 
  
 @Module({
@@ -192,6 +193,7 @@ import { RatingsModule } from './ratings/ratings.module';
     RobotsModule,
     TelemetryModule,
     RatingsModule,
+    BillingModule,
   ],
 
   controllers: [AppController],
