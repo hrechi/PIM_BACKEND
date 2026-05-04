@@ -50,6 +50,7 @@ import { SoilIntelligenceModule } from './soil-intelligence/soil-intelligence.mo
 import { CataloguesModule } from './catalogues/catalogues.module';
 import { RobotsModule } from './robots/robots.module';
 import { TelemetryModule } from './telemetry/telemetry.module';
+import { RatingsModule } from './ratings/ratings.module';
 
  
 @Module({
@@ -109,7 +110,7 @@ import { TelemetryModule } from './telemetry/telemetry.module';
         // is application-side only; without a DB default we get NOT NULL violations.
         await dataSource.query(`
           ALTER TABLE soil_measurements
-          ALTER COLUMN id SET DEFAULT gen_random_uuid()::text;
+          ALTER COLUMN id SET DEFAULT gen_random_uuid();
         `);
 
         if (hasVectorExtension) {
@@ -123,7 +124,7 @@ import { TelemetryModule } from './telemetry/telemetry.module';
           CREATE TABLE IF NOT EXISTS soil_weather_alerts (
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             parcel_id TEXT REFERENCES parcels(id),
-            soil_measurement_id TEXT REFERENCES soil_measurements(id),
+            soil_measurement_id UUID REFERENCES soil_measurements(id),
             alert_type VARCHAR(50),
             severity VARCHAR(20),
             message TEXT,
@@ -190,6 +191,7 @@ import { TelemetryModule } from './telemetry/telemetry.module';
     AiModule,
     RobotsModule,
     TelemetryModule,
+    RatingsModule,
   ],
 
   controllers: [AppController],
