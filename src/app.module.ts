@@ -125,7 +125,7 @@ import { BillingModule } from './billing/billing.module';
           CREATE TABLE IF NOT EXISTS soil_weather_alerts (
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             parcel_id TEXT REFERENCES parcels(id),
-            soil_measurement_id UUID REFERENCES soil_measurements(id),
+            soil_measurement_id TEXT REFERENCES soil_measurements(id),
             alert_type VARCHAR(50),
             severity VARCHAR(20),
             message TEXT,
@@ -135,6 +135,24 @@ import { BillingModule } from './billing/billing.module';
             triggered_at TIMESTAMP DEFAULT NOW(),
             is_read BOOLEAN DEFAULT FALSE
           );
+        `);
+
+        // Heal drift: if the table already existed with UUID soil_measurement_id
+        // (older schema) but soil_measurements.id is now TEXT, alter the column
+        // type so the FK can be created.
+        await dataSource.query(`
+          DO $$
+          BEGIN
+            IF EXISTS (
+              SELECT 1 FROM information_schema.columns
+              WHERE table_name = 'soil_weather_alerts'
+                AND column_name = 'soil_measurement_id'
+                AND data_type = 'uuid'
+            ) THEN
+              ALTER TABLE soil_weather_alerts
+                ALTER COLUMN soil_measurement_id TYPE TEXT USING soil_measurement_id::text;
+            END IF;
+          END$$;
         `);
 
         if (hasVectorExtension) {
