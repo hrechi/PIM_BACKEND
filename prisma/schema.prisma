@@ -5,7 +5,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 // ─────────────────────────────────────────────
@@ -147,6 +146,28 @@ enum SessionCondition {
   CRITICAL
 }
 
+enum SubscriptionPlan {
+  FREE
+  ESSENTIAL
+  GROWTH
+  OPERATIONS_PRO
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  INCOMPLETE
+  PAUSED
+}
+
+enum BillingInterval {
+  MONTHLY
+  ANNUAL
+}
+
 // ─────────────────────────────────────────────
 // USER
 // ─────────────────────────────────────────────
@@ -199,7 +220,59 @@ model User {
   communityCommentReactions CommunityCommentReaction[]
   communityPollVotes        CommunityPollVote[]
 
+  // Billing
+  subscription   Subscription?
+  // App ratings
+  appRatings     AppRating[]
+
   @@map("users")
+}
+
+// ─────────────────────────────────────────────
+// BILLING / SUBSCRIPTIONS
+// ─────────────────────────────────────────────
+
+model Subscription {
+  id                   String              @id @default(uuid())
+  userId               String              @unique
+  user                 User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  stripeCustomerId     String?             @unique
+  stripeSubscriptionId String?             @unique
+
+  plan                 SubscriptionPlan    @default(FREE)
+  status               SubscriptionStatus  @default(TRIALING)
+  billingInterval      BillingInterval     @default(MONTHLY)
+
+  robotAddOns          Json?
+
+  trialEndsAt          DateTime?
+  currentPeriodStart   DateTime?
+  currentPeriodEnd     DateTime?
+  cancelAtPeriodEnd    Boolean             @default(false)
+  canceledAt           DateTime?
+
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+
+  @@map("subscriptions")
+}
+
+// ─────────────────────────────────────────────
+// APP RATINGS
+// ─────────────────────────────────────────────
+
+model AppRating {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stars     Int
+  message   String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("app_ratings")
 }
 
 // ─────────────────────────────────────────────

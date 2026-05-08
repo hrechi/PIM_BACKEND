@@ -278,8 +278,34 @@ export class AssetService {
       orderBy: { createdAt: 'desc' },
     });
 
+    // Enrich assets with a best-effort "last service" fallback derived from
+    // usage logs when an explicit `lastServiceDate` is not set on the asset.
+    const enriched = await Promise.all(
+      assets.map(async (asset: any) => {
+        try {
+          const lastMaintenance = await this.usageLogClient().findFirst({
+            where: {
+              assetId: asset.id,
+              OR: [
+                { maintenanceNote: { not: null } },
+                { issues: { not: null } },
+              ],
+            },
+            orderBy: { endTime: 'desc' },
+          });
+
+          if (lastMaintenance) {
+            asset._computedLastServiceDate = lastMaintenance.endTime ?? lastMaintenance.startTime;
+          }
+        } catch (err) {
+          // Non-fatal: if the usageLog delegate is unavailable just continue.
+        }
+        return asset;
+      }),
+    );
+
     // Return assets without diagnosis on list load (load diagnosis on-demand)
-    return assets.map((asset: any) => this.sanitize(asset));
+    return enriched.map((asset: any) => this.sanitize(asset));
   }
 
   async update(userId: string, assetId: string, dto: UpdateAssetDto) {
@@ -581,15 +607,36 @@ export class AssetService {
         throw new ConflictException('Asset is not available');
       }
 
-      const activeSession = await (tx as any).usageLog.findFirst({
+      // Heal stale open rows that can remain after a rollback/crash where the
+      // asset returned to AVAILABLE but an old usage log stayed open.
+      const staleOpenSessions = await (tx as any).usageLog.findMany({
         where: {
           assetId,
           endTime: null,
         },
+        select: {
+          id: true,
+          startTime: true,
+          startMileage: true,
+          startOperatingHours: true,
+        },
       });
 
-      if (activeSession) {
-        throw new ConflictException('Asset already has an active usage session');
+      if (staleOpenSessions.length) {
+        const healedAt = new Date();
+        for (const stale of staleOpenSessions) {
+          await (tx as any).usageLog.update({
+            where: { id: stale.id },
+            data: {
+              endTime: healedAt,
+              duration: this.computeDurationHours(stale.startTime, healedAt),
+              distanceKm: 0,
+              endMileage: asset.mileage ?? stale.startMileage ?? 0,
+              endOperatingHours: asset.operatingHours ?? stale.startOperatingHours ?? null,
+              notes: 'Auto-closed stale session before starting a new one.',
+            },
+          });
+        }
       }
 
       const session = await (tx as any).usageLog.create({
@@ -661,6 +708,7 @@ export class AssetService {
       const activeSession = await (tx as any).usageLog.findFirst({
         where: {
           assetId,
+          farmerId: workerId,
           endTime: null,
         },
       });
@@ -817,8 +865,11 @@ export class AssetService {
         startTime: session.startTime,
         endTime: session.endTime,
         durationHours,
+        condition: session.condition,
         taskType: session.taskType,
         fuelLevel: session.fuelLevel,
+        issues: session.issues,
+        maintenanceNote: session.maintenanceNote,
         conditionNote: session.conditionNote,
         notes: session.notes,
       };
@@ -1281,8 +1332,13 @@ export class AssetService {
 
   private sanitize(asset: any) {
     const latestUsageLog = Array.isArray(asset.usageLogs) ? asset.usageLogs[0] : null;
-    const activeUsageSession = latestUsageLog && latestUsageLog.endTime == null ? latestUsageLog : null;
+    const activeUsageSession =
+      asset.status === AssetStatus.IN_USE && latestUsageLog && latestUsageLog.endTime == null
+        ? latestUsageLog
+        : null;
     const usageCondition = latestUsageLog?.condition ?? null;
+
+    const lastService = asset.lastServiceDate ?? asset._computedLastServiceDate ?? null;
 
     return {
       id: asset.id,
@@ -1296,7 +1352,7 @@ export class AssetService {
       status: asset.status,
       image_url: asset.imageUrl,
       serial_number: asset.serialNumber,
-      last_service_date: asset.lastServiceDate,
+      last_service_date: lastService,
       assignedTo: asset.assignedTo,
       field_id: asset.fieldId,
       field: asset.field,
