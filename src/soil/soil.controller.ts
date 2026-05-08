@@ -191,6 +191,21 @@ export class SoilController {
     );
   }
 
+  @Get('simple-list')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Get soil measurements as a plain list (no AI, no pagination)' })
+  async simpleList(@Query('fieldId') fieldId?: string) {
+    try {
+      const where: any = {};
+      if (fieldId) where.fieldId = fieldId;
+
+      const measurements = await this.soilService.findSimpleList(where);
+      return measurements;
+    } catch {
+      return [];
+    }
+  }
+
   @Get()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({

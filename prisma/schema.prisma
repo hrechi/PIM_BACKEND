@@ -662,6 +662,14 @@ model SoilMeasurement {
   imagePath           String?  @map("image_path") @db.VarChar
   soilType            String?  @map("soil_type") @db.VarChar
   detectionConfidence Float?   @map("detection_confidence")
+  // TypeORM soil-intelligence columns — kept here so prisma db push never drops them
+  legacyCode          String?  @map("legacy_code") @db.VarChar(20)
+  parcelLocation      String?  @map("parcel_location") @db.VarChar(100)
+  region              String?  @map("region") @db.VarChar(100)
+  recoveryAction      String?  @map("recovery_action")
+  recoveryDurationWeeks Int?   @map("recovery_duration_weeks")
+  outcome             String?  @map("outcome") @db.VarChar(50)
+  vectorData          Json?    @map("vector_data")
   createdAt           DateTime @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt           DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
 
