@@ -142,6 +142,15 @@ export class AnimalsController {
     return this.animalsService.cancelSale(nodeId, req.user.id);
   }
 
+  @Patch(':nodeId/mark-deceased')
+  markAsDeceased(
+    @Param('nodeId') nodeId: string,
+    @Body() body: { notes?: string },
+    @Req() req: any,
+  ) {
+    return this.animalsService.markAsDeceased(nodeId, req.user.id, body?.notes);
+  }
+
   @Delete(':nodeId')
   remove(@Param('nodeId') nodeId: string, @Req() req: any) {
     return this.animalsService.remove(nodeId, req.user.id);

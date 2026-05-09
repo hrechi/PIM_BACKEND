@@ -41,6 +41,7 @@
     "@prisma/adapter-pg": "^7.3.0",
     "@prisma/client": "^6.19.3",
     "@turf/turf": "^7.3.4",
+    "@vitalets/google-translate-api": "^9.2.1",
     "adm-zip": "^0.5.16",
     "axios": "^1.13.5",
     "bcrypt": "^6.0.0",

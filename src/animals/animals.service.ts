@@ -422,10 +422,26 @@ export class AnimalsService {
       this.logger.warn(`[update] Groq estimation skipped: ${e.message}`);
     }
 
-    return this.prisma.animal.update({
+    const updatedAnimal = await this.prisma.animal.update({
       where: { nodeId },
       data: transformedData,
     });
+
+    // ── Auto-create WeightRecord when weight changes ──────────────────────
+    const newWeight = transformedData.weight ?? null;
+    if (newWeight !== null && newWeight !== undefined && newWeight !== animal.weight) {
+      await this.prisma.weightRecord.create({
+        data: {
+          animalId: animal.id,
+          weightKg: newWeight,
+          measuredBy: 'manual update',
+          measuredDate: new Date(),
+        },
+      });
+      this.logger.log(`[update] WeightRecord created for animal ${animal.id}: ${newWeight} kg`);
+    }
+
+    return updatedAnimal;
   }
 
   async sell(nodeId: string, data: any, farmerId: string) {
@@ -493,6 +509,30 @@ export class AnimalsService {
         notes: animal.notes
           ? animal.notes + '\n\nSale cancelled'
           : 'Sale cancelled',
+      },
+    });
+  }
+
+  async markAsDeceased(nodeId: string, farmerId: string, notes?: string) {
+    const animal = await this.prisma.animal.findFirst({
+      where: { nodeId, farmerId },
+    });
+
+    if (!animal) {
+      throw new NotFoundException(
+        `Animal with NodeID ${nodeId} not found or access denied`,
+      );
+    }
+
+    return this.prisma.animal.update({
+      where: { nodeId },
+      data: {
+        status: 'deceased',
+        notes: notes
+          ? animal.notes
+            ? animal.notes + '\n\nDeceased: ' + notes
+            : 'Deceased: ' + notes
+          : animal.notes,
       },
     });
   }

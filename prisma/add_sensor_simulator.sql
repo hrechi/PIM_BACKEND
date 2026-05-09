@@ -1,0 +1,3 @@
+ALTER TABLE sensor_readings
+  ADD COLUMN IF NOT EXISTS is_simulated BOOLEAN NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS simulated_scenario VARCHAR(50);

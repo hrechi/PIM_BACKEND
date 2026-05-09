@@ -90,7 +90,7 @@ export class VaccineReminderCron {
   }
 
   /** Marquer OVERDUE — 6h00 chaque jour */
-  @Cron('0 6 * * *')
+  @Cron('* * * * *')
   async markOverdue() {
     const result = await this.prisma.vaccineSchedule.updateMany({
       where: {

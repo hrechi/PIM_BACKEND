@@ -984,18 +984,20 @@ model MedicalEvent {
 // ─────────────────────────────────────────────
 
 model SensorReading {
-  id            String   @id @default(uuid())
-  animalId      String
-  animal        Animal   @relation(fields: [animalId], references: [id], onDelete: Cascade)
-  collarId      String?
-  timestamp     DateTime
-  temperature   Float?
-  heartRate     Float?
-  accX          Float?
-  accY          Float?
-  accZ          Float?
-  activityScore Float?
-  createdAt     DateTime @default(now())
+  id                String   @id @default(uuid())
+  animalId          String
+  animal            Animal   @relation(fields: [animalId], references: [id], onDelete: Cascade)
+  collarId          String?
+  timestamp         DateTime @default(now())
+  temperature       Float?
+  heartRate         Float?
+  accX              Float?
+  accY              Float?
+  accZ              Float?
+  activityScore     Float?
+  isSimulated       Boolean  @default(false)
+  simulatedScenario String?
+  createdAt         DateTime @default(now())
 
   @@index([animalId, timestamp])
   @@map("sensor_readings")

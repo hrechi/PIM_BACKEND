@@ -50,6 +50,9 @@ import { SoilIntelligenceModule } from './soil-intelligence/soil-intelligence.mo
 import { CataloguesModule } from './catalogues/catalogues.module';
 import { RobotsModule } from './robots/robots.module';
 import { TelemetryModule } from './telemetry/telemetry.module';
+import { SensorsModule } from './sensors/sensors.module';
+import { AnimalHealthModule } from './animal-health/animal-health.module';
+import { MedicalEventsModule } from './medical-events/medical-events.module';
 
  
 @Module({
@@ -109,7 +112,7 @@ import { TelemetryModule } from './telemetry/telemetry.module';
         // is application-side only; without a DB default we get NOT NULL violations.
         await dataSource.query(`
           ALTER TABLE soil_measurements
-          ALTER COLUMN id SET DEFAULT gen_random_uuid()::text;
+          ALTER COLUMN id SET DEFAULT gen_random_uuid();
         `);
 
         if (hasVectorExtension) {
@@ -190,6 +193,9 @@ import { TelemetryModule } from './telemetry/telemetry.module';
     AiModule,
     RobotsModule,
     TelemetryModule,
+    SensorsModule,
+    AnimalHealthModule,
+    MedicalEventsModule,
   ],
 
   controllers: [AppController],
