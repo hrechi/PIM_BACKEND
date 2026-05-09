@@ -50,9 +50,14 @@ import { SoilIntelligenceModule } from './soil-intelligence/soil-intelligence.mo
 import { CataloguesModule } from './catalogues/catalogues.module';
 import { RobotsModule } from './robots/robots.module';
 import { TelemetryModule } from './telemetry/telemetry.module';
+<<<<<<< HEAD
 import { SensorsModule } from './sensors/sensors.module';
 import { AnimalHealthModule } from './animal-health/animal-health.module';
 import { MedicalEventsModule } from './medical-events/medical-events.module';
+=======
+import { RatingsModule } from './ratings/ratings.module';
+import { BillingModule } from './billing/billing.module';
+>>>>>>> 3097cdffbe1eb39f9cd899ac2b63cf32b8487622
 
  
 @Module({
@@ -138,6 +143,24 @@ import { MedicalEventsModule } from './medical-events/medical-events.module';
           );
         `);
 
+        // Heal drift: if the table already existed with UUID soil_measurement_id
+        // (older schema) but soil_measurements.id is now TEXT, alter the column
+        // type so the FK can be created.
+        await dataSource.query(`
+          DO $$
+          BEGIN
+            IF EXISTS (
+              SELECT 1 FROM information_schema.columns
+              WHERE table_name = 'soil_weather_alerts'
+                AND column_name = 'soil_measurement_id'
+                AND data_type = 'uuid'
+            ) THEN
+              ALTER TABLE soil_weather_alerts
+                ALTER COLUMN soil_measurement_id TYPE TEXT USING soil_measurement_id::text;
+            END IF;
+          END$$;
+        `);
+
         if (hasVectorExtension) {
           await dataSource.query(`
             CREATE INDEX IF NOT EXISTS idx_soil_measurements_vector
@@ -193,9 +216,14 @@ import { MedicalEventsModule } from './medical-events/medical-events.module';
     AiModule,
     RobotsModule,
     TelemetryModule,
+<<<<<<< HEAD
     SensorsModule,
     AnimalHealthModule,
     MedicalEventsModule,
+=======
+    RatingsModule,
+    BillingModule,
+>>>>>>> 3097cdffbe1eb39f9cd899ac2b63cf32b8487622
   ],
 
   controllers: [AppController],
