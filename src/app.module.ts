@@ -218,7 +218,7 @@ import { BillingModule } from './billing/billing.module';
         // Si la table existait avec soil_measurement_id en UUID (ancienne version),
         // on la convertit en TEXT pour correspondre au type actuel de soil_measurements.id
         await dataSource.query(`
-          DO $
+          DO $$
           BEGIN
             IF EXISTS (
               SELECT 1 FROM information_schema.columns
@@ -229,7 +229,7 @@ import { BillingModule } from './billing/billing.module';
               ALTER TABLE soil_weather_alerts
                 ALTER COLUMN soil_measurement_id TYPE TEXT USING soil_measurement_id::text;
             END IF;
-          END$;
+          END$$;
         `);
 
         // ── Index vectoriel IVFFlat pour la recherche de similarité ──────

@@ -109,6 +109,8 @@ export class RegionalVaccineService {
 
       const isLifetime = reg.frequency === 'ONCE';
       const alreadyDone = lastRecordByVaccine.has(reg.vaccineId);
+
+      // Vaccin unique (ONCE) déjà administré → ignorer complètement
       if (isLifetime && alreadyDone) continue;
 
       // Calculer la prochaine date
@@ -118,6 +120,10 @@ export class RegionalVaccineService {
         scheduledDate = new Date(
           lastDate.getTime() + reg.intervalDays * 86400000,
         );
+        // Si la prochaine date est encore dans le futur (> aujourd'hui + 7j),
+        // ne pas créer de planning — le vaccin n'est pas encore dû
+        const sevenDaysFromNow = new Date(Date.now() + 7 * 86400000);
+        if (scheduledDate > sevenDaysFromNow) continue;
       } else {
         scheduledDate = new Date();
         if (reg.status === 'RECOMMENDED') {
@@ -125,13 +131,12 @@ export class RegionalVaccineService {
         }
       }
 
-      // Éviter les doublons récents (7 jours glissants)
+      // Éviter les doublons : planning PENDING/NOTIFIED déjà existant pour ce vaccin
       const existing = await this.prisma.vaccineSchedule.findFirst({
         where: {
           animalId,
           vaccineId: reg.vaccineId,
           status: { in: ['PENDING', 'NOTIFIED'] },
-          scheduledDate: { gte: new Date(Date.now() - 7 * 86400000) },
         },
       });
       if (existing) continue;
@@ -156,6 +161,14 @@ export class RegionalVaccineService {
       created.push(schedule);
     }
 
+    // Sync animal.vaccination if any records already exist
+    if (existingRecords.length > 0) {
+      await this.prisma.animal.update({
+        where: { id: animalId },
+        data: { vaccination: true },
+      });
+    }
+
     return {
       animalId,
       countryCode: resolvedField.countryCode,
@@ -164,8 +177,6 @@ export class RegionalVaccineService {
       schedules: created,
     };
   }
-
-  /** Vérifie si un vaccin est interdit pour une espèce dans le pays du champ */
   async checkForbidden(
     vaccineCode: string,
     fieldId: string,

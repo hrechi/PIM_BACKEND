@@ -148,7 +148,7 @@ export class VaccinesService {
           administeredAt.getTime() + vaccine.defaultIntervalDays * 86400000,
         );
 
-    return this.prisma.vaccineRecord.create({
+    const record = await this.prisma.vaccineRecord.create({
       data: {
         animalId: dto.animalId,
         vaccineId: vaccine.id,
@@ -164,6 +164,16 @@ export class VaccinesService {
       },
       include: { vaccine: true },
     });
+
+    // Sync animal.vaccination flag — true as soon as any record exists
+    if (!animal.vaccination) {
+      await this.prisma.animal.update({
+        where: { id: dto.animalId },
+        data: { vaccination: true },
+      });
+    }
+
+    return record;
   }
 
   // ── Schedules ────────────────────────────────────────────────────────────
@@ -307,6 +317,13 @@ export class VaccinesService {
           });
         }
       }
+
+      // Sync animal.vaccination flag
+      await this.prisma.animal.update({
+        where: { id: animalId },
+        data: { vaccination: true },
+      });
+
       results.push(record);
     }
     return { count: results.length, records: results };
@@ -346,6 +363,12 @@ export class VaccinesService {
     await this.prisma.vaccineSchedule.update({
       where: { id: scheduleId },
       data: { status: 'DONE' },
+    });
+
+    // Sync animal.vaccination flag
+    await this.prisma.animal.update({
+      where: { id: schedule.animalId },
+      data: { vaccination: true },
     });
 
     // Si récurrent, créer le prochain planning
