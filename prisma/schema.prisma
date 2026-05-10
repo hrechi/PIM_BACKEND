@@ -194,6 +194,7 @@ model User {
   animals        Animal[]
   saleCatalogues SaleCatalogue[]
   expenses       Expense[]
+  revenues       Revenue[]
   // Staff whitelist managed by this user
   whitelistStaff WhitelistStaff[]
   assets         Asset[]
@@ -446,6 +447,7 @@ model Field {
   usageLogs        UsageLog[]
   assignedWorkers  WhitelistStaff[] // from schema 2
   expenses         Expense[]
+  revenues         Revenue[]
 
   @@index([userId])
   @@map("fields")
@@ -1169,6 +1171,25 @@ model Expense {
   createdAt   DateTime @default(now())
 
   @@map("expenses")
+}
+
+// ─────────────────────────────────────────────
+// MANUAL REVENUES
+// ─────────────────────────────────────────────
+
+model Revenue {
+  id          String   @id @default(uuid())
+  farmId      String?
+  farmer      User?    @relation(fields: [farmId], references: [id], onDelete: SetNull)
+  fieldId     String?
+  field       Field?   @relation(fields: [fieldId], references: [id], onDelete: SetNull)
+  date        DateTime
+  category    String   // milk, crops, services, subsidies, other
+  amount      Decimal  @db.Decimal(10, 2)
+  description String?
+  createdAt   DateTime @default(now())
+
+  @@map("revenues")
 }
 
 // ─────────────────────────────────────────────

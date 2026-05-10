@@ -21,13 +21,9 @@ export class WeatherService {
   ) {
     this.weatherServiceUrl =
       this.configService.get<string>('WEATHER_SERVICE_URL') ||
-<<<<<<< HEAD
 
       'http://192.168.0.148:5000';
 
-=======
-      'http://192.168.100.9:5000';
->>>>>>> 3097cdffbe1eb39f9cd899ac2b63cf32b8487622
   }
 
   /**

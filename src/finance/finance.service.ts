@@ -1,3 +1,29 @@
+/**
+ * ============================================================
+ * FINANCE SERVICE — Tableau de bord financier de la ferme
+ * ============================================================
+ *
+ * Ce service agrège toutes les données financières d'un champ agricole
+ * pour produire un tableau de bord complet sur une période donnée.
+ *
+ * Sources de revenus prises en compte :
+ *   1. Ventes d'animaux  → modèle Animal (status='sold', salePrice)
+ *   2. Revenus manuels   → modèle Revenue (lait, cultures, services, subventions)
+ *
+ * Sources de dépenses :
+ *   → modèle Expense (alimentation, vétérinaire, équipement, main-d'œuvre)
+ *
+ * Calculs produits :
+ *   • totalRevenue    = ventes animaux + revenus manuels
+ *   • totalExpenses   = somme de toutes les dépenses
+ *   • netBalance      = totalRevenue - totalExpenses
+ *   • expensesByCategory → répartition % par catégorie
+ *   • topCostlyAnimals   → top 3 animaux les plus coûteux
+ *   • recentExpenses     → 5 dernières dépenses
+ *
+ * Périodes supportées : month | quarter | year
+ * ============================================================
+ */
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -5,8 +31,16 @@ import { PrismaService } from '../prisma/prisma.service';
 export class FinanceService {
   constructor(private prisma: PrismaService) {}
 
+  /**
+   * Génère le tableau de bord financier complet pour un champ.
+   *
+   * @param fieldId  - ID du champ agricole
+   * @param userId   - ID de l'agriculteur (vérification ownership)
+   * @param period   - Période d'analyse : 'month' | 'quarter' | 'year'
+   * @returns        - Objet dashboard avec revenus, dépenses, solde, graphiques
+   */
   async getDashboard(fieldId: string, userId: string, period: 'month' | 'quarter' | 'year') {
-    // Verify field ownership and get user currency
+    // Vérification que le champ appartient bien à l'utilisateur connecté
     const field = await this.prisma.field.findFirst({
       where: { id: fieldId, userId },
     });
@@ -15,11 +49,12 @@ export class FinanceService {
       throw new NotFoundException('Field not found or access denied');
     }
 
+    // Récupération de la devise de l'utilisateur (ex: TND, EUR, USD)
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: {
-        currency: true,
-        currencySymbol: true,
+        currency: true,       // Code ISO (ex: 'TND')
+        currencySymbol: true, // Symbole (ex: 'DT')
       },
     });
 
@@ -27,22 +62,25 @@ export class FinanceService {
       throw new NotFoundException('User not found');
     }
 
-    // Calculate date range
+    // ── Calcul de la plage de dates selon la période ──────────────────────
     const now = new Date();
     let startDate: Date;
     let endDate: Date;
 
     switch (period) {
       case 'month':
+        // Du 1er au dernier jour du mois courant
         startDate = new Date(now.getFullYear(), now.getMonth(), 1);
         endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
         break;
       case 'quarter':
+        // Trimestre courant (Q1: jan-mar, Q2: avr-jun, Q3: jul-sep, Q4: oct-dec)
         const quarterStart = Math.floor(now.getMonth() / 3) * 3;
         startDate = new Date(now.getFullYear(), quarterStart, 1);
         endDate = new Date(now.getFullYear(), quarterStart + 3, 0, 23, 59, 59);
         break;
       case 'year':
+        // Du 1er janvier au 31 décembre de l'année courante
         startDate = new Date(now.getFullYear(), 0, 1);
         endDate = new Date(now.getFullYear(), 11, 31, 23, 59, 59);
         break;
@@ -164,10 +202,28 @@ export class FinanceService {
       console.log(`  - ${animal.name}: ${price} (status: ${animal.status})`);
       return sum + price;
     }, 0);
+
+    // Get manual revenues for the period
+    const manualRevenues = await this.prisma.revenue.findMany({
+      where: {
+        fieldId,
+        date: { gte: startDate, lte: endDate },
+      },
+    });
+    const totalManualRevenue = manualRevenues.reduce((sum, r) => {
+      return sum + (r.amount ? parseFloat(r.amount.toString()) : 0);
+    }, 0);
+
+    const totalRevenue_combined = totalRevenue + totalManualRevenue;
+
     const revenueByType = {
       animalSales: {
         count: animalSales.length,
         totalAmount: totalRevenue,
+      },
+      manualRevenues: {
+        count: manualRevenues.length,
+        totalAmount: totalManualRevenue,
       },
     };
 
@@ -239,13 +295,13 @@ export class FinanceService {
       animalName: expense.animal?.name || null,
     }));
 
-    const netBalance = totalRevenue - totalExpenses;
+    const netBalance = totalRevenue_combined - totalExpenses;
 
     return {
       period,
       currency: user.currency,
       currencySymbol: user.currencySymbol,
-      totalRevenue,
+      totalRevenue: totalRevenue_combined,
       totalExpenses,
       netBalance,
       expensesByCategory: sortedExpensesByCategory,
@@ -334,11 +390,50 @@ export class FinanceService {
       saleDate: animal.saleDate,
       buyerName: animal.buyerName,
       saleWeightKg: animal.saleWeightKg,
+      source: 'animal_sale' as const,
     }));
 
+    // Also fetch manual revenues
+    const manualRevs = await this.prisma.revenue.findMany({
+      where: {
+        fieldId,
+        date: { gte: startDate, lte: endDate },
+      },
+      orderBy: { date: 'desc' },
+      skip,
+      take,
+    });
+
+    const manualTotal = await this.prisma.revenue.count({
+      where: {
+        fieldId,
+        date: { gte: startDate, lte: endDate },
+      },
+    });
+
+    const mappedManual = manualRevs.map(r => ({
+      id: r.id,
+      animalName: null,
+      type: r.category,
+      salePrice: r.amount ? parseFloat(r.amount.toString()) : 0,
+      saleDate: r.date,
+      buyerName: null,
+      saleWeightKg: null,
+      description: r.description,
+      source: 'manual' as const,
+    }));
+
+    // Merge and sort by date desc
+    const allRevenues = [...mappedRevenues, ...mappedManual]
+      .sort((a, b) => {
+        const dateA = a.saleDate ? new Date(a.saleDate).getTime() : 0;
+        const dateB = b.saleDate ? new Date(b.saleDate).getTime() : 0;
+        return dateB - dateA;
+      });
+
     return {
-      data: mappedRevenues,
-      total,
+      data: allRevenues,
+      total: total + manualTotal,
       skip,
       take,
     };

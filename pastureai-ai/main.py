@@ -1,20 +1,77 @@
+"""
+============================================================
+PASTUREAI — Serveur d'inférence IA pour la santé animale
+============================================================
+
+Ce serveur FastAPI expose un endpoint /predict qui reçoit les
+données de capteurs IoT d'un animal et retourne un diagnostic
+de santé basé sur deux modèles de Machine Learning :
+
+1. Isolation Forest (iso_forest.pkl)
+   → Détection d'anomalies non supervisée
+   → Calcule un score d'anomalie normalisé (0-1)
+   → Entraîné sur des données de bovins sains
+
+2. XGBoost Classifier (xgb_model.pkl)
+   → Classification multi-classes supervisée
+   → Prédit la pathologie parmi : saine, mammite, fièvre,
+     boiterie, stress_thermique
+   → Retourne les probabilités pour chaque classe
+
+Pipeline de prédiction :
+   Capteurs IoT → Feature Engineering (NestJS)
+               → POST /predict (ce serveur)
+               → Isolation Forest → anomaly_score
+               → XGBoost → predicted_disease + probabilities
+               → health_score = f(anomaly_score, confidence)
+               → Réponse JSON → NestJS → Flutter
+
+Features d'entrée (16 variables) :
+   Température : temp_mean_1h, temp_max_6h, temp_std_6h,
+                 temp_mean_24h, temp_trend_6h
+   Fréquence cardiaque : hr_mean_1h, hr_max_6h, hr_std_1h, hr_trend_6h
+   Activité : activity_mean_1h, activity_mean_24h, activity_drop_6h
+   Accéléromètre : acc_magnitude, acc_asymmetry
+   Comportement : lying_pct_6h, lying_pct_24h
+   Deltas vs baseline : delta_temp_baseline, delta_hr_baseline
+
+Démarrage :
+   uvicorn main:app --reload --port 8001
+============================================================
+"""
+
 from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
 import numpy as np, joblib, json
 
-app = FastAPI(title="PastureAI V1")
+# ── Initialisation de l'application FastAPI ───────────────────────────────────
+app = FastAPI(
+    title="PastureAI V1",
+    description="Serveur d'inférence IA pour le diagnostic de santé animale",
+    version="1.0.0",
+)
 
-# Chargement des modèles au démarrage
-iso_forest = joblib.load("iso_forest.pkl")
-xgb_model  = joblib.load("xgb_model.pkl")
-le         = joblib.load("label_encoder.pkl")
+# ── Chargement des modèles ML au démarrage du serveur ────────────────────────
+# Les fichiers .pkl sont des modèles sérialisés avec joblib (scikit-learn compatible)
+iso_forest = joblib.load("iso_forest.pkl")   # Isolation Forest : détection d'anomalies
+xgb_model  = joblib.load("xgb_model.pkl")   # XGBoost : classification des pathologies
+le         = joblib.load("label_encoder.pkl") # LabelEncoder : décodage des classes
+
+# ── Configuration du modèle (features, seuils physiologiques) ────────────────
 with open("config.json") as f:
     config = json.load(f)
+
+# Liste ordonnée des features attendues par le modèle XGBoost
 FEATURES = config["feature_cols"]
+
+# Valeurs physiologiques de référence pour les bovins (baseline)
+# Utilisées pour calculer delta_temp_baseline et delta_hr_baseline
 PHYSIO   = config.get("physio", {
-    "temp_mean": 38.7, "hr_mean": 65, "activity_mean": 45
+    "temp_mean": 38.7,   # Température normale vache (°C)
+    "hr_mean": 65,       # Fréquence cardiaque normale (bpm)
+    "activity_mean": 45  # Score d'activité moyen
 })
 
 # ── Descriptions des pathologies (issues du notebook) ────────────────────────
