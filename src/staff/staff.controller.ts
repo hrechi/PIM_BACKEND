@@ -7,6 +7,7 @@ import {
   Body,
   UseGuards,
   Req,
+  Query,
   UseInterceptors,
   UploadedFile,
   ParseFilePipe,
@@ -111,8 +112,8 @@ export class StaffController {
   @Get()
   @ApiOperation({ summary: 'Get all whitelisted staff for current user' })
   @ApiResponse({ status: 200, description: 'Returns the staff whitelist' })
-  async getAllStaff(@Req() req: any) {
-    return this.staffService.getAllStaff(req.user.id);
+  async getAllStaff(@Req() req: any, @Query('fieldId') fieldId?: string) {
+    return this.staffService.getAllStaff(req.user.id, fieldId);
   }
 
   @Delete(':id')
