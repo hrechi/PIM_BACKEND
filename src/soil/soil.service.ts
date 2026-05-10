@@ -36,6 +36,22 @@ export class SoilService {
   }
 
   /**
+   * Simple list — no AI, no complex filtering, just raw rows
+   */
+  async findSimpleList(where: { fieldId?: string } = {}): Promise<SoilMeasurementWithStatus[]> {
+    const query: any = {};
+    if (where.fieldId) query.fieldId = where.fieldId;
+
+    const measurements = await this.soilRepository.find({
+      where: query,
+      order: { createdAt: 'DESC' },
+      take: 100,
+    });
+
+    return measurements.map((m) => this.enrichWithStatus(m));
+  }
+
+  /**
    * Create a new soil measurement
    */
   async create(

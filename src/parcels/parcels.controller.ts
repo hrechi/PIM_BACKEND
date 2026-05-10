@@ -36,7 +36,7 @@ export class ParcelsController {
   }
 
   @Get()
-  async findAll(@Req() req) {
+  async findAll(@Req() req, @Query('fieldId') fieldId?: string) {
     const data = await this.parcelsService.findAll(req.user.id);
     return { data };
   }

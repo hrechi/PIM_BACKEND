@@ -193,6 +193,38 @@ export class UserService {
     return { message: 'Account deleted successfully' };
   }
 
+  async getAllFarmers() {
+    try {
+      // Fetch all users from the database
+      // (All users represent farm owners/farmers in this system)
+      const users = await this.prisma.user.findMany({
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+          farmName: true,
+          profilePicture: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      console.log(`[getAllFarmers] Found ${users.length} users in database`);
+
+      // Add role field for frontend compatibility
+      return users.map((user) => ({
+        ...user,
+        role: 'FARMER',
+        ownerId: user.id,
+      }));
+    } catch (error) {
+      console.error('[getAllFarmers] Error fetching users:', error);
+      throw error;
+    }
+  }
+
   private mapProfile(user: any, authContext?: {
     role?: string;
     assignedFieldId?: string | null;

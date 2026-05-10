@@ -64,9 +64,12 @@ export class StaffService {
     return safeStaff;
   }
 
-  async getAllStaff(userId: string) {
+  async getAllStaff(userId: string, fieldId?: string) {
+    const where: any = { userId };
+    if (fieldId) where.assignedFieldId = fieldId;
+
     const rows = await (this.prisma as any).whitelistStaff.findMany({
-      where: { userId },
+      where,
       orderBy: { createdAt: 'desc' },
       include: {
         assignedField: {

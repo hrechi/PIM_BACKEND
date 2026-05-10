@@ -228,7 +228,12 @@ export class AssetService {
   ) {
     const where: any = { userId: ownerId };
 
-    if (role === 'WORKER' || role === 'FARMER') {
+    if (role === 'OWNER') {
+      // For owners, filter by fieldId if provided
+      if (assignedFieldId) {
+        where.fieldId = assignedFieldId;
+      }
+    } else if (role === 'WORKER' || role === 'FARMER') {
       const workerFilters: any[] = [];
 
       if (assignedFieldId) {

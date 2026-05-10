@@ -138,13 +138,13 @@ export class AssetController {
   @Roles('OWNER', 'WORKER', 'FARMER')
   @ApiOperation({ summary: 'Get all assets for current user' })
   @ApiResponse({ status: 200, description: 'Assets list' })
-  async findAll(@Req() req: any) {
+  async findAll(@Req() req: any, @Query('fieldId') fieldId?: string) {
     const ownerId = req.user.ownerId || req.user.id;
     const staffId = req.user.staffId || req.user.workerId || null;
     return this.assetService.findAll(
       ownerId,
       req.user.role,
-      req.user.assignedFieldId,
+      fieldId || req.user.assignedFieldId,
       staffId,
     );
   }

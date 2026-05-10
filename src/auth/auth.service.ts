@@ -18,6 +18,22 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 
 @Injectable()
 export class AuthService {
+  private readonly userAuthSelect = {
+    id: true,
+    email: true,
+    password: true,
+    name: true,
+    phone: true,
+    farmName: true,
+    profilePicture: true,
+    refreshToken: true,
+    otp: true,
+    otpExpiresAt: true,
+    fcmToken: true,
+    createdAt: true,
+    updatedAt: true,
+  } as const;
+
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
@@ -35,6 +51,7 @@ export class AuthService {
     if (dto.email) {
       const existingByEmail = await this.prisma.user.findUnique({
         where: { email: dto.email },
+        select: this.userAuthSelect,
       });
       if (existingByEmail) {
         throw new ConflictException('Email already in use');
@@ -44,6 +61,7 @@ export class AuthService {
     if (dto.phone) {
       const existingByPhone = await this.prisma.user.findUnique({
         where: { phone: dto.phone },
+        select: this.userAuthSelect,
       });
       if (existingByPhone) {
         throw new ConflictException('Phone number already in use');
@@ -62,6 +80,7 @@ export class AuthService {
         phone: dto.phone || null,
         password: hashedPassword,
       },
+      select: this.userAuthSelect,
     });
 
     // Generate tokens
@@ -89,6 +108,7 @@ export class AuthService {
       where: {
         OR: [{ email: identifier }, { phone: identifier }],
       },
+      select: this.userAuthSelect,
     });
 
     if (user) {
@@ -134,6 +154,7 @@ export class AuthService {
 
     const owner = await this.prisma.user.findUnique({
       where: { id: worker.userId },
+      select: this.userAuthSelect,
     });
 
     if (!owner) {
@@ -183,6 +204,7 @@ export class AuthService {
   ) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
+      select: this.userAuthSelect,
     });
 
     if (!user || !user.refreshToken) {
@@ -222,6 +244,7 @@ export class AuthService {
   async forgotPassword(dto: ForgotPasswordDto) {
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },
+      select: this.userAuthSelect,
     });
 
     if (!user) {
@@ -247,6 +270,7 @@ export class AuthService {
   async verifyOtp(dto: VerifyOtpDto) {
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },
+      select: this.userAuthSelect,
     });
 
     if (!user || !user.otp || !user.otpExpiresAt) {
@@ -275,6 +299,7 @@ export class AuthService {
   async resetPassword(dto: ResetPasswordDto) {
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },
+      select: this.userAuthSelect,
     });
 
     if (!user || !user.otp || !user.otpExpiresAt) {

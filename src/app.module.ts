@@ -115,7 +115,9 @@ import { CataloguesModule } from './catalogues/catalogues.module';
 // ── Facturation & Évaluations ─────────────────────────────────────────────
 import { RatingsModule } from './ratings/ratings.module';
 import { BillingModule } from './billing/billing.module';
+import { AdminModule } from './admin/admin.module';
 
+ 
 @Module({
   imports: [
     // ── Configuration globale (variables d'environnement .env) ────────────
@@ -250,54 +252,53 @@ import { BillingModule } from './billing/billing.module';
         return dataSource;
       },
     }),
-
-    // ── Modules métier ────────────────────────────────────────────────────
-    PrismaModule,         // Connexion Prisma partagée (singleton)
-    EmailModule,          // Envoi d'emails (confirmation, alertes)
-    AuthModule,           // JWT, refresh tokens, guards
-    UserModule,           // Profil utilisateur, préférences
-    FieldModule,          // Champs agricoles (géolocalisation, superficie)
-    MissionModule,        // Missions terrain assignées aux ouvriers
-    ChatModule,           // Chat IA (Groq LLM) pour conseils agronomiques
-    MechanicChatModule,   // Chat IA spécialisé maintenance équipements
-    ConversationModule,   // Historique des conversations IA
-    SoilModule,           // Mesures sol (pH, humidité, NPK) + classification image
-    StaffModule,          // Gestion des ouvriers (whitelist, assignation champ)
-    SecurityModule,       // Surveillance périmétrique, détection intrusion
-    IncidentModule,       // Historique des incidents de sécurité
-    NotificationModule,   // Push notifications (Firebase FCM)
-    AnimalsModule,        // CRUD animaux (bovins, ovins, équins, canins)
-    ParcelsModule,        // Parcelles cultivées (cultures, rotations)
-    SirenModule,          // Sirène d'alarme connectée
-    MilkProductionModule, // Suivi production laitière quotidienne
-    WeatherModule,        // Météo 7 jours (OpenWeather + recommandations Groq)
-    IrrigationModule,     // Planning d'irrigation intelligent (météo + culture)
-    NewsModule,           // Actualités agricoles (YouTube Shorts)
-    AnalyticsModule,      // Tableaux de bord analytiques
-    CalendarModule,       // Calendrier agricole (semis, récoltes, vaccins)
-    HealthScoreModule,    // Score de santé global de la ferme
-    GeoModule,            // Géocodage inverse (Nominatim)
-    VaccinesModule,       // Gestion des vaccins et rappels
-    ReportsModule,        // Génération de rapports PDF
-    ShortsModule,         // Vidéos courtes éducatives (YouTube API)
-    HarvestOptimizationModule, // Optimisation des récoltes (IA)
-    QuizModule,           // Quiz de formation agricole
-    AeroTwinModule,       // Jumeau numérique aérien (drone)
-    CommunityModule,      // Forum communautaire agriculteurs
-    ExpensesModule,       // Dépenses (alimentation, vétérinaire, équipement)
-    FinanceModule,        // Tableau de bord financier (revenus + dépenses)
-    RevenuesModule,       // Revenus manuels (lait, cultures, services, subventions)
-    CataloguesModule,     // Catalogues de vente de bétail (PDF, QR code)
-    SoilIntelligenceModule, // Intelligence sol (vectorisation, similarité, alertes)
-    AssetModule,          // Équipements agricoles + maintenance prédictive
-    AiModule,             // Services IA transversaux (validation, suggestions)
-    RobotsModule,         // Contrôle robots agricoles
-    TelemetryModule,      // Télémétrie temps réel des robots
-    SensorsModule,        // Capteurs IoT (température, fréquence cardiaque, activité)
-    AnimalHealthModule,   // Diagnostic IA santé animale (XGBoost + Isolation Forest)
-    MedicalEventsModule,  // Événements médicaux (visites vétérinaires, traitements)
-    RatingsModule,        // Évaluations de l'application
-    BillingModule,        // Facturation Stripe (abonnements, add-ons robots)
+    PrismaModule,
+    EmailModule,
+    AuthModule,
+    UserModule,
+    FieldModule,
+    MissionModule,
+    ChatModule,
+    MechanicChatModule,
+    ConversationModule,
+    SoilModule,
+    StaffModule,
+    SecurityModule,
+    IncidentModule,
+    NotificationModule,
+    AnimalsModule,
+    ParcelsModule,
+    SirenModule,
+    MilkProductionModule,
+    WeatherModule,
+    IrrigationModule,
+    NewsModule,
+    AnalyticsModule,
+    CalendarModule,
+    HealthScoreModule,
+    GeoModule,
+    VaccinesModule,
+    ReportsModule,
+    ShortsModule,
+    HarvestOptimizationModule,
+    QuizModule,
+    AeroTwinModule,
+    CommunityModule,
+    ExpensesModule,
+    FinanceModule,
+    RevenuesModule,
+    CataloguesModule,
+    SoilIntelligenceModule,
+    AssetModule,
+    AiModule,
+    RobotsModule,
+    TelemetryModule,
+    SensorsModule,
+    AnimalHealthModule,
+    MedicalEventsModule,
+    RatingsModule,
+    BillingModule,
+    AdminModule,
   ],
 
   controllers: [AppController],
