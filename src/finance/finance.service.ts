@@ -522,10 +522,15 @@ export class FinanceService {
 
   private normalizeCategory(category: string): string {
     const cat = category.toLowerCase();
+    // Handle new short English keys (stored directly)
+    if (cat === 'feed' || cat === 'vet' || cat === 'meds' || cat === 'equip' || cat === 'labor' || cat === 'other') {
+      return cat;
+    }
+    // Handle legacy French labels stored in DB
     if (cat.includes('aliment')) return 'feed';
-    if (cat.includes('vet') || cat.includes('med')) return 'vet';
-    if (cat.includes('medic')) return 'meds';
-    if (cat.includes('equip')) return 'equip';
+    if (cat.includes('sant') || cat.includes('vet')) return 'vet';
+    if (cat.includes('medic') || cat.includes('med')) return 'meds';
+    if (cat.includes('equip') || cat.includes('timent')) return 'equip';
     if (cat.includes('main')) return 'labor';
     return 'other';
   }

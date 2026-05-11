@@ -148,10 +148,10 @@ export class ExpensesService {
       totalCost += amt;
 
       const cat = exp.category.toLowerCase();
-      if (cat.includes('aliment')) breakdown.feed += amt;
-      else if (cat.includes('equip')) breakdown.equip += amt;
-      else if (cat.includes('main')) breakdown.labor += amt;
-      else if (cat.includes('vet') || cat.includes('med'))
+      if (cat === 'feed' || cat.includes('aliment')) breakdown.feed += amt;
+      else if (cat === 'equip' || cat.includes('equip')) breakdown.equip += amt;
+      else if (cat === 'labor' || cat.includes('main')) breakdown.labor += amt;
+      else if (cat === 'vet' || cat === 'meds' || cat.includes('vet') || cat.includes('med'))
         breakdown.meds += amt;
       else breakdown.other += amt;
 

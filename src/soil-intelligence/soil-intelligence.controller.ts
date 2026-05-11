@@ -15,6 +15,11 @@ export class SoilIntelligenceController {
     return this.soilIntelligenceService.triggerWeatherAlert(body);
   }
 
+  @Get('alerts')
+  getAllAlerts() {
+    return this.soilIntelligenceService.getAllAlerts();
+  }
+
   @Get('alerts/:parcelId')
   getUnreadAlerts(@Param('parcelId') parcelId: string) {
     return this.soilIntelligenceService.getUnreadAlerts(parcelId);

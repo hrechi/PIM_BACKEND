@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import axios from 'axios';
 import { readFile } from 'fs/promises';
 import { resolve } from 'path';
@@ -468,6 +469,156 @@ export class SoilIntelligenceService {
     }
 
     return this.mapAlert(updated);
+  }
+
+  /** Return all unread alerts across all parcels (used by the notification center). */
+  async getAllAlerts() {
+    const alerts = await this.prisma.$queryRaw<AlertRow[]>`
+      SELECT
+        id,
+        parcel_id,
+        soil_measurement_id,
+        alert_type,
+        severity,
+        message,
+        action,
+        weather_data,
+        soil_data,
+        triggered_at,
+        is_read
+      FROM soil_weather_alerts
+      ORDER BY
+        CASE severity
+          WHEN 'CRITICAL' THEN 4
+          WHEN 'HIGH' THEN 3
+          WHEN 'MEDIUM' THEN 2
+          WHEN 'LOW' THEN 1
+          ELSE 0
+        END DESC,
+        triggered_at DESC
+      LIMIT 100
+    `;
+
+    return alerts.map((alert) => this.mapAlert(alert));
+  }
+
+  /**
+   * Hourly cron: fetch weather for all parcels that have a soil measurement
+   * with coordinates. If rain is forecasted (> 1 mm in 48 h) create a
+   * RAIN_INCOMING alert directly in the DB and notify the parcel owner.
+   */
+  @Cron(CronExpression.EVERY_HOUR)
+  async probeRainAlertsForAllParcels(): Promise<void> {
+    this.logger.log('[RainCron] Starting hourly rain alert probe...');
+
+    if (!this.openWeatherApiKey) {
+      this.logger.warn('[RainCron] OPENWEATHER_API_KEY not set — skipping.');
+      return;
+    }
+
+    type ParcelMeasurementRow = {
+      parcel_id: string;
+      measurement_id: string;
+      latitude: number;
+      longitude: number;
+      ph: number;
+      soil_moisture: number;
+      temperature: number;
+    };
+
+    let rows: ParcelMeasurementRow[];
+    try {
+      rows = await this.prisma.$queryRaw<ParcelMeasurementRow[]>`
+        SELECT DISTINCT ON (sm.parcel_id)
+          sm.parcel_id,
+          sm.id AS measurement_id,
+          sm.latitude,
+          sm.longitude,
+          sm.ph,
+          sm.soil_moisture,
+          sm.temperature
+        FROM soil_measurements sm
+        WHERE sm.parcel_id IS NOT NULL
+          AND sm.latitude IS NOT NULL
+          AND sm.longitude IS NOT NULL
+        ORDER BY sm.parcel_id, sm.created_at DESC
+      `;
+    } catch (err) {
+      this.logger.error(`[RainCron] DB query failed: ${err}`);
+      return;
+    }
+
+    if (rows.length === 0) {
+      this.logger.log('[RainCron] No parcels with soil measurements + coordinates found.');
+      return;
+    }
+
+    this.logger.log(`[RainCron] Checking ${rows.length} parcel(s) for incoming rain...`);
+
+    for (const row of rows) {
+      try {
+        const weather = await this.fetchWeatherSummary(row.latitude, row.longitude);
+
+        if (weather.rain_mm_48h <= 1) {
+          continue; // No meaningful rain forecast — skip
+        }
+
+        // Check if a RAIN_INCOMING alert already exists for this parcel in the last 6 h
+        const existing = await this.prisma.$queryRaw<Array<{ id: string }>>`
+          SELECT id FROM soil_weather_alerts
+          WHERE parcel_id   = ${row.parcel_id}
+            AND alert_type  = 'RAIN_INCOMING'
+            AND is_read     = FALSE
+            AND triggered_at >= NOW() - INTERVAL '6 hours'
+          LIMIT 1
+        `;
+
+        if (existing.length > 0) {
+          continue; // Already alerted recently
+        }
+
+        const severity = weather.rain_mm_48h >= 20 ? 'HIGH' : weather.rain_mm_48h >= 10 ? 'MEDIUM' : 'LOW';
+        const message = `Rain forecast: ${weather.rain_mm_48h} mm expected in the next 48 hours. Check drainage and soil conditions.`;
+        const action = 'Verify field drainage and adjust irrigation schedule.';
+
+        const [inserted] = await this.prisma.$queryRaw<AlertRow[]>`
+          INSERT INTO soil_weather_alerts (
+            parcel_id,
+            soil_measurement_id,
+            alert_type,
+            severity,
+            message,
+            action,
+            weather_data,
+            soil_data
+          )
+          VALUES (
+            ${row.parcel_id},
+            ${row.measurement_id},
+            'RAIN_INCOMING',
+            ${severity},
+            ${message},
+            ${action},
+            ${JSON.stringify(weather)}::jsonb,
+            ${JSON.stringify({ ph: row.ph, moisture: row.soil_moisture, temperature: row.temperature })}::jsonb
+          )
+          RETURNING
+            id, parcel_id, soil_measurement_id, alert_type, severity,
+            message, action, weather_data, soil_data, triggered_at, is_read
+        `;
+
+        if (inserted) {
+          this.logger.log(`[RainCron] Created RAIN_INCOMING alert for parcel ${row.parcel_id} (${weather.rain_mm_48h} mm)`);
+          this.notifyParcelOwnerSoilAlert(row.parcel_id, inserted).catch((err) => {
+            this.logger.warn(`[RainCron] Failed FCM push for parcel ${row.parcel_id}: ${err}`);
+          });
+        }
+      } catch (err) {
+        this.logger.warn(`[RainCron] Failed to process parcel ${row.parcel_id}: ${err}`);
+      }
+    }
+
+    this.logger.log('[RainCron] Done.');
   }
 
   private async fetchWeatherSummary(lat: number, lon: number) {
