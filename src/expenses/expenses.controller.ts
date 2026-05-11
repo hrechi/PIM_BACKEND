@@ -10,7 +10,13 @@ import {
   UseGuards,
   Req,
   ValidationPipe,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { extname, join } from 'path';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ExpensesService } from './expenses.service';
@@ -27,6 +33,33 @@ export class ExpensesController {
   @ApiOperation({ summary: 'Create a new expense' })
   create(@Req() req, @Body(new ValidationPipe()) dto: CreateExpenseDto) {
     return this.expensesService.create(req.user.id, dto);
+  }
+
+  @Post('upload-receipt')
+  @ApiOperation({ summary: 'Upload a receipt image for an expense' })
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: diskStorage({
+        destination: join(process.cwd(), 'uploads', 'receipts'),
+        filename: (_req, file, cb) => {
+          const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+          cb(null, `receipt-${unique}${extname(file.originalname)}`);
+        },
+      }),
+      fileFilter: (_req, file, cb) => {
+        const allowed = /\.(jpg|jpeg|png|webp|pdf)$/i;
+        if (!allowed.test(file.originalname)) {
+          return cb(new BadRequestException('Only images and PDF are allowed'), false);
+        }
+        cb(null, true);
+      },
+      limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
+    }),
+  )
+  uploadReceipt(@Req() req, @UploadedFile() file: Express.Multer.File) {
+    if (!file) throw new BadRequestException('No file uploaded');
+    const url = `/uploads/receipts/${file.filename}`;
+    return { receiptUrl: url };
   }
 
   @Get()
