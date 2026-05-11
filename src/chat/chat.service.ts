@@ -461,11 +461,9 @@ export class ChatService {
     conversationId?: string,
   ): Promise<{ reply: string; conversationId: string }> {
     const apiKey = this.configService.get<string>('GROQ_API_KEY');
-    const apiUrl =
-      this.configService.get<string>('GROQ_URL') ??
-      'https://api.groq.com/openai/v1/chat/completions';
-    const model =
-      this.configService.get<string>('GROQ_MODEL') ?? 'llama-3.1-8b-instant';
+    const configuredModel =
+      this.configService.get<string>('GROQ_MODEL')?.trim() ?? '';
+    const model = configuredModel || 'llama-3.1-8b-instant';
 
     if (!apiKey) {
       return {
@@ -543,32 +541,39 @@ export class ChatService {
 
     try {
       const abortController = new AbortController();
-      const timeout = setTimeout(() => abortController.abort(), 30000); // 30 second timeout
+      const timeout = setTimeout(() => abortController.abort(), 30000);
 
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
+      const response = await fetch(
+        'https://api.groq.com/openai/v1/chat/completions',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model,
+            max_tokens: 500,
+            temperature: 0.2,
+            messages: [
+              {
+                role: 'system',
+                content: `${systemPrompt}\nContext JSON: ${JSON.stringify(context)}`,
+              },
+              { role: 'user', content: message },
+            ],
+          }),
+          signal: abortController.signal,
         },
-        body: JSON.stringify({
-          model,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            {
-              role: 'system',
-              content: `Context JSON: ${JSON.stringify(context)}`,
-            },
-            { role: 'user', content: message },
-          ],
-          temperature: 0.2,
-        }),
-        signal: abortController.signal,
-      });
+      );
 
       clearTimeout(timeout);
 
       if (!response.ok) {
+        const rawError = await response.text();
+        console.error(
+          `[ChatService.chat] GROQ error (${response.status}): ${rawError}`,
+        );
         return {
           reply: 'Chat service error. Please try again.',
           conversationId: conversationId || '',
@@ -576,8 +581,9 @@ export class ChatService {
       }
 
       const data = (await response.json()) as GroqResponse;
-      const content = data.choices?.[0]?.message?.content;
-      const reply = content?.trim() ?? 'No response from assistant.';
+      const reply =
+        data.choices?.[0]?.message?.content?.trim() ??
+        'No response from assistant.';
       return {
         reply,
         conversationId: conversationId || '',
@@ -586,7 +592,6 @@ export class ChatService {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
 
-      // Network timeout or connection error
       if (
         errorMessage.includes('timeout') ||
         errorMessage.includes('ETIMEDOUT') ||
@@ -599,7 +604,6 @@ export class ChatService {
         };
       }
 
-      // API key or authentication error
       if (
         errorMessage.includes('401') ||
         errorMessage.includes('Unauthorized')
@@ -611,7 +615,6 @@ export class ChatService {
         };
       }
 
-      // Generic error
       return {
         reply: `Chat service error: ${errorMessage}. Please try again later.`,
         conversationId: conversationId || '',
@@ -630,22 +633,15 @@ export class ChatService {
       preferredLanguageCode,
     );
 
-    const apiKey = this.configService.get<string>('CLAUDE_API_KEY');
+    const apiKey = this.configService.get<string>('GROQ_API_KEY');
     const configuredModel =
-      this.configService.get<string>('CLAUDE_MODEL')?.trim() ?? '';
-    const primaryModel = configuredModel || 'claude-3-5-haiku-latest';
-    const modelCandidates = Array.from(
-      new Set([
-        primaryModel,
-        'claude-3-5-haiku-latest',
-        'claude-3-haiku-20240307',
-      ]),
-    );
+      this.configService.get<string>('GROQ_MODEL')?.trim() ?? '';
+    const model = configuredModel || 'llama-3.1-8b-instant';
 
     if (!apiKey) {
       return {
         reply:
-          'Voice assistant is not configured. Please set CLAUDE_API_KEY.',
+          'Voice assistant is not configured. Please set GROQ_API_KEY.',
         conversationId: conversationId || '',
         languageCode: resolvedLanguage.code,
       };
@@ -725,123 +721,78 @@ export class ChatService {
       `${resolvedLanguage.instruction} ` +
       'Always reply in the same language as the user request. If the input is mixed-language, prefer the target language above.';
 
-    let hadModelError = false;
     let lastReplyMessage = 'Voice chat service error. Please try again.';
 
     try {
-      for (const model of modelCandidates) {
-        const abortController = new AbortController();
-        const timeout = setTimeout(() => abortController.abort(), 30000);
+      const abortController = new AbortController();
+      const timeout = setTimeout(() => abortController.abort(), 30000);
 
-        let response: Response;
-        try {
-          response = await fetch('https://api.anthropic.com/v1/messages', {
+      let response: Response;
+      try {
+        response = await fetch(
+          'https://api.groq.com/openai/v1/chat/completions',
+          {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'x-api-key': apiKey,
-              'anthropic-version': '2023-06-01',
+              Authorization: `Bearer ${apiKey}`,
             },
             body: JSON.stringify({
               model,
               max_tokens: 400,
               temperature: 0.2,
-              system: `${systemPrompt}\nContext JSON: ${JSON.stringify(context)}`,
               messages: [
                 {
-                  role: 'user',
-                  content: [{ type: 'text', text: message }],
+                  role: 'system',
+                  content: `${systemPrompt}\nContext JSON: ${JSON.stringify(context)}`,
                 },
+                { role: 'user', content: message },
               ],
             }),
             signal: abortController.signal,
-          });
-        } finally {
-          clearTimeout(timeout);
-        }
-
-        if (response.ok) {
-          const data = (await response.json()) as ClaudeResponse;
-          const content = data.content?.find((block) => block.type === 'text')?.text;
-          const reply = content?.trim() ?? 'No response from assistant.';
-
-          return {
-            reply,
-            conversationId: conversationId || '',
-            languageCode: resolvedLanguage.code,
-          };
-        }
-
-        const rawError = await response.text();
-        let parsedMessage = rawError;
-
-        try {
-          const parsed = JSON.parse(rawError) as ClaudeErrorResponse;
-          parsedMessage =
-            parsed.error?.message || parsed.error?.type || rawError;
-        } catch {
-          // Keep raw error body when it's not JSON.
-        }
-
-        const normalizedError = parsedMessage.toLowerCase();
-        const isModelError =
-          response.status === 404 ||
-          ((normalizedError.includes('model') ||
-            normalizedError.includes('claude')) &&
-            (normalizedError.includes('not found') ||
-              normalizedError.includes('does not exist') ||
-              normalizedError.includes('invalid') ||
-              normalizedError.includes('unavailable')));
-
-        if (response.status === 401 || response.status === 403) {
-          console.error(
-            `[ChatService.voiceChat] Claude auth failed (${response.status}) with model ${model}: ${parsedMessage}. ` +
-              `Key prefix=${apiKey.slice(0, 12)}… len=${apiKey.length}. ` +
-              `Likely revoked/expired — rotate at console.anthropic.com and update CLAUDE_API_KEY in .env, then restart the backend.`,
-          );
-          return {
-            reply:
-              'Voice assistant authentication failed. Please verify CLAUDE_API_KEY.',
-            conversationId: conversationId || '',
-            languageCode: resolvedLanguage.code,
-          };
-        }
-
-        if (response.status === 429) {
-          console.warn(
-            `[ChatService.voiceChat] Claude rate-limited (429) with model ${model}: ${parsedMessage}`,
-          );
-          return {
-            reply:
-              'Voice assistant is rate-limited right now. Please try again in a few seconds.',
-            conversationId: conversationId || '',
-            languageCode: resolvedLanguage.code,
-          };
-        }
-
-        if (isModelError) {
-          hadModelError = true;
-          lastReplyMessage =
-            'Voice model unavailable for this key. Retrying with another compatible model...';
-          continue;
-        }
-
-        console.error(
-          `[ChatService.voiceChat] Claude API error (${response.status}) with model ${model}: ${parsedMessage}`,
+          },
         );
-        lastReplyMessage =
-          'Voice assistant is temporarily unavailable. Please try again.';
-        break;
+      } finally {
+        clearTimeout(timeout);
       }
 
-      if (hadModelError) {
+      if (response.ok) {
+        const data = (await response.json()) as GroqResponse;
+        const reply =
+          data.choices?.[0]?.message?.content?.trim() ??
+          'No response from assistant.';
         return {
-          reply:
-            'Claude model is not available for your account. Set CLAUDE_MODEL to claude-3-5-haiku-latest and try again.',
+          reply,
           conversationId: conversationId || '',
           languageCode: resolvedLanguage.code,
         };
       }
+
+      const rawError = await response.text();
+      console.error(
+        `[ChatService.voiceChat] GROQ error (${response.status}): ${rawError}`,
+      );
+
+      if (response.status === 401 || response.status === 403) {
+        return {
+          reply:
+            'Voice assistant authentication failed. Please verify GROQ_API_KEY.',
+          conversationId: conversationId || '',
+          languageCode: resolvedLanguage.code,
+        };
+      }
+
+      if (response.status === 429) {
+        return {
+          reply:
+            'Voice assistant is rate-limited right now. Please try again in a few seconds.',
+          conversationId: conversationId || '',
+          languageCode: resolvedLanguage.code,
+        };
+      }
+
+      lastReplyMessage =
+        'Voice assistant is temporarily unavailable. Please try again.';
 
       return {
         reply: lastReplyMessage,
@@ -849,7 +800,8 @@ export class ChatService {
         languageCode: resolvedLanguage.code,
       };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
 
       if (
         errorMessage.includes('timeout') ||
@@ -864,7 +816,10 @@ export class ChatService {
         };
       }
 
-      if (errorMessage.includes('401') || errorMessage.includes('Unauthorized')) {
+      if (
+        errorMessage.includes('401') ||
+        errorMessage.includes('Unauthorized')
+      ) {
         return {
           reply:
             'Voice assistant authentication failed. Please contact support.',

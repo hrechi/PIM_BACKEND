@@ -14,11 +14,19 @@ export class NewsService {
     private readonly prisma: PrismaService,
   ) {}
 
+  private readonly categoryKeywords: Record<string, string> = {
+    all: 'agriculture OR farming OR "crop disease" OR agronomy',
+    pests: 'pest OR pesticide OR insect OR aphid OR blight OR fungus OR weed OR "crop protection"',
+    market: '"crop price" OR "grain market" OR "farm market" OR "agricultural commodity" OR "food price"',
+    technology: 'agtech OR "precision farming" OR "smart farming" OR "agricultural technology" OR drone OR sensor',
+  };
+
   async getNews(farmerId?: string, category?: string) {
     try {
-      let query = 'agriculture OR farming OR "plant disease"';
+      const cat = category && category !== 'all' ? category : 'all';
+      let baseQuery = this.categoryKeywords[cat] ?? this.categoryKeywords['all'];
 
-      // 1. Smart Crop Filtering
+      // Smart Crop Filtering: append crop names as additional context
       if (farmerId) {
         const parcels = await this.prisma.parcel.findMany({
           where: { farmerId },
@@ -32,21 +40,16 @@ export class NewsService {
 
         if (cropNames.size > 0) {
           const cropsQuery = Array.from(cropNames).join(' OR ');
-          query = `(${cropsQuery}) AND (${query})`;
+          baseQuery = `(${cropsQuery}) OR (${baseQuery})`;
         }
       }
 
-      // 2. Category Filtering
-      if (category && category !== 'all') {
-        query = `(${category}) AND (${query})`;
-      }
-
-      this.logger.log(`Fetching news with query: ${query}`);
+      this.logger.log(`Fetching news [${cat}] with query: ${baseQuery}`);
 
       const response = await firstValueFrom(
         this.httpService.get(this.apiUrl, {
           params: {
-            qInTitle: query,
+            q: baseQuery,
             apiKey: this.apiKey,
             language: 'en',
             sortBy: 'relevancy',
